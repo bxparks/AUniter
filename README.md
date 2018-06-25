@@ -227,8 +227,9 @@ character.
 
 Save the alias list into the `$HOME/.auniter_config` file in your home
 directory. The location of the config file can be changed using the `--config`
-command line flag. This may be useful if the config file is checked into source
-control for the Arduino project.
+command line flag. (Use `/dev/null` to indicate no config file.) This may be
+useful if the config file is checked into source control for the Arduino
+project.
 
 ## Multiple Boards
 
