@@ -264,8 +264,10 @@ function print_summary_file() {
     cat $summary_file
     if ! grep --quiet FAILED $summary_file; then
         echo 'ALL PASSED'
+        return 0
     else
         echo 'FAILURES found'
+        return 1
     fi
 }
 
