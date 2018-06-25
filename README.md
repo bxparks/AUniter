@@ -1,7 +1,9 @@
-# AUniter
+# AUniter - unit testing command line tools for AUnit
 
 Command line tools for uploading and validating Arduino unit tests written in
 AUnit, and integrating with continuous integration platforms.
+
+Version: 1.0.0 (2018-06-20)
 
 ## Summary
 
@@ -16,7 +18,7 @@ across multiple boards.
 4) Monitoring the serial monitor after uploading the sketch to a board.
 5) List the tty ports and the associated Arduino boards (if available).
 
-## Features
+### Features
 
 * Supports 4 modes: verify (`--verify`), upload (`--upload`), test
 (`--test`), and monitor (`--monitor`).
@@ -38,6 +40,12 @@ a summary at the end.
 entire set of `*.ino` files are run through the Arduino command line program for
 each `board:port` pair. This is useful for verifying, uploading or testing
 sketches across multiple board types.
+
+## Installation
+
+The latest development version can be installed by cloning the
+[GitHub repository](https://github.com/bxparks/AUnit), checking out the
+`develop` branch. The `master` branch contains the stable release.
 
 ## Requirements
 
@@ -315,6 +323,11 @@ script wrapper around the Arduino IDE program.
 ## System Requirements
 
 I used Ubuntu 17.10 and Arduino IDE 1.8.5 to develop and test these scripts.
+Some limited testing have been done on:
+* MacOS
+* Ubuntu 18.04
+
+Windows is not supported.
 
 ## Limitations
 
@@ -323,3 +336,11 @@ plugin to support Teensy boards
 causes the Arduino IDE to display
 [a security warning dialog box](https://forum.pjrc.com/threads/27197-OSX-pop-up-when-starting-Arduino).
 This means that the script is no longer able to run without human-intervention.
+
+## License
+
+[MIT License](https://opensource.org/licenses/MIT)
+
+## Authors
+
+* Created by Brian T. Park (brian@xparks.net).
