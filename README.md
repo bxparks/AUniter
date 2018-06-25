@@ -87,20 +87,12 @@ case $(uname -s) in
 esac
 ```
 
-A second environment variable is optional and overrides the location of the
-board alias config file (see **Board Aliases** section below). The default is
-`$HOME/.auniter_config` but can be overriden by the `AUNITER_CONFIG`
-variable:
-
-* `export AUNITER_CONFIG={path}` - location of the `.auniter_config`
-  configuration file
-
 ## Usage
 
 Type `auniter.sh --help` to get the latest usage:
 ```
 $ ./auniter.sh --help
-Usage: auniter.sh [--help] [--verbose]
+Usage: auniter.sh [--help] [--config file] [--verbose]
     [--verify | --upload | --test | --monitor | --list_ports]
     [--board {package}:{arch}:{board}[:parameters]] [--port port] [--baud baud]
     [--boards {alias}[:{port}],...] (file.ino | dir) [...]
@@ -233,9 +225,10 @@ limited to the usual character set for identifiers (`a-z`, `A-Z`, `0-9`,
 underscore `_`). It definitely cannot contain an equal sign `=` or space ` `
 character.
 
-Save the alias list into the `$HOME/.auniter_config` file in your
-home directory. (The location of the config file can be
-changed using the `AUNITER_CONFIG` environment variable.)
+Save the alias list into the `$HOME/.auniter_config` file in your home
+directory. The location of the config file can be changed using the `--config`
+command line flag. This may be useful if the config file is checked into source
+control for the Arduino project.
 
 ## Multiple Boards
 
