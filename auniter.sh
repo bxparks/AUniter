@@ -15,7 +15,8 @@
 #       [--verify | --upload | --test | --monitor | --list_ports]
 #       [--board {package}:{arch}:{board}[:parameters]]
 #       [--port port] [--baud baud]
-#       [--boards {alias}[:{port}],...] (file.ino | dir) [...]
+#       [--boards {alias}[:{port}],...]
+#       [--pref key=value] (file.ino | dir) [...]
 #
 # Flags:
 #
@@ -29,6 +30,8 @@
 #   --board Fully qualified board name (fqbn) of the target board.
 #   --boards {alias}[:{port}],... Comma-separated list of {alias}:{port} pairs.
 #   --verbose Verbose output from the Arduino binary
+#   --pref key-value Set the Arduino command line preferences. Multiple
+#       flags may be given.
 #   --config file Read configs from 'file' instead of $HOME/.auniter_config
 #
 #   If the directory is given, then the script looks for a sketch file under
@@ -45,8 +48,11 @@ function usage() {
     cat <<'END'
 Usage: auniter.sh [--help] [-config file] [--verbose]
     [--verify | --upload | --test | --monitor | --list_ports]
-    [--board {package}:{arch}:{board}[:parameters]] [--port port] [--baud baud]
-    [--boards {alias}[:{port}],...] (file.ino | directory) [...]
+    [--board {package}:{arch}:{board}[:parameters]]
+    [--port port] [--baud baud]
+    [--boards {alias}[:{port}],...]
+    [--pref key=value]
+    (file.ino | directory) [...]
 END
     exit 1
 }
@@ -198,6 +204,7 @@ $verbose \
 $upload_or_verify \
 $port_flag \
 $board_flag \
+$prefs \
 $file"
     echo "\$ $cmd"
     local status=0; $cmd || status=$?
@@ -297,20 +304,22 @@ port=
 baud=115200
 verbose=
 config=
+prefs=
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --help|-h) usage ;;
+        --config) shift; config=$1 ;;
+        --verbose) verbose='--verbose' ;;
         --verify) mode='verify' ;;
         --upload) mode='upload' ;;
         --test) mode='test' ;;
         --monitor) mode='monitor' ;;
         --list_ports) mode='list_ports' ;;
         --board) shift; board=$1 ;;
-        --boards) shift; boards=$1 ;;
         --port) shift; port=$1 ;;
         --baud) shift; baud=$1 ;;
-        --verbose) verbose='--verbose' ;;
-        --config) shift; config=$1 ;;
-        --help|-h) usage ;;
+        --boards) shift; boards=$1 ;;
+        --pref) shift; prefs="$prefs --pref $1" ;;
         -*) echo "Unknown option '$1'"; usage ;;
         *) break ;;
     esac
