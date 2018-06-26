@@ -331,6 +331,53 @@ causes the Arduino IDE to display
 [a security warning dialog box](https://forum.pjrc.com/threads/27197-OSX-pop-up-when-starting-Arduino).
 This means that the script is no longer able to run without human-intervention.
 
+### Failed Integration with Jenkins
+
+I explored integrating `auniter.sh` into a locally hosted
+[Jenkins](https://jenkins.io) Continuous Integration platform. It *almost*
+worked, but I have given up on it for now. There were several problems, some of
+which were solved, but I eventually hit a dead end:
+
+1) The Arduino IDE (1.8.5) installs additional boards and libraries in a
+directory called `$HOME/.arduino15`. However, Jenkins is installed as user
+`jenkins` so would need its own `$HOME/.arduino15` directory. We can solve this
+problem by configuring the Arduino IDE as a
+[Portable IDE](https://arduino.cc/en/Guide/PortableIDE}
+by moving the entire contents of `.arduino15` directory into the
+`arduino-1.8-5/portable/` directory (i.e. `cp -a .arduino15/
+arduino-1.8.5/portable/`). This creates a self-contained Arduino IDE where all
+its files live under a single directory hierarchy.
+2) The Jenkins server is able to use the `arduino-1.8.5/arduino` binary.
+However, whenever a change is made to the preferences, the Arduino IDE
+sets the file permission mode of the `arduino-1.8.5/portable/preferences.txt`
+file to be `rw-------` (in other words pmode 600). Since the file is owned
+by me (not `jenkins`), the Jenkins server is unable to read this preferences.
+3) The next attempt was to copy all of the Arduino IDE binary into
+the jenkins `$HOME` directory using `sudo -i -u jenkins` then `cp -a
+.../arduino-1.8.5 ~`. Suppose the code being tested requires additional
+libraries. If these libraries are published to the Arduino Library Manager, then
+these can be retrieved using a command line flag (`arduino --install-library`
+library_name`). However, if the library has not been published, or if we want to
+test the latest version on the local git repository, then the Library Manager
+does not help us.
+4) The situation is even worse if the code that we want to test is an arduino
+library itself. The latest code will not be available in the Library Manager,
+because it has not been tested and released. Unfortunately, the Arduino IDE does
+not offer a way to add additional locations to search for libraries. It does
+give a way to override the current sketchbook location (`arduino --pref
+sketchbook.path={path}`), but that would break any additional boards that we
+have installed (e.g. ESP8266 and ESP32).
+5) We could try to use symlinks from the `arduino-1.8.5/portable/libraries`
+directory into the `workspace/` directory of the current Jenkins pipeline. But
+since there is only a single instance of Arduino IDE, different Jenkins pipeline
+would interfere with each other, preventing us from getting reproducible builds
+and tests.
+
+I have concluded that it is currently impossible to use the Arduino IDE to test
+a library that has been checked into Git, but has not yet been released to the
+Arduino Library Manager, because the Arduino IDE does not offer the ability to
+specify multiple library directories.
+
 ## License
 
 [MIT License](https://opensource.org/licenses/MIT)
