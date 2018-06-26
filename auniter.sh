@@ -44,6 +44,9 @@ set -eu
 # Can't use $(realpath $(dirname $0)) because realpath doesn't exist on MacOS
 DIRNAME=$(dirname $0)
 
+# Default config file in the absence of --config flag.
+DEFAULT_CONFIG_FILE=$HOME/.auniter.conf
+
 function usage() {
     cat <<'END'
 Usage: auniter.sh [--help] [-config file] [--verbose]
@@ -331,8 +334,7 @@ if [[ "$mode" != 'list_ports' && $# -eq 0 ]]; then
 fi
 
 # Determine the location of the config file.
-# Defaults to $HOME/.auniter_config unless --config is given.
-config_file=${config:-$HOME/.auniter_config}
+config_file=${config:-$DEFAULT_CONFIG_FILE}
 
 # Must install a trap for Control-C because the script ignores almost all
 # interrupts and continues processing.
