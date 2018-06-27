@@ -303,3 +303,9 @@ Jenkins is extremely flexible and configurable. You can figure it to
 send you emails if something goes wrong. (I haven't done this because I don't
 install mailer programs on my Linux machine, so I'll leave this as an exercise
 for the reader.)
+
+## Caveats
+
+Jenkins is a complex and powerful system. I have used it for a total of 4 days
+as of this writing so I am not an expert on this system. I learned enough of it
+to make it work with `auniter.sh`, but my solutions may not be optimal.
