@@ -27,48 +27,42 @@ Jenkins dashboard can display the status of builds and tests.
 
 ### Features
 
-* Supports 4 modes: verify (`--verify`), upload (`--upload`), test
+* Supports 4 major modes: verify (`--verify`), upload (`--upload`), test
 (`--test`), and monitor (`--monitor`).
-* Multiple `*.ino` files can be given, and the Arduino Commandline binary will
-be executed for each sketch in sequence.
-* A directory can be given and the script will infer the corresponding
-`*.ino` file under that directory.
-* User-defined board aliases allow mapping of a short alias (e.g. "nano") to the
+* User-defined board aliases allow mapping of a short alias (e.g. `nano`) to the
 fully qualified board name (`fqbn`) used by the arduino binary (e.g.
-"arduino:avr:nano:cpu=atmega328old").
-* The script can monitor the serial output of the board immediately after
-uploading the sketch.
-* If the sketch is a unit test written in AUnit, the `serial_monitor.py`
-helper script can parse the Serial output to determine if the unit test passed
-or failed. The shell script collects the results of multiple unit tests and
-prints a summary at the end.
-* If multiple `board:port` pairs are given using the `--boards` flag, then the
-entire set of `*.ino` files are run through the Arduino command line program for
-each `board:port` pair. This is useful for verifying, uploading or testing
-sketches across multiple board types.
+`arduino:avr:nano:cpu=atmega328old`).
+* Can monitor the serial output of the board immediately after uploading the
+sketch.
+* Can parse the output of an AUnit unit test to determine if the test passed or
+failed.
+* Can be integrated into the Jenkins continuous integration system.
 
 ## Installation
 
-The latest development version can be installed by cloning the
-[GitHub repository](https://github.com/bxparks/AUnit), checking out the
-`develop` branch. The `master` branch contains the stable release.
-
-## Requirements
+### Requirements
 
 These scripts are meant to be used from a Linux environment.
 
 The `auniter.sh` script depends on the
 [Arduino IDE](https://arduino.cc/en/Main/Software) being installed
-(tested with 1.8.5).
+(tested with 1.8.5). I will assume that you already have this installed.
 
 The `serial_monitor.py` script depends on
 [pyserial](https://pypi.org/project/pyserial/) (tested with 3.4-1).
-
-On Ubuntu 17.10 and 18.04, you can type:
+On Ubuntu (tested on 17.10 and 18.04), you can type:
 ```
 $ sudo apt install python3 python3-pip python3-serial
 ```
 to get the python3 dependencies.
+
+### Obtain the Code
+
+The latest development version can be installed by cloning the
+[GitHub repository](https://github.com/bxparks/AUnit), and checking out the
+`develop` branch. The `master` branch contains the stable release.
+
+### Setup
 
 There is one environment variable that **must** be defined in your `.bashrc`
 file:
@@ -91,6 +85,15 @@ case $(uname -s) in
     ;;
 esac
 ```
+
+I also recommend creating an alias for the `auniter.sh` script in your `.bashrc`
+file if you use it often:
+```
+alias auniter='{Path-to-AUniter-directory}/auniter.sh'
+```
+(Don't add `{Path-to-AUniter-directory}` to your `$PATH`. It won't work
+because `auniter.sh` needs to know its own install directory to find
+helper scripts.)
 
 ## Usage
 
@@ -121,8 +124,8 @@ The following example verifies that the `Blink.ino` sketch compiles. The
 `--port` flag is not necessary in this case:
 
 ```
-$ ./auniter.sh \
-  --board arduino:avr:nano:cpu=atmega328old --verify Blink.ino
+$ ./auniter.sh --verify \
+  --board arduino:avr:nano:cpu=atmega328old Blink.ino
 ```
 
 ### Upload (--upload)
@@ -131,16 +134,16 @@ To upload the sketch to the Arduino board, we need to provide the
 `--port` flag:
 
 ```
-$ ./auniter.sh --port /dev/ttyUSB0 \
-  --board arduino:avr:nano:cpu=atmega328old --upload Blink.ino
+$ ./auniter.sh --upload --port /dev/ttyUSB0 \
+  --board arduino:avr:nano:cpu=atmega328old Blink.ino
 ```
 
 ### Test (--test)
 
 To run the AUnit test and verify pass or fail:
 ```
-$ ./auniter.sh --port /dev/ttyUSB0 \
-  --board arduino:avr:nano:cpu=atmega328old --test tests/*Test
+$ ./auniter.sh --test --port /dev/ttyUSB0 \
+  --board arduino:avr:nano:cpu=atmega328old tests/*Test
 ```
 
 A summary of all the test runs are given at the end, like this:
@@ -163,8 +166,8 @@ The `ALL PASSED` indicates that all unit tests passed.
 The `--monitor` mode uploads the given sketch and calls `serial_monitor.py`
 to listen to the serial monitor and echo the output to the STDOUT:
 ```
-$ ./auniter.sh --port /dev/ttyUSB0 \
-  --board arduino:avr:nano:cpu=atmega328old --monitor BlinkTest.ino
+$ ./auniter.sh --monitor --port /dev/ttyUSB0 \
+  --board arduino:avr:nano:cpu=atmega328old BlinkTest.ino
 ```
 
 The `serial_monitor.py` times out after 10 seconds if the serial monitor is
@@ -179,8 +182,11 @@ ports:
 $ ./auniter.sh --list_ports
 /dev/ttyS4 - n/a
 /dev/ttyS0 - ttyS0
-/dev/ttyUSB0 - EzSBC ESP32
-/dev/ttyUSB1 - USB2.0-Serial
+/dev/ttyUSB2 - CP2102 USB to UART Bridge Controller
+/dev/ttyUSB1 - EzSBC ESP32
+/dev/ttyUSB0 - USB2.0-Serial
+/dev/ttyACM1 - USB Serial
+/dev/ttyACM0 - Arduino Leonardo
 ```
 
 ### Automatic Directory Expansion
@@ -194,7 +200,7 @@ be executed on each of the ino files in sequence.
 
 ### Board Aliases
 
-The Arduino command line binary wants a fully-qualified board name (fqbn)
+The Arduino command line binary wants a fully-qualified board name (`fqbn`)
 specification for the `--board` flag. It can be quite cumbersome to determine
 this value. One way is to set the "Show verbose output during compilation and
 upload" checkboxes in the Arduino IDE, then look for the value of the `-fqbn`
