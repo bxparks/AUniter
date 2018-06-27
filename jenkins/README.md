@@ -244,8 +244,8 @@ named "AceButton" otherwise.)
 ### 3. Configure the Pipeline
 
 In the **General** section at the top, fill in the serial port of the Arudino
-UNO board that you have connected to. (This step is optional if you don't want
-to run the AUnit tests on the Arduino board.)
+UNO board that you want to compile your programs against. For the
+purposes of this tutorial, I will assume that you have an Arduino UNO.
 
 * Check the box next to "This project is parameterized". A dialog box opens up.
 * Click on the "Add Parameter" drop down menu and select "String Parameter".
@@ -309,10 +309,10 @@ this instead:
 ![Stage View failed image](StageViewFailedTest.png)
 
 The `AceButton/tests/Jenkinsfile` file contains 4 stages:
-* 'Setup': checkout source from github
-* 'Verify Examples': verify `AceButton/examples/*` compile
-* 'Verify Tests': verify `AceButton/examples/*` compile
-* 'Test': upload `AceButton/tests/*Test` to an Arduino UNO board connected
+* `Setup`: checkout source from github
+* `Verify Examples`: verify `AceButton/examples/*` compile
+* `Verify Tests`: verify `AceButton/examples/*` compile
+* `Test`: upload `AceButton/tests/*Test` to an Arduino UNO board connected
   to `/dev/ttyACM0`, run the AUnit tests, and verify that they pass or fail
 
 Normally, you would first verify that the `auniter.sh --test` works
@@ -475,6 +475,9 @@ visualizing the pipelines. It can be installed from inside Jenkins by going to
 "Main > Manage Jenkins > Manage Plugins > Available". Then Filter by "blue
 ocean", select the plugin, and click "Install without restart". The download may
 take several minutes.
+
+As far as I can tell, Blue Ocean does not provide all the detailed information
+of the classic user interface but it looks a lot nicer.
 
 ### Email Notifications
 
