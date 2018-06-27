@@ -1,5 +1,8 @@
 # Changelog
 
+* 1.1.1 (2018-06-27)
+    * Add build parameter `$POST` to define the Arduino serial port in the
+      pipeline configuration instead of hardcoding it in the Jenkinsfile.
 * 1.1 (2018-06-26)
     * Add instructions for setting up Jenkins continuous integration platform
       to use auniter.sh script.

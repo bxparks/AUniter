@@ -1,10 +1,11 @@
 # AUniter
 
 A set of command line tools for compiling Arduino sketches, uploading them to
-microcontroller boards, and validating unit tests written in AUnit. The tools
+microcontroller boards, and validating unit tests written in
+[AUnit](https://github.com/bxparks/AUnit). The tools
 also work with the [Jenkins](https://jenkins.io) continuous integration system.
 
-Version: 1.1 (2018-06-26)
+Version: 1.1.1 (2018-06-27)
 
 ## Summary
 
