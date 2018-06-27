@@ -1,9 +1,10 @@
 # AUniter - unit testing command line tools for AUnit
 
 Command line tools for uploading and validating Arduino unit tests written in
-AUnit, and integrating with continuous integration platforms.
+AUnit. The tool has been proven to integrate with the
+[Jenkins](https://jenkins.io) continuous integration system.
 
-Version: 1.0.0 (2018-06-20)
+Version: 1.1 (2018-06-26)
 
 ## Summary
 
@@ -49,21 +50,20 @@ The latest development version can be installed by cloning the
 
 ## Requirements
 
-These scripts are meant to be used from a Linux environment with the
-following core packages installed:
-* bash
-* python3
+These scripts are meant to be used from a Linux environment.
 
 The `auniter.sh` script depends on the
 [Arduino IDE](https://arduino.cc/en/Main/Software) being installed
 (tested with 1.8.5).
 
 The `serial_monitor.py` script depends on
-[pyserial](https://pypi.org/project/pyserial/) (tested with 3.4-1). On
-Ubuntu Linux, you may be able to install this using one of:
+[pyserial](https://pypi.org/project/pyserial/) (tested with 3.4-1).
 
-* `sudo apt install python-serial`, or
-* `sudo -H pip install pyserial`
+On Ubuntu 17.10 and 18.04, you can type:
+```
+$ sudo apt install python3 python3-pip python3-serial
+```
+to get the python3 dependencies.
 
 There is one environment variable that **must** be defined in your `.bashrc`
 file:
@@ -110,7 +110,7 @@ At a minimum, the script needs to be given 3-4 pieces of information:
   optional for the `--verify` mode which does not need to connect to the board.
 * `file.ino` The Arduino sketch file.
 
-### Verify
+### Verify (--verify)
 
 The following example verifies that the `Blink.ino` sketch compiles. The
 `--port` flag is not necessary in this case:
@@ -120,7 +120,7 @@ $ ./auniter.sh \
   --board arduino:avr:nano:cpu=atmega328old --verify Blink.ino
 ```
 
-### Upload
+### Upload (--upload)
 
 To upload the sketch to the Arduino board, we need to provide the
 `--port` flag:
@@ -130,7 +130,7 @@ $ ./auniter.sh --port /dev/ttyUSB0 \
   --board arduino:avr:nano:cpu=atmega328old --upload Blink.ino
 ```
 
-### Test
+### Test (--test)
 
 To run the AUnit test and verify pass or fail:
 ```
@@ -153,7 +153,7 @@ ALL PASSED
 
 The `ALL PASSED` indicates that all unit tests passed.
 
-### Monitor (after Uploading)
+### Monitor (--monitor)
 
 The `--monitor` mode uploads the given sketch and calls `serial_monitor.py`
 to listen to the serial monitor and echo the output to the STDOUT:
@@ -166,7 +166,7 @@ The `serial_monitor.py` times out after 10 seconds if the serial monitor is
 inactive. If the sketch continues to output something to the serial monitor,
 then only one sketch can be monitored.
 
-### List Ports
+### List Ports (--list_ports)
 
 The `--list_ports` flag will ask `serial_monitor.py` to list the available tty
 ports:
@@ -187,7 +187,7 @@ same base name as the parent directory.
 Multiple files and directories can be given. The Arduino Commandline will
 be executed on each of the ino files in sequence.
 
-## Board Aliases
+### Board Aliases
 
 The Arduino command line binary wants a fully-qualified board name (fqbn)
 specification for the `--board` flag. It can be quite cumbersome to determine
@@ -225,13 +225,20 @@ limited to the usual character set for identifiers (`a-z`, `A-Z`, `0-9`,
 underscore `_`). It definitely cannot contain an equal sign `=` or space ` `
 character.
 
-Save the alias list into the `$HOME/.auniter_config` file in your home
-directory. The location of the config file can be changed using the `--config`
-command line flag. (Use `/dev/null` to indicate no config file.) This may be
-useful if the config file is checked into source control for the Arduino
+The board aliases can be saved into the AUniter config file.
+
+### Config File (--config)
+
+By default, the `auniter.sh` script look in the
+```
+$HOME/.auniter.conf
+```
+file in your home directory. The script can be told to look elsewhere using the
+`--config` command line flag. (Use `/dev/null` to indicate no config file.) This
+may be useful if the config file is checked into source control for each Arduino
 project.
 
-## Multiple Boards
+### Multiple Boards (--boards)
 
 The board aliases can be used in the `--boards` flag, which accepts a
 comma-separated list of `{alias}[:{port}]` pairs.
@@ -259,6 +266,12 @@ This runs the 5 unit tests on 4 boards connected to the ports specified by the
 It did not seem worth providing aliases for the ports in the
 `$HOME/.auniter_config` file because the specific serial port is assigned by the
 OS and can vary depending on the presence of other USB or serial devices.
+
+## Integration with Jenkins
+
+I have successfully integrated `auniter.sh` into a locally hosted
+[Jenkins](https://jenkins.io) Continuous Integration platform. The details are
+given in the [Continuous Integration with Jenkins](jenkins) page.
 
 ## Alternatives Considered
 
@@ -316,12 +329,19 @@ script wrapper around the Arduino IDE program.
 
 ## System Requirements
 
-I used Ubuntu 17.10 and Arduino IDE 1.8.5 to develop and test these scripts.
-Some limited testing have been done on:
-* MacOS
-* Ubuntu 18.04
+I used Arduino IDE 1.8.5 for all my testing, and the `AUniter` scripts
+have been verified to work under:
 
-Windows is not supported.
+* Ubuntu 17.10
+* Ubuntu 18.04
+* Xubuntu 18.04
+
+Some limited testing on MacOS has been done, but it is currently not supported.
+
+Windows is definitely not supported because the scripts require the `bash`
+shell. I am not familiar with
+[Linux Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10)
+so I do not know if would work on that.
 
 ## Limitations
 
@@ -330,53 +350,6 @@ plugin to support Teensy boards
 causes the Arduino IDE to display
 [a security warning dialog box](https://forum.pjrc.com/threads/27197-OSX-pop-up-when-starting-Arduino).
 This means that the script is no longer able to run without human-intervention.
-
-### Failed Integration with Jenkins
-
-I explored integrating `auniter.sh` into a locally hosted
-[Jenkins](https://jenkins.io) Continuous Integration platform. It *almost*
-worked, but I have given up on it for now. There were several problems, some of
-which were solved, but I eventually hit a dead end:
-
-1) The Arduino IDE (1.8.5) installs additional boards and libraries in a
-directory called `$HOME/.arduino15`. However, Jenkins is installed as user
-`jenkins` so would need its own `$HOME/.arduino15` directory. We can solve this
-problem by configuring the Arduino IDE as a
-[Portable IDE](https://arduino.cc/en/Guide/PortableIDE}
-by moving the entire contents of `.arduino15` directory into the
-`arduino-1.8-5/portable/` directory (i.e. `cp -a .arduino15/
-arduino-1.8.5/portable/`). This creates a self-contained Arduino IDE where all
-its files live under a single directory hierarchy.
-2) The Jenkins server is able to use the `arduino-1.8.5/arduino` binary.
-However, whenever a change is made to the preferences, the Arduino IDE
-sets the file permission mode of the `arduino-1.8.5/portable/preferences.txt`
-file to be `rw-------` (in other words pmode 600). Since the file is owned
-by me (not `jenkins`), the Jenkins server is unable to read this preferences.
-3) The next attempt was to copy all of the Arduino IDE binary into
-the jenkins `$HOME` directory using `sudo -i -u jenkins` then `cp -a
-.../arduino-1.8.5 ~`. Suppose the code being tested requires additional
-libraries. If these libraries are published to the Arduino Library Manager, then
-these can be retrieved using a command line flag (`arduino --install-library`
-library_name`). However, if the library has not been published, or if we want to
-test the latest version on the local git repository, then the Library Manager
-does not help us.
-4) The situation is even worse if the code that we want to test is an arduino
-library itself. The latest code will not be available in the Library Manager,
-because it has not been tested and released. Unfortunately, the Arduino IDE does
-not offer a way to add additional locations to search for libraries. It does
-give a way to override the current sketchbook location (`arduino --pref
-sketchbook.path={path}`), but that would break any additional boards that we
-have installed (e.g. ESP8266 and ESP32).
-5) We could try to use symlinks from the `arduino-1.8.5/portable/libraries`
-directory into the `workspace/` directory of the current Jenkins pipeline. But
-since there is only a single instance of Arduino IDE, different Jenkins pipeline
-would interfere with each other, preventing us from getting reproducible builds
-and tests.
-
-I have concluded that it is currently impossible to use the Arduino IDE to test
-a library that has been checked into Git, but has not yet been released to the
-Arduino Library Manager, because the Arduino IDE does not offer the ability to
-specify multiple library directories.
 
 ## License
 
