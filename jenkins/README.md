@@ -120,7 +120,7 @@ Jenkins service.)
 jenkins$ ./arduino --install-boards arduino:avr
 ```
 These extra files will be stored under the `arduino-1.8.5/portable/` directory,
-not in the `/var/lib/jenkins/.arduino15/` folder because of the existance
+not in the `/var/lib/jenkins/.arduino15/` folder because of the existence
 of the `portable/` directory.
 
 4. (Optional) Install any other boards that you use. For example, to install the
@@ -146,9 +146,9 @@ jenkins$ cd tools
 jenkins$ python2 get.py
 ```
 
-6. (TODO) Add instructions for installing Teensyduino
+6. (TODO) Add instructions for installing Teensyduino.
 
-You might get some validation of a correct install by dumping the prefs:
+7. You might get some validation of a correct install by dumping the prefs:
 ```
 jenkins$ cd
 jenkins$ arduino-1.8.5/arduino --get-pref
@@ -156,7 +156,7 @@ jenkins$ arduino-1.8.5/arduino --get-pref
 An incorrect install of board files will show up as an error near the top of
 this print out.
 
-7. The set up is finished. Log out of the user `jenkins` from the shell.
+8. The set up is finished. Log out of the user `jenkins` from the shell.
 
 ## Configure Jenkins
 
@@ -219,34 +219,53 @@ named "AceButton" otherwise.)
 
 3. Configure the pipeline
 
-* Scroll down to the bottom of the configuration page, to the "Pipeline"
-  section.
-    * In the "Definition" section, select "Pipeline script from SCM". (This
-      refers to the `Jenkinsfile` that's checked into the `AceButton/tests`
-      directory.)
-        * In the "SCM" section, select "Git".
-            * In the "Repositories" section, fill in the following:
-                * In the "Repository URL", enter the full path of the 
-                  AceButton git repository that you cloned. In other words, it
-                  will be something like `/home/{yourlogin}/AceButton`.
-                * Leave the "Credentials" as "-none-" since Jenkins
-                  does not need any special permission to access your directory.
-            * In the "Branches to build" section, fill in the following:
-                * In the "Branch Specifier", replace "*/master" with "*/develop"
-                  to indicate that you will be compiling the `develop` branch.
-            * In the "Additional Behaviours" section:
-                * Click on the drop down menu labeled "Add", and select
-                  "Check out to a sub-directry".
-                * Then in the "Local subdirectory for repo" box, type in
-                  "libraries/AceButton".
-        * In the "Script Path" box, replace "Jenkinsfile" with
-          "tests/Jenkinsfile".
+In the **General** section at the top, fill in the serial port of the Arudino
+Nano board that you have connected to. (This step is optional if you don't want
+to run the AUnit tests on the Arduino board.)
+
+* Check the box next to "This project is parameterized". A dialog box opens up.
+* Click on the "Add Parameter" drop down menu and select "String Parameter".
+    * In the "Name" parameter, enter "PORT".
+    * In the "Default Value", enter "/dev/ttyUSB0" or which ever serial
+      port that you have your Arduino UNO or Nano connected to.
+      (Use the `auniter.sh --list_ports` if you need to.)
+    * In the "Description", enter "Serial port of the Arduino board."
+
+![Port Parameter](PortParameter.png)
+
+Scroll down to the bottom of the configuration page, to the **Pipeline**
+section:
+
+* In the "Definition" section, select "Pipeline script from SCM". (This
+  refers to the `Jenkinsfile` that's checked into the `AceButton/tests`
+  directory.)
+    * In the "SCM" section, select "Git".
+        * In the "Repositories" section, fill in the following:
+            * In the "Repository URL", enter the full path of the
+              AceButton git repository that you cloned. In other words, it
+              will be something like `/home/{yourlogin}/AceButton`.
+            * Leave the "Credentials" as "-none-" since Jenkins
+              does not need any special permission to access your directory.
+        * In the "Branches to build" section, fill in the following:
+            * In the "Branch Specifier", replace `*/master` with `*/develop`
+              to indicate that you will be compiling the `develop` branch.
+        * In the "Additional Behaviours" section:
+            * Click on the drop down menu labeled "Add", and select
+              "Check out to a sub-directory".
+            * Then in the "Local subdirectory for repo" box, type in
+              "libraries/AceButton".
+    * In the "Script Path" box, replace "Jenkinsfile" with
+      "tests/Jenkinsfile".
 
 ![Pipeline configuration image](PipelineConfiguration.png)
 
 4. Start the Build process
 
-* Click "Build Now" menu on the left nav bar.
+* From the left nav bar, click "Build with Parameters" item. It will
+be filled in with the default value "/dev/ttyUSB0". Change this to
+something else, or leave it as it is. Then click the "Build" button.
+
+![Build with Parameters](BuildWithParameters.png)
 
 If everything works ok, then you should see a table that fills in
 as the build progresses along. If all 5 stages complete (most likely
@@ -254,9 +273,8 @@ the last stage 'Test' will fail for you), you should see this:
 
 ![Stage View image](StageView.png)
 
-Most likely, the last step 'Test' failed because you not have an Arduino
-Nano board attached to your `/dev/ttyUSB0` port. In that case, you probably
-saw this instead:
+If you don't have an Arduino board connected, or the serial port is incorrect,
+the 'Test' stage probably failed. In that case, you probably see this instead:
 
 ![Stage View failed image](StageViewFailedTest.png)
 
@@ -271,9 +289,142 @@ Normally, you would first verify that the `auniter.sh --test` works successfully
 when you run it on the commmand line. If it works on the command line, then
 Jenkins should be able to use the same command in the `Jenkinsfile`.
 
+## Inside the Jenkinsfile
+
+The [Jenkinsfile](https://jenkins.io/doc/book/pipeline/jenkinsfile/) is a
+(mostly) declarative specification of the tasks that the Jenkins service will
+execute for the continuous integration. It is checked into source control
+just like code. The following explains how the `Jenkinsfile` was crafted
+to make it work with AUniter.
+
+Here is the `Jenkinsfile` from the `AceButton` project:
+```
+pipeline {
+    agent { label 'master' }
+    environment {
+        AUNITER_ARDUINO_BINARY = '/var/lib/jenkins/arduino-1.8.5/arduino'
+    }
+    stages {
+        stage('Setup') {
+            steps {
+                dir('AUniter') {
+                    git url: 'https://github.com/bxparks/AUniter',
+                        branch: 'develop'
+                }
+                dir('libraries/AUnit') {
+                    git url: 'https://github.com/bxparks/AUnit',
+                        branch: 'develop'
+                }
+            }
+        }
+        stage('Verify Examples') {
+            steps {
+                sh "AUniter/auniter.sh --verify \
+                    --pref sketchbook.path=$WORKSPACE \
+                    --config libraries/AceButton/tests/auniter.conf \
+                    --boards nano \
+                    libraries/AceButton/examples/*"
+            }
+        }
+        stage('Verify Tests') {
+            steps {
+                sh "AUniter/auniter.sh --verify \
+                    --pref sketchbook.path=$WORKSPACE \
+                    --config libraries/AceButton/tests/auniter.conf \
+                    --boards nano \
+                    libraries/AceButton/tests/AceButtonTest"
+            }
+        }
+        stage('Test') {
+            steps {
+                sh "AUniter/auniter.sh --test \
+                    --pref sketchbook.path=$WORKSPACE \
+                    --config libraries/AceButton/tests/auniter.conf \
+                    --boards nano:$PORT \
+                    libraries/AceButton/tests/AceButtonTest"
+            }
+        }
+    }
+}
+```
+
+### Agent
+
+The Jenkins service is a master/slave architecture. Since we have only a single
+Jenkins instance, we don't need to define any slaves or nodes, so the `agent {
+label 'master' }` statement tells Jenkins to run all tasks on the master.
+
+### Environment
+
+The `auniter.sh` script needs to be told where to find the Arduino IDE command
+line binary. We installed a new copy of Arduino IDE for the `jenkins` user at
+`/var/lib/jenkins/arduino-1.8.5`.
+
+### Stages
+
+I separated out the continuous integration into 4 stages:
+* `Setup` - checking out the libraries from GitHub
+* `Verify Examples` - compile all sketches under `AceButton/examples/`
+* `Verify Tests` - compile all AUnit tests under `AceButton/tests/`
+* `Test` - upload the AUnit test to an Arduino Nano on the local machine
+and validate the test output
+
+### Build with Parameters
+
+The `$PORT` variable was defined in the Pipeline configuration above
+with the "This project is parameterized" checkbox option.
+
+### Folder Layout
+
+The `dir` directive tells Jenkins to perform the tasks inside the indicated
+subdirectory. Combined with the "Check out to a sub-directory" option that was
+selected in the Pipeline configuration to place the `AceButton` repository under
+`libraries/AceButton` directory, the directory layout after the `Setup` stage
+is:
+```
+/var/lib/jenkins/workspace/AceButtonPipeline
+|-- AUniter
+|   `-- .git
+`-- libraries
+    |-- AUnit
+    |   |-- .git
+    |   |-- docs
+    |   |-- examples
+    |   |-- src
+    |   `-- tests
+    `-- AceButton
+        |-- .git
+        |-- docs
+        |-- examples
+        |-- src
+        `-- tests
+```
+
+We then pass along the `--pref sketchbook.path=$WORKSPACE` flag to the Arduino
+command line binary. This tells the Arduino binary that the sketchbook folder is
+`/var/lib/jenkins/workspace/AceButtonPipeline`, which has the exact folder
+layout expected by the Arduino binary. In particular the `libraries/` folder
+contains the libraries needed to compile the various sketches under
+`AceButton/examples/` and `AceButton/tests/`.
+
+If the "Check out to a sub-directory" was not selected, then Jenkins checks out
+the target repository to the toplevel directory
+`/var/lib/jenkins/workspace/AceButtonPipeline`. In other words, the directory
+structure would look like this:
+```
+/var/lib/jenkins/workspace/AceButtonPipeline
+|-- .git
+|-- docs
+|-- examples
+|-- src
+`-- tests
+```
+But this structure does not leave any room to hold the external libraries
+dependencies and it is not the layout expected by the Arduino IDE.
+
 ## Additional Features
 
-### Build When Something Changes
+### Trigger Build When Something Changes
 
 You can configure the Jenkins pipeline to poll the SCM (i.e. the local git
 repository) and automatically fire off a pipeline when it detects a change.
@@ -306,6 +457,6 @@ for the reader.)
 
 ## Caveats
 
-Jenkins is a complex and powerful system. I have used it for a total of 4 days
-as of this writing so I am not an expert on this system. I learned enough of it
-to make it work with `auniter.sh`, but my solutions may not be optimal.
+Jenkins is a complex and powerful system. I have used it for about 4 days as of
+this writing so I am not an expert on this system. I learned enough of it to
+make it work with `auniter.sh`, but my solutions may not be optimal.

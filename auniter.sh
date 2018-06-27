@@ -11,7 +11,7 @@
 #
 # Usage:
 #
-#   $ auniter.sh [--help] [-config file] [--verbose]
+#   $ auniter.sh [--help] [--config file] [--verbose]
 #       [--verify | --upload | --test | --monitor | --list_ports]
 #       [--board {package}:{arch}:{board}[:parameters]]
 #       [--port port] [--baud baud]
@@ -49,7 +49,7 @@ DEFAULT_CONFIG_FILE=$HOME/.auniter.conf
 
 function usage() {
     cat <<'END'
-Usage: auniter.sh [--help] [-config file] [--verbose]
+Usage: auniter.sh [--help] [--config file] [--verbose]
     [--verify | --upload | --test | --monitor | --list_ports]
     [--board {package}:{arch}:{board}[:parameters]]
     [--port port] [--baud baud]
