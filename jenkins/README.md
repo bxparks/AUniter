@@ -232,7 +232,7 @@ named "AceButton" otherwise.)
                 * Leave the "Credentials" as "-none-" since Jenkins
                   does not need any special permission to access your directory.
             * In the "Branches to build" section, fill in the following:
-                * In the "Branch Specifier", replace "*/master" with "*/develop"
+                * In the "Branch Specifier", replace `*/master` with `*/develop`
                   to indicate that you will be compiling the `develop` branch.
             * In the "Additional Behaviours" section:
                 * Click on the drop down menu labeled "Add", and select
