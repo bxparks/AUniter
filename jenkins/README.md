@@ -120,7 +120,7 @@ Jenkins service.)
 jenkins$ ./arduino --install-boards arduino:avr
 ```
 These extra files will be stored under the `arduino-1.8.5/portable/` directory,
-not in the `/var/lib/jenkins/.arduino15/` folder because of the existance
+not in the `/var/lib/jenkins/.arduino15/` folder because of the existence
 of the `portable/` directory.
 
 4. (Optional) Install any other boards that you use. For example, to install the
@@ -146,9 +146,9 @@ jenkins$ cd tools
 jenkins$ python2 get.py
 ```
 
-6. (TODO) Add instructions for installing Teensyduino
+6. (TODO) Add instructions for installing Teensyduino.
 
-You might get some validation of a correct install by dumping the prefs:
+7. You might get some validation of a correct install by dumping the prefs:
 ```
 jenkins$ cd
 jenkins$ arduino-1.8.5/arduino --get-pref
@@ -156,7 +156,7 @@ jenkins$ arduino-1.8.5/arduino --get-pref
 An incorrect install of board files will show up as an error near the top of
 this print out.
 
-7. The set up is finished. Log out of the user `jenkins` from the shell.
+8. The set up is finished. Log out of the user `jenkins` from the shell.
 
 ## Configure Jenkins
 
@@ -226,7 +226,7 @@ named "AceButton" otherwise.)
       directory.)
         * In the "SCM" section, select "Git".
             * In the "Repositories" section, fill in the following:
-                * In the "Repository URL", enter the full path of the 
+                * In the "Repository URL", enter the full path of the
                   AceButton git repository that you cloned. In other words, it
                   will be something like `/home/{yourlogin}/AceButton`.
                 * Leave the "Credentials" as "-none-" since Jenkins
@@ -277,7 +277,7 @@ The [Jenkinsfile](https://jenkins.io/doc/book/pipeline/jenkinsfile/) is a
 (mostly) declarative specification of the tasks that the Jenkins service will
 execute for the continuous integration. It is checked into source control
 just like code. The following explains how the `Jenkinsfile` was crafted
-to make it work with `Auniter`.
+to make it work with AUniter.
 
 Here is the `Jenkinsfile` from the `AceButton` project:
 ```
@@ -345,10 +345,11 @@ line binary. We installed a new copy of Arduino IDE for the `jenkins` user at
 ### Stages
 
 I separated out the continuous integration into 4 stages:
-* `Setup` - checking out the libraries from
+* `Setup` - checking out the libraries from GitHub
 * `Verify Examples` - compile all sketches under `AceButton/examples/`
 * `Verify Tests` - compile all AUnit tests under `AceButton/tests/`
-* `Test` - upload the AUnit test and validate the test output
+* `Test` - upload the AUnit test to an Arduino Nano on the local machine
+and validate the test output
 
 ### Folder Layout
 
