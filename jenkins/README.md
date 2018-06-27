@@ -184,6 +184,20 @@ server, and you can access your machine using a DNS name, then you can set the
 Jenkins URL (Manage Jenkins > Configure System > Jenkins Location > Jenkins URL)
 to be `http://{yourmachine}:8080`.
 
+### Set the Environment Variables
+
+* From the main dashboard page, click on the "Manage Jenkins" link on the left
+nav bar.
+* Click on "Configure System".
+* Under the "Global properties" section about a page down from the top,
+click on the "Environment variables" checkbox.
+    * Click on the "Add" button, and add the following variable:
+        * Name: "AUNITER_ARDUINO_BINARY"
+        * Value: "/var/lib/jenkins/arduino-1.8.5/arduino"
+* Click the "Save" button at the bottom of the page.
+
+![EnvironmentVariables](EnvironmentVars.png)
+
 ## Tutorial: Creating a Jenkins Pipeline
 
 This section is a tutorial on how to create a new Jenkins pipeline. A "pipeline"
@@ -192,6 +206,12 @@ testing one or more Arduino sketches. I have created a Jenkins pipeline for the
 [AceButton](https://github.com/bxparks/AceButton) library, the first Arduino
 library that I ever wrote, which provides button debouncing and event
 dispatching.
+
+I have also assumed that you have an Arduino UNO (or an equivalent clone)
+attached to the serial port, and that the OS has assigned it to the serial port
+`/dev/ttyACM0`. The argument to the `--boards` flag will be set to
+`uno:/dev/ttyACM0`. If you are using another Arduino board, for example an old
+Nano, then the `--board` flag could be something like `nano:/dev/ttyUSB0`.
 
 1. Clone the `AceButton` git repository. Here, I will assume that your
 git repository is located in the `$HOME` directory. If you generally keep
@@ -220,18 +240,18 @@ named "AceButton" otherwise.)
 3. Configure the pipeline
 
 In the **General** section at the top, fill in the serial port of the Arudino
-Nano board that you have connected to. (This step is optional if you don't want
+UNO board that you have connected to. (This step is optional if you don't want
 to run the AUnit tests on the Arduino board.)
 
 * Check the box next to "This project is parameterized". A dialog box opens up.
 * Click on the "Add Parameter" drop down menu and select "String Parameter".
-    * In the "Name" parameter, enter "PORT".
-    * In the "Default Value", enter "/dev/ttyUSB0" or which ever serial
+    * In the "Name" parameter, enter "BOARDS".
+    * In the "Default Value", enter "uno:/dev/ttyACM0" or which ever serial
       port that you have your Arduino UNO or Nano connected to.
       (Use the `auniter.sh --list_ports` if you need to.)
     * In the "Description", enter "Serial port of the Arduino board."
 
-![Port Parameter](PortParameter.png)
+![Boards Parameter](BoardsParameter.png)
 
 Scroll down to the bottom of the configuration page, to the **Pipeline**
 section:
@@ -262,7 +282,7 @@ section:
 4. Start the Build process
 
 * From the left nav bar, click "Build with Parameters" item. It will
-be filled in with the default value "/dev/ttyUSB0". Change this to
+be filled in with the default value "uno:/dev/ttyACM0". Change this to
 something else, or leave it as it is. Then click the "Build" button.
 
 ![Build with Parameters](BuildWithParameters.png)
@@ -283,7 +303,7 @@ The `AceButton/tests/Jenkinsfile` file contains 4 stages:
 * 'Verify Examples': verify `AceButton/examples/*` compile
 * 'Verify Tests': verify `AceButton/examples/*` compile
 * 'Test': upload `AceButton/tests/*Test` to an Arduino Nano board connected to
-`/dev/ttyUSB0`, run the AUnit tests, and verify that they pass or fail
+`/dev/ttyACM0`, run the AUnit tests, and verify that they pass or fail
 
 Normally, you would first verify that the `auniter.sh --test` works successfully
 when you run it on the commmand line. If it works on the command line, then
@@ -301,9 +321,6 @@ Here is the `Jenkinsfile` from the `AceButton` project:
 ```
 pipeline {
     agent { label 'master' }
-    environment {
-        AUNITER_ARDUINO_BINARY = '/var/lib/jenkins/arduino-1.8.5/arduino'
-    }
     stages {
         stage('Setup') {
             steps {
@@ -322,7 +339,7 @@ pipeline {
                 sh "AUniter/auniter.sh --verify \
                     --pref sketchbook.path=$WORKSPACE \
                     --config libraries/AceButton/tests/auniter.conf \
-                    --boards nano \
+                    --boards $BOARDS \
                     libraries/AceButton/examples/*"
             }
         }
@@ -331,7 +348,7 @@ pipeline {
                 sh "AUniter/auniter.sh --verify \
                     --pref sketchbook.path=$WORKSPACE \
                     --config libraries/AceButton/tests/auniter.conf \
-                    --boards nano \
+                    --boards $BOARDS \
                     libraries/AceButton/tests/AceButtonTest"
             }
         }
@@ -340,7 +357,7 @@ pipeline {
                 sh "AUniter/auniter.sh --test \
                     --pref sketchbook.path=$WORKSPACE \
                     --config libraries/AceButton/tests/auniter.conf \
-                    --boards nano:$PORT \
+                    --boards $BOARDS \
                     libraries/AceButton/tests/AceButtonTest"
             }
         }
@@ -354,11 +371,16 @@ The Jenkins service is a master/slave architecture. Since we have only a single
 Jenkins instance, we don't need to define any slaves or nodes, so the `agent {
 label 'master' }` statement tells Jenkins to run all tasks on the master.
 
-### Environment
+### Environment Variables
 
-The `auniter.sh` script needs to be told where to find the Arduino IDE command
-line binary. We installed a new copy of Arduino IDE for the `jenkins` user at
-`/var/lib/jenkins/arduino-1.8.5`.
+The `AUNITER_ARDUINO_BINARY` environment variable required by
+`auniter.sh` is defined using the Jenkins system configuration
+through the web tool.
+
+### Build with Parameters
+
+The `$BOARDS` variable was defined in the Pipeline configuration above
+with the "This project is parameterized" checkbox option.
 
 ### Stages
 
@@ -368,11 +390,6 @@ I separated out the continuous integration into 4 stages:
 * `Verify Tests` - compile all AUnit tests under `AceButton/tests/`
 * `Test` - upload the AUnit test to an Arduino Nano on the local machine
 and validate the test output
-
-### Build with Parameters
-
-The `$PORT` variable was defined in the Pipeline configuration above
-with the "This project is parameterized" checkbox option.
 
 ### Folder Layout
 
