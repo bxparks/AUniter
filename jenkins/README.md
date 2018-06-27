@@ -215,7 +215,7 @@ named "AceButton" otherwise.)
 * Click "Pipeline" option
 * Click "OK".
 
-[Insert Image]
+![New Pipeline](NewItem-AceButtonPipeline.png)
 
 3. Configure the pipeline
 
@@ -242,6 +242,8 @@ named "AceButton" otherwise.)
         * In the "Script Path" box, replace "Jenkinsfile" with
           "tests/Jenkinsfile".
 
+![Pipeline configuration image](PipelineConfiguration.png)
+
 4. Start the Build process
 
 * Click "Build Now" menu on the left nav bar.
@@ -250,13 +252,13 @@ If everything works ok, then you should see a table that fills in
 as the build progresses along. If all 5 stages complete (most likely
 the last stage 'Test' will fail for you), you should see this:
 
-[Insert Image]
+![Stage View image](StageView.png)
 
 Most likely, the last step 'Test' failed because you not have an Arduino
 Nano board attached to your `/dev/ttyUSB0` port. In that case, you probably
 saw this instead:
 
-[Insert Image]
+![Stage View failed image](StageViewFailedTest.png)
 
 The `AceButton/tests/Jenkinsfile` file contains 4 stages:
 * Setup - checkout source from github
@@ -264,6 +266,10 @@ The `AceButton/tests/Jenkinsfile` file contains 4 stages:
 * Verify Tests - verify `AceButton/examples/*` compile
 * Test - upload `AceButton/tests/*Test` to an Arduino Nano board connected
 to `/dev/ttyUSB0`, run the AUnit tests, and verify that they pass or fail
+
+Normally, you would first verify that the `auniter.sh --test` works successfully
+when you run it on the commmand line. If it works on the command line, then
+Jenkins should be able to use the same command in the `Jenkinsfile`.
 
 ## Additional Features
 
@@ -280,7 +286,7 @@ nav bar.
       kick off a pipeline if something changed. It does nothing if nothing
       changed.
 
-[Insert Image]
+![Build Trigger Poll SCM](BuildTrigger-PollSCM.png)
 
 ### Install Blue Ocean Plugin
 
