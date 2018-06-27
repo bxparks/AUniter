@@ -1,8 +1,9 @@
 # AUniter - unit testing command line tools for AUnit
 
-Command line tools for uploading and validating Arduino unit tests written in
-AUnit. The tool has been proven to integrate with the
-[Jenkins](https://jenkins.io) continuous integration system.
+Command line tools for uploading Arduino sketches to the microcontroller board,
+and validating Arduino unit tests written in AUnit. The tool has also been
+shown to work with the [Jenkins](https://jenkins.io) continuous integration
+system.
 
 Version: 1.1 (2018-06-26)
 
@@ -18,6 +19,12 @@ that allows programmatic (unattended) workflows:
 across multiple boards.
 4) Monitoring the serial monitor after uploading the sketch to a board.
 5) List the tty ports and the associated Arduino boards (if available).
+
+The script can be used with a [Jenkins](https://jenkins.io) continuous
+integration system running on the local machine. Builds can be automatically
+started upon changes to the git repository, and unit tests can be executed on
+Arduino boards attached to the serial port of the local machine. The Jenkins
+dashboard can keep track of build and test failures.
 
 ### Features
 
@@ -135,7 +142,7 @@ $ ./auniter.sh --port /dev/ttyUSB0 \
 To run the AUnit test and verify pass or fail:
 ```
 $ ./auniter.sh --port /dev/ttyUSB0 \
-  --board arduino:avr:nano:cpu=atmega328old --test BlinkTest.ino
+  --board arduino:avr:nano:cpu=atmega328old --test tests/*Test
 ```
 
 A summary of all the test runs are given at the end, like this:
@@ -229,14 +236,14 @@ The board aliases can be saved into the AUniter config file.
 
 ### Config File (--config)
 
-By default, the `auniter.sh` script look in the
+By default, the `auniter.sh` script looks in the
 ```
 $HOME/.auniter.conf
 ```
 file in your home directory. The script can be told to look elsewhere using the
-`--config` command line flag. (Use `/dev/null` to indicate no config file.) This
-may be useful if the config file is checked into source control for each Arduino
-project.
+`--config` command line flag. (Use `--config /dev/null` to indicate no config
+file.) This may be useful if the config file is checked into source control for
+each Arduino project.
 
 ### Multiple Boards (--boards)
 
