@@ -219,34 +219,53 @@ named "AceButton" otherwise.)
 
 3. Configure the pipeline
 
-* Scroll down to the bottom of the configuration page, to the "Pipeline"
-  section.
-    * In the "Definition" section, select "Pipeline script from SCM". (This
-      refers to the `Jenkinsfile` that's checked into the `AceButton/tests`
-      directory.)
-        * In the "SCM" section, select "Git".
-            * In the "Repositories" section, fill in the following:
-                * In the "Repository URL", enter the full path of the
-                  AceButton git repository that you cloned. In other words, it
-                  will be something like `/home/{yourlogin}/AceButton`.
-                * Leave the "Credentials" as "-none-" since Jenkins
-                  does not need any special permission to access your directory.
-            * In the "Branches to build" section, fill in the following:
-                * In the "Branch Specifier", replace `*/master` with `*/develop`
-                  to indicate that you will be compiling the `develop` branch.
-            * In the "Additional Behaviours" section:
-                * Click on the drop down menu labeled "Add", and select
-                  "Check out to a sub-directory".
-                * Then in the "Local subdirectory for repo" box, type in
-                  "libraries/AceButton".
-        * In the "Script Path" box, replace "Jenkinsfile" with
-          "tests/Jenkinsfile".
+In the **General** section at the top, fill in the serial port of the Arudino
+Nano board that you have connected to. (This step is optional if you don't want
+to run the AUnit tests on the Arduino board.)
+
+* Check the box next to "This project is parameterized". A dialog box opens up.
+* Click on the "Add Parameter" drop down menu and select "String Parameter".
+    * In the "Name" parameter, enter "PORT".
+    * In the "Default Value", enter "/dev/ttyUSB0" or which ever serial
+      port that you have your Arduino UNO or Nano connected to.
+      (Use the `auniter.sh --list_ports` if you need to.)
+    * In the "Description", enter "Serial port of the Arduino board."
+
+![Port Parameter](PortParameter.png)
+
+Scroll down to the bottom of the configuration page, to the **Pipeline**
+section:
+
+* In the "Definition" section, select "Pipeline script from SCM". (This
+  refers to the `Jenkinsfile` that's checked into the `AceButton/tests`
+  directory.)
+    * In the "SCM" section, select "Git".
+        * In the "Repositories" section, fill in the following:
+            * In the "Repository URL", enter the full path of the
+              AceButton git repository that you cloned. In other words, it
+              will be something like `/home/{yourlogin}/AceButton`.
+            * Leave the "Credentials" as "-none-" since Jenkins
+              does not need any special permission to access your directory.
+        * In the "Branches to build" section, fill in the following:
+            * In the "Branch Specifier", replace `*/master` with `*/develop`
+              to indicate that you will be compiling the `develop` branch.
+        * In the "Additional Behaviours" section:
+            * Click on the drop down menu labeled "Add", and select
+              "Check out to a sub-directory".
+            * Then in the "Local subdirectory for repo" box, type in
+              "libraries/AceButton".
+    * In the "Script Path" box, replace "Jenkinsfile" with
+      "tests/Jenkinsfile".
 
 ![Pipeline configuration image](PipelineConfiguration.png)
 
 4. Start the Build process
 
-* Click "Build Now" menu on the left nav bar.
+* From the left nav bar, click "Build with Parameters" item. It will
+be filled in with the default value "/dev/ttyUSB0". Change this to
+something else, or leave it as it is. Then click the "Build" button.
+
+![Build with Parameters](BuildWithParameters.png)
 
 If everything works ok, then you should see a table that fills in
 as the build progresses along. If all 5 stages complete (most likely
@@ -254,9 +273,8 @@ the last stage 'Test' will fail for you), you should see this:
 
 ![Stage View image](StageView.png)
 
-Most likely, the last step 'Test' failed because you not have an Arduino
-Nano board attached to your `/dev/ttyUSB0` port. In that case, you probably
-saw this instead:
+If you don't have an Arduino board connected, or the serial port is incorrect,
+the 'Test' stage probably failed. In that case, you probably see this instead:
 
 ![Stage View failed image](StageViewFailedTest.png)
 
@@ -322,7 +340,7 @@ pipeline {
                 sh "AUniter/auniter.sh --test \
                     --pref sketchbook.path=$WORKSPACE \
                     --config libraries/AceButton/tests/auniter.conf \
-                    --boards nano:/dev/ttyUSB0 \
+                    --boards nano:$PORT \
                     libraries/AceButton/tests/AceButtonTest"
             }
         }
@@ -350,6 +368,11 @@ I separated out the continuous integration into 4 stages:
 * `Verify Tests` - compile all AUnit tests under `AceButton/tests/`
 * `Test` - upload the AUnit test to an Arduino Nano on the local machine
 and validate the test output
+
+### Build with Parameters
+
+The `$PORT` variable was defined in the Pipeline configuration above
+with the "This project is parameterized" checkbox option.
 
 ### Folder Layout
 
