@@ -269,7 +269,7 @@ This runs the 5 unit tests on 4 boards connected to the ports specified by the
 `--boards` flag.
 
 It did not seem worth providing aliases for the ports in the
-`$HOME/.auniter_config` file because the specific serial port is assigned by the
+`$HOME/.auniter.conf` file because the specific serial port is assigned by the
 OS and can vary depending on the presence of other USB or serial devices.
 
 ## Integration with Jenkins
@@ -291,7 +291,7 @@ Python script, `amake` could be extended to support it.
 There are a few features of `amake` that I found problemmatic for my purposes.
 * Although `amake` supports the concept of board aliases, the aliases are
 hardwared into the `amake` script itself. I felt that it was important to allow
-users to define their own board aliases (through the `.auniter_config` dotfile).
+users to define their own board aliases (through the `.auniter.conf` dotfile).
 * `amake` saves the information about the most recent `*.ino` file and
 board type in a cache file named `.amake` in the current directory. This was
 designed to make it easy to compile and verify a single INO file repeatedly.

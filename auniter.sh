@@ -32,7 +32,7 @@
 #   --verbose Verbose output from the Arduino binary
 #   --pref key-value Set the Arduino command line preferences. Multiple
 #       flags may be given.
-#   --config file Read configs from 'file' instead of $HOME/.auniter_config
+#   --config file Read configs from 'file' instead of $HOME/.auniter.conf
 #
 #   If the directory is given, then the script looks for a sketch file under
 #   the directory with the same name but ending with '.ino'. For example,
