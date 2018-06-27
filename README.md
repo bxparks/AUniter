@@ -1,9 +1,8 @@
-# AUniter - unit testing command line tools for AUnit
+# AUniter - command line tools for running Arduino on AUnit unit tests
 
-Command line tools for uploading Arduino sketches to the microcontroller board,
-and validating Arduino unit tests written in AUnit. The tool has also been
-shown to work with the [Jenkins](https://jenkins.io) continuous integration
-system.
+A set of command line tools for compiling Arduino sketches, uploading them to
+microcontroller boards, and validating unit tests written in AUnit. The tools
+also work with the [Jenkins](https://jenkins.io) continuous integration system.
 
 Version: 1.1 (2018-06-26)
 
@@ -22,9 +21,9 @@ across multiple boards.
 
 The script can be used with a [Jenkins](https://jenkins.io) continuous
 integration system running on the local machine. Builds can be automatically
-started upon changes to the git repository, and unit tests can be executed on
-Arduino boards attached to the serial port of the local machine. The Jenkins
-dashboard can keep track of build and test failures.
+started when changes to the git repository are detected, and unit tests can be
+executed on Arduino boards attached to the serial port of the local machine. The
+Jenkins dashboard can display the status of builds and tests.
 
 ### Features
 
@@ -42,8 +41,7 @@ uploading the sketch.
 * If the sketch is a unit test written in AUnit, the `serial_monitor.py`
 helper script can parse the Serial output to determine if the unit test passed
 or failed. The shell script collects the results of multiple unit tests and
-prints
-a summary at the end.
+prints a summary at the end.
 * If multiple `board:port` pairs are given using the `--boards` flag, then the
 entire set of `*.ino` files are run through the Arduino command line program for
 each `board:port` pair. This is useful for verifying, uploading or testing
@@ -229,7 +227,7 @@ in the `[boards]` section:
 
 The format of the alias name is not precisely defined, but it should probably be
 limited to the usual character set for identifiers (`a-z`, `A-Z`, `0-9`,
-underscore `_`). It definitely cannot contain an equal sign `=` or space ` `
+underscore `_`). It definitely cannot contain an equal sign `=` or space
 character.
 
 The board aliases can be saved into the AUniter config file.

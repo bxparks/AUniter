@@ -98,7 +98,7 @@ function get_config() {
     local key=$3
 
     # If config_file does not exist then no aliases are defined.
-    if [[ ! -f $config_file ]]; then
+    if [[ ! -f "$config_file" ]]; then
         return
     fi
 
@@ -121,7 +121,7 @@ function get_config() {
             n;
             b label_k;
         }" \
-        $config_file
+        "$config_file"
 }
 
 function process_sketches() {

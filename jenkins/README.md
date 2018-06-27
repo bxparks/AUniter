@@ -261,11 +261,11 @@ saw this instead:
 ![Stage View failed image](StageViewFailedTest.png)
 
 The `AceButton/tests/Jenkinsfile` file contains 4 stages:
-* Setup - checkout source from github
-* Verify Examples - verify `AceButton/examples/*` compile
-* Verify Tests - verify `AceButton/examples/*` compile
-* Test - upload `AceButton/tests/*Test` to an Arduino Nano board connected
-to `/dev/ttyUSB0`, run the AUnit tests, and verify that they pass or fail
+* 'Setup': checkout source from github
+* 'Verify Examples': verify `AceButton/examples/*` compile
+* 'Verify Tests': verify `AceButton/examples/*` compile
+* 'Test': upload `AceButton/tests/*Test` to an Arduino Nano board connected to
+`/dev/ttyUSB0`, run the AUnit tests, and verify that they pass or fail
 
 Normally, you would first verify that the `auniter.sh --test` works successfully
 when you run it on the commmand line. If it works on the command line, then
