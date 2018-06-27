@@ -11,23 +11,28 @@
 #
 # Usage:
 #
-#   $ auniter.sh [--help] [--verbose]
+#   $ auniter.sh [--help] [-config file] [--verbose]
 #       [--verify | --upload | --test | --monitor | --list_ports]
 #       [--board {package}:{arch}:{board}[:parameters]]
 #       [--port port] [--baud baud]
-#       [--boards {alias}[:{port}],...] (file.ino | dir) [...]
+#       [--boards {alias}[:{port}],...]
+#       [--pref key=value] (file.ino | dir) [...]
 #
 # Flags:
 #
-#   --verify Verify the compile of the given sketch files.
+#   --verify Verify the compile of the given sketch files. (Default)
 #   --upload Upload the sketch to the given board at port.
 #   --test Upload an AUnit unit test, and verify pass or fail. Automatically
 #       invokes the --upload flag.
 #   --monitor Use serial_monitor.py to read and echo the serial output.
-#   --port /dev/ttyXxx location of the board. Default is /dev/ttyUSB0.
-#   --baud baud Speed of the port for serial_montor.py. Default is 115200.
+#   --port /dev/ttyXxx Location of the board.
+#   --baud baud Speed of the port for serial_montor.py. (Default: 115200)
 #   --board Fully qualified board name (fqbn) of the target board.
-#   --boards {alias[:port}],... Comma-separated list of {alias:port} pairs.
+#   --boards {alias}[:{port}],... Comma-separated list of {alias}:{port} pairs.
+#   --verbose Verbose output from the Arduino binary
+#   --pref key-value Set the Arduino command line preferences. Multiple
+#       flags may be given.
+#   --config file Read configs from 'file' instead of $HOME/.auniter.conf
 #
 #   If the directory is given, then the script looks for a sketch file under
 #   the directory with the same name but ending with '.ino'. For example,
@@ -39,16 +44,18 @@ set -eu
 # Can't use $(realpath $(dirname $0)) because realpath doesn't exist on MacOS
 DIRNAME=$(dirname $0)
 
-# Determine the location of the config file. Defaults to
-# $HOME/.auniter_config unless AUNITER_CONFIG is set.
-CONFIG_FILE=${AUNITER_CONFIG:-$HOME/.auniter_config}
+# Default config file in the absence of --config flag.
+DEFAULT_CONFIG_FILE=$HOME/.auniter.conf
 
 function usage() {
     cat <<'END'
-Usage: auniter.sh [--help] [--verbose]
+Usage: auniter.sh [--help] [-config file] [--verbose]
     [--verify | --upload | --test | --monitor | --list_ports]
-    [--board {package}:{arch}:{board}[:parameters]] [--port port] [--baud baud]
-    [--boards {alias}[:{port}],...] (file.ino | directory) [...]
+    [--board {package}:{arch}:{board}[:parameters]]
+    [--port port] [--baud baud]
+    [--boards {alias}[:{port}],...]
+    [--pref key=value]
+    (file.ino | directory) [...]
 END
     exit 1
 }
@@ -91,13 +98,13 @@ function get_config() {
     local key=$3
 
     # If config_file does not exist then no aliases are defined.
-    if [[ ! -f $config_file ]]; then
+    if [[ ! -f "$config_file" ]]; then
         return
     fi
 
     # Use "one-liner" sed script given in
     # https://stackoverflow.com/questions/6318809, with several changes:
-    # 1) Fix bug for when the key does not exist in the matching [$section] but
+    # 1) Fix bug if the key does not exist in the matching [$section] but
     # exists in a subsequent section.
     # 2) Support multiple sections of the same name. Entries of duplicate
     # sections are merged together.
@@ -114,7 +121,7 @@ function get_config() {
             n;
             b label_k;
         }" \
-        $config_file
+        "$config_file"
 }
 
 function process_sketches() {
@@ -135,7 +142,7 @@ function process_boards() {
                 | sed -E -e 's/([^:]*):?([^:]*)/\2/')
 
         echo "======== Processing board=$board_alias, port=$board_port"
-        local board_value=$(get_config "$CONFIG_FILE" 'boards' "$board_alias")
+        local board_value=$(get_config "$config_file" 'boards' "$board_alias")
         if [[ "$board_value" == '' ]]; then
             echo "FAILED: Unknown board alias '$board_alias'" \
                 | tee -a $summary_file
@@ -200,6 +207,7 @@ $verbose \
 $upload_or_verify \
 $port_flag \
 $board_flag \
+$prefs \
 $file"
     echo "\$ $cmd"
     local status=0; $cmd || status=$?
@@ -266,8 +274,10 @@ function print_summary_file() {
     cat $summary_file
     if ! grep --quiet FAILED $summary_file; then
         echo 'ALL PASSED'
+        return 0
     else
         echo 'FAILURES found'
+        return 1
     fi
 }
 
@@ -293,35 +303,38 @@ function interrupted() {
 mode='verify'
 board=
 boards=
-port=/dev/ttyUSB0
+port=
 baud=115200
 verbose=
+config=
+prefs=
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --help|-h) usage ;;
+        --config) shift; config=$1 ;;
+        --verbose) verbose='--verbose' ;;
         --verify) mode='verify' ;;
         --upload) mode='upload' ;;
         --test) mode='test' ;;
         --monitor) mode='monitor' ;;
         --list_ports) mode='list_ports' ;;
         --board) shift; board=$1 ;;
-        --boards) shift; boards=$1 ;;
         --port) shift; port=$1 ;;
         --baud) shift; baud=$1 ;;
-        --verbose) verbose='--verbose' ;;
-        --help|-h) usage ;;
+        --boards) shift; boards=$1 ;;
+        --pref) shift; prefs="$prefs --pref $1" ;;
         -*) echo "Unknown option '$1'"; usage ;;
         *) break ;;
     esac
     shift
 done
-if [[ "$port" == '' ]]; then
-    echo '--port flag must be given'
-    usage
-fi
 if [[ "$mode" != 'list_ports' && $# -eq 0 ]]; then
     echo 'Must provide file or directory'
     usage
 fi
+
+# Determine the location of the config file.
+config_file=${config:-$DEFAULT_CONFIG_FILE}
 
 # Must install a trap for Control-C because the script ignores almost all
 # interrupts and continues processing.

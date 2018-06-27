@@ -1,9 +1,10 @@
-# AUniter - unit testing command line tools for AUnit
+# AUniter
 
-Command line tools for uploading and validating Arduino unit tests written in
-AUnit, and integrating with continuous integration platforms.
+A set of command line tools for compiling Arduino sketches, uploading them to
+microcontroller boards, and validating unit tests written in AUnit. The tools
+also work with the [Jenkins](https://jenkins.io) continuous integration system.
 
-Version: 1.0.0 (2018-06-20)
+Version: 1.1 (2018-06-26)
 
 ## Summary
 
@@ -17,6 +18,12 @@ that allows programmatic (unattended) workflows:
 across multiple boards.
 4) Monitoring the serial monitor after uploading the sketch to a board.
 5) List the tty ports and the associated Arduino boards (if available).
+
+The script can be used with a [Jenkins](https://jenkins.io) continuous
+integration system running on the local machine. Builds can be automatically
+started when changes to the git repository are detected, and unit tests can be
+executed on Arduino boards attached to the serial port of the local machine. The
+Jenkins dashboard can display the status of builds and tests.
 
 ### Features
 
@@ -34,8 +41,7 @@ uploading the sketch.
 * If the sketch is a unit test written in AUnit, the `serial_monitor.py`
 helper script can parse the Serial output to determine if the unit test passed
 or failed. The shell script collects the results of multiple unit tests and
-prints
-a summary at the end.
+prints a summary at the end.
 * If multiple `board:port` pairs are given using the `--boards` flag, then the
 entire set of `*.ino` files are run through the Arduino command line program for
 each `board:port` pair. This is useful for verifying, uploading or testing
@@ -49,21 +55,20 @@ The latest development version can be installed by cloning the
 
 ## Requirements
 
-These scripts are meant to be used from a Linux environment with the
-following core packages installed:
-* bash
-* python3
+These scripts are meant to be used from a Linux environment.
 
 The `auniter.sh` script depends on the
 [Arduino IDE](https://arduino.cc/en/Main/Software) being installed
 (tested with 1.8.5).
 
 The `serial_monitor.py` script depends on
-[pyserial](https://pypi.org/project/pyserial/) (tested with 3.4-1). On
-Ubuntu Linux, you may be able to install this using one of:
+[pyserial](https://pypi.org/project/pyserial/) (tested with 3.4-1).
 
-* `sudo apt install python-serial`, or
-* `sudo -H pip install pyserial`
+On Ubuntu 17.10 and 18.04, you can type:
+```
+$ sudo apt install python3 python3-pip python3-serial
+```
+to get the python3 dependencies.
 
 There is one environment variable that **must** be defined in your `.bashrc`
 file:
@@ -87,20 +92,12 @@ case $(uname -s) in
 esac
 ```
 
-A second environment variable is optional and overrides the location of the
-board alias config file (see **Board Aliases** section below). The default is
-`$HOME/.auniter_config` but can be overriden by the `AUNITER_CONFIG`
-variable:
-
-* `export AUNITER_CONFIG={path}` - location of the `.auniter_config`
-  configuration file
-
 ## Usage
 
 Type `auniter.sh --help` to get the latest usage:
 ```
 $ ./auniter.sh --help
-Usage: auniter.sh [--help] [--verbose]
+Usage: auniter.sh [--help] [--config file] [--verbose]
     [--verify | --upload | --test | --monitor | --list_ports]
     [--board {package}:{arch}:{board}[:parameters]] [--port port] [--baud baud]
     [--boards {alias}[:{port}],...] (file.ino | dir) [...]
@@ -118,7 +115,7 @@ At a minimum, the script needs to be given 3-4 pieces of information:
   optional for the `--verify` mode which does not need to connect to the board.
 * `file.ino` The Arduino sketch file.
 
-### Verify
+### Verify (--verify)
 
 The following example verifies that the `Blink.ino` sketch compiles. The
 `--port` flag is not necessary in this case:
@@ -128,7 +125,7 @@ $ ./auniter.sh \
   --board arduino:avr:nano:cpu=atmega328old --verify Blink.ino
 ```
 
-### Upload
+### Upload (--upload)
 
 To upload the sketch to the Arduino board, we need to provide the
 `--port` flag:
@@ -138,12 +135,12 @@ $ ./auniter.sh --port /dev/ttyUSB0 \
   --board arduino:avr:nano:cpu=atmega328old --upload Blink.ino
 ```
 
-### Test
+### Test (--test)
 
 To run the AUnit test and verify pass or fail:
 ```
 $ ./auniter.sh --port /dev/ttyUSB0 \
-  --board arduino:avr:nano:cpu=atmega328old --test BlinkTest.ino
+  --board arduino:avr:nano:cpu=atmega328old --test tests/*Test
 ```
 
 A summary of all the test runs are given at the end, like this:
@@ -161,7 +158,7 @@ ALL PASSED
 
 The `ALL PASSED` indicates that all unit tests passed.
 
-### Monitor (after Uploading)
+### Monitor (--monitor)
 
 The `--monitor` mode uploads the given sketch and calls `serial_monitor.py`
 to listen to the serial monitor and echo the output to the STDOUT:
@@ -174,7 +171,7 @@ The `serial_monitor.py` times out after 10 seconds if the serial monitor is
 inactive. If the sketch continues to output something to the serial monitor,
 then only one sketch can be monitored.
 
-### List Ports
+### List Ports (--list_ports)
 
 The `--list_ports` flag will ask `serial_monitor.py` to list the available tty
 ports:
@@ -195,7 +192,7 @@ same base name as the parent directory.
 Multiple files and directories can be given. The Arduino Commandline will
 be executed on each of the ino files in sequence.
 
-## Board Aliases
+### Board Aliases
 
 The Arduino command line binary wants a fully-qualified board name (fqbn)
 specification for the `--board` flag. It can be quite cumbersome to determine
@@ -230,14 +227,23 @@ in the `[boards]` section:
 
 The format of the alias name is not precisely defined, but it should probably be
 limited to the usual character set for identifiers (`a-z`, `A-Z`, `0-9`,
-underscore `_`). It definitely cannot contain an equal sign `=` or space ` `
+underscore `_`). It definitely cannot contain an equal sign `=` or space
 character.
 
-Save the alias list into the `$HOME/.auniter_config` file in your
-home directory. (The location of the config file can be
-changed using the `AUNITER_CONFIG` environment variable.)
+The board aliases can be saved into the AUniter config file.
 
-## Multiple Boards
+### Config File (--config)
+
+By default, the `auniter.sh` script looks in the
+```
+$HOME/.auniter.conf
+```
+file in your home directory. The script can be told to look elsewhere using the
+`--config` command line flag. (Use `--config /dev/null` to indicate no config
+file.) This may be useful if the config file is checked into source control for
+each Arduino project.
+
+### Multiple Boards (--boards)
 
 The board aliases can be used in the `--boards` flag, which accepts a
 comma-separated list of `{alias}[:{port}]` pairs.
@@ -263,8 +269,14 @@ This runs the 5 unit tests on 4 boards connected to the ports specified by the
 `--boards` flag.
 
 It did not seem worth providing aliases for the ports in the
-`$HOME/.auniter_config` file because the specific serial port is assigned by the
+`$HOME/.auniter.conf` file because the specific serial port is assigned by the
 OS and can vary depending on the presence of other USB or serial devices.
+
+## Integration with Jenkins
+
+I have successfully integrated `auniter.sh` into a locally hosted
+[Jenkins](https://jenkins.io) Continuous Integration platform. The details are
+given in the [Continuous Integration with Jenkins](jenkins) page.
 
 ## Alternatives Considered
 
@@ -279,7 +291,7 @@ Python script, `amake` could be extended to support it.
 There are a few features of `amake` that I found problemmatic for my purposes.
 * Although `amake` supports the concept of board aliases, the aliases are
 hardwared into the `amake` script itself. I felt that it was important to allow
-users to define their own board aliases (through the `.auniter_config` dotfile).
+users to define their own board aliases (through the `.auniter.conf` dotfile).
 * `amake` saves the information about the most recent `*.ino` file and
 board type in a cache file named `.amake` in the current directory. This was
 designed to make it easy to compile and verify a single INO file repeatedly.
@@ -322,12 +334,19 @@ script wrapper around the Arduino IDE program.
 
 ## System Requirements
 
-I used Ubuntu 17.10 and Arduino IDE 1.8.5 to develop and test these scripts.
-Some limited testing have been done on:
-* MacOS
-* Ubuntu 18.04
+I used Arduino IDE 1.8.5 for all my testing, and the `AUniter` scripts
+have been verified to work under:
 
-Windows is not supported.
+* Ubuntu 17.10
+* Ubuntu 18.04
+* Xubuntu 18.04
+
+Some limited testing on MacOS has been done, but it is currently not supported.
+
+Windows is definitely not supported because the scripts require the `bash`
+shell. I am not familiar with
+[Linux Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10)
+so I do not know if would work on that.
 
 ## Limitations
 
