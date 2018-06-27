@@ -1,4 +1,4 @@
-# AUniter - command line tools for running Arduino on AUnit unit tests
+# AUniter
 
 A set of command line tools for compiling Arduino sketches, uploading them to
 microcontroller boards, and validating unit tests written in AUnit. The tools
