@@ -115,7 +115,7 @@ def validate_test(port, baud):
         ser.close()
 
     if test_mode != TEST_MODE_END_SUMMARY_FOUND:
-        raise Excpeption('No output detected after 10 seconds... exiting.')
+        raise Exception('No output detected after 10 seconds... exiting.')
 
     if summary_line:
         match = TEST_END_RE.match(line)
