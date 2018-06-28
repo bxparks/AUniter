@@ -209,7 +209,9 @@ function process_file() {
     else
         # Use flock(1) to prevent multiple uploads to the same board at the same
         # time.
-        if flock --timeout $PORT_TIMEOUT $port \
+        local status=0; flock --timeout $PORT_TIMEOUT \
+                --conflict-exit-code 10 \
+                $port \
                 $DIRNAME/run_arduino.sh \
                 --$mode \
                 --board $board \
@@ -217,8 +219,13 @@ function process_file() {
                 $prefs \
                 $verbose \
                 --summary_file $summary_file \
-                $file; then
+                $file || status=$?
+
+        if [[ "$status" == 10 ]]; then
             echo "FAILED $mode: could not obtain lock on $port for $file" \
+                | tee -a $summary_file
+        elif [[ "$status" != 0 ]]; then
+            echo "FAILED $mode: run_arduino.sh failed on $file" \
                 | tee -a $summary_file
         fi
     fi
