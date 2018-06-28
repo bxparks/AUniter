@@ -30,7 +30,7 @@
 #   --board Fully qualified board name (fqbn) of the target board.
 #   --boards {alias}[:{port}],... Comma-separated list of {alias}:{port} pairs.
 #   --verbose Verbose output from the Arduino binary
-#   --pref key-value Set the Arduino command line preferences. Multiple
+#   --pref key=value Set the Arduino command line preferences. Multiple
 #       flags may be given.
 #   --config file Read configs from 'file' instead of $HOME/.auniter.conf
 #
@@ -38,6 +38,11 @@
 #   the directory with the same name but ending with '.ino'. For example,
 #   './auniter.sh CommonTest' is equivalent to './auniter.sh
 #   CommonTest/CommonTest.ino' if CommonTest is a directory.
+#
+# Dependencies:
+#
+#   * run_arduino.sh
+#   * serial_monitor.py
 
 set -eu
 
@@ -46,6 +51,9 @@ DIRNAME=$(dirname $0)
 
 # Default config file in the absence of --config flag.
 DEFAULT_CONFIG_FILE=$HOME/.auniter.conf
+
+# Number of seconds that flock(1) should wait on a serial port.
+PORT_TIMEOUT=120
 
 function usage() {
     cat <<'END'
@@ -189,72 +197,31 @@ function process_file() {
         return
     fi
 
-    # Determine flags for the arduino(1) commandline
-    local board_flag="--board $board"
-    local upload_or_verify='--verify'
-    if [[ "$mode" == 'upload' || "$mode" == 'monitor' \
-            || "$mode" == 'test' ]]; then
-        upload_or_verify='--upload'
-    fi
-    local port_flag=''
-    if [[ "$port" != '' ]]; then
-        port_flag="--port $port"
-    fi
-
-    # Execute the arduino(1) command line.
-    local cmd="$AUNITER_ARDUINO_BINARY \
-$verbose \
-$upload_or_verify \
-$port_flag \
-$board_flag \
-$prefs \
-$file"
-    echo "\$ $cmd"
-    local status=0; $cmd || status=$?
-    if [[ "$status" != 0 ]]; then
-        local effective_mode=$mode
-        if [[ "$mode" == 'monitor' || "$mode" == 'test' ]]; then
-            effective_mode='upload'
-        fi
-        echo "FAILED $effective_mode: $board $port $file" \
-            | tee -a $summary_file
-        return
-    fi
-
-    # The verbose mode leaves a dangling line w/o a newline
-    if [[ "$verbose" != '' ]]; then
-        echo # blank line
-    fi
-
-    # Validate the unit test
-    if [[ "$mode" == 'test' ]]; then
-        validate_test $file
-    # Just monitor the serial port
-    elif [[ "$mode" == 'monitor' ]]; then
-        monitor_serial
-    fi
-}
-
-# Run the serial monitor in AUnit test validation mode.
-function validate_test() {
-    local file=$1
-
-    echo # blank line
-    local cmd="$DIRNAME/serial_monitor.py --test --port $port --baud $baud"
-    echo "\$ $cmd"
-    if $cmd; then
-        echo "PASSED $mode: $board $port $file" | tee -a $summary_file
+    if [[ "$mode" == 'verify' ]]; then
+        # Allow multiple --verify commands to run at the same time.
+        $DIRNAME/run_arduino.sh \
+            --$mode \
+            --board $board \
+            $prefs \
+            $verbose \
+            --summary_file $summary_file \
+            $file
     else
-        echo "FAILED $mode: $board $port $file" | tee -a $summary_file
+        # Use flock(1) to prevent multiple uploads to the same board at the same
+        # time.
+        if flock --timeout $PORT_TIMEOUT $port \
+                $DIRNAME/run_arduino.sh \
+                --$mode \
+                --board $board \
+                --port $port \
+                $prefs \
+                $verbose \
+                --summary_file $summary_file \
+                $file; then
+            echo "FAILED $mode: could not obtain lock on $port for $file" \
+                | tee -a $summary_file
+        fi
     fi
-}
-
-# Run the serial monitor in echo mode.
-function monitor_serial() {
-    echo # blank line
-    local cmd="$DIRNAME/serial_monitor.py --monitor --port $port --baud $baud"
-    echo "\$ $cmd"
-    $cmd || true # prevent failure from exiting the entire script
 }
 
 function clean_temp_files() {
