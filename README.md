@@ -38,6 +38,8 @@ sketch.
 * Can parse the output of an AUnit unit test to determine if the test passed or
 failed.
 * Can be integrated into the Jenkins continuous integration system.
+* Uses a locking mechanism to prevent multiple uploads to the same Arduino
+  board at the same time.
 
 ## Installation
 

@@ -452,6 +452,28 @@ dependencies and it is not the layout expected by the Arduino IDE.
 
 ## Additional Features
 
+### Adjust Number of Executors
+
+If you create multiple Pipelines to build multiple Arduino projects at the
+same time, you will probably want to increase the number of Executors (i.e.
+threads) that Jenkins uses to run the pipeline. The default is 2, but can be
+increased nusing the "Manage Jenkins > Configure System > # of executors"
+configuration parameter.
+
+If 2 executors were to able to run the `auniter.sh` script and upload 2 sketches
+to the same Arduino board at the same time, it could cause errors. Either one of
+the uploads would fail, or slightly worse, one upload would succeed but the
+AUnit sketch would be replaced by another AUnit sketch just before the
+`serial_monitor.py` validates the unit test output of the first AUnit sketch.
+
+Fortunately, the `auniter.sh` script uses the `flock(1)` mechanism to allow only
+a single Arduino binary to upload to a given Arduino board at the same time. The
+second executor that tries to upload a sketch will wait up to 2 minutes for the
+Arduino board to finish its "upload/test" cycle. The locking happens only for
+the `--upload` mode. There is no locking for the `--verify` mode which allows
+multiple pipelines to verify multiple sketches at the same time, limited only by
+CPU and memory.
+
 ### Trigger Build When Something Changes
 
 You can configure the Jenkins pipeline to poll the SCM (i.e. the local git
