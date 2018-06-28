@@ -19,13 +19,14 @@ and the results can be tracked on the Jenkins dashboard.
 
 The following installation instructions are known to work on:
 
+* Ubuntu 16.04
 * Ubuntu 17.10
 * Ubuntu 18.04 (minimal desktop install)
 * Xubuntu 18.04 (minimal desktop install)
 
 Other Linux installations may also work but I have not verified them.
 
-### Pre-requisite
+### Prerequisite
 
 Jenkins is Java app that requires the Java runtime to be installed. Only
 Java 8 is supported. (The Arduino IDE is also a Java app, but it seems to be
@@ -43,14 +44,7 @@ Jenkins can be run as a Docker service, or as a normal Linux service.
 For the integration with `AUniter` and the Arduino IDE, we will run
 it as a normal Linux service.
 
-The normal Ubuntu 18.04 `apt` repository has Jenkins version 2.121.1, so you
-can just type:
-```
-$ sudo apt install jenkins
-```
-
-If you are on an older Ubuntu, or want to use the latest Jenkins version
-(2.129 as if this writing), then you can following the
+Follow the
 [Jenkins install instructions](https://jenkins.io/doc/book/installing/#debian-ubuntu):
 ```
 $ wget -q -O - https://pkg.jenkins.io/debian/jenkins.io.key | sudo apt-key add -
@@ -211,7 +205,7 @@ I have also assumed that you have an Arduino UNO (or an equivalent clone)
 attached to the serial port, and that the OS has assigned it to the serial port
 `/dev/ttyACM0`. The argument to the `--boards` flag will be set to
 `uno:/dev/ttyACM0`. If you are using another Arduino board, for example an old
-Nano, then the `--board` flag could be something like `nano:/dev/ttyUSB0`.
+Nano, then the `--boards` flag could be something like `nano:/dev/ttyUSB0`.
 
 ### 1. Clone the AceButton Project
 
@@ -283,6 +277,8 @@ section:
       "tests/Jenkinsfile".
 
 ![Pipeline configuration image](PipelineConfiguration.png)
+
+* Don't forget to the click the **Save** button.
 
 ### 4. Start the Build process
 
