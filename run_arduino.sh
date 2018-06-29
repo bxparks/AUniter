@@ -1,15 +1,7 @@
 #!/usr/bin/env bash
 #
-# run_arduino.sh
-#
-#   Shell wrapper around the Arduino command line binary. This allows the
-#   calling script (auniter.sh) to wrap a flock(1) around the serial port of a
-#   given arduino board to prevent concurrent access to the arduino board.
-#
-# Usage:
-#   run_arduino.sh [--help] [--verbose] [--upload] [--test] [--monitor]
-#       [--board board] [--port port] [--baud baud[ [--pref key=value]
-#       [--summary_file file] file.ino
+# Copyright 2018 (c) Brian T. Park <brian@xparks.net>
+# MIT License
 
 set -eu
 
@@ -19,8 +11,19 @@ DIRNAME=$(dirname $0)
 function usage() {
     cat <<'END'
 Usage: run_arduino.sh [--help] [--verbose] [--upload | --test | --monitor]
-    [--board board] [--port port] [--baud baud[ [--pref key=value]
-    [--summary_file file] file.ino
+                      [--board board] [--port port] [--baud baud[
+                      [--pref key=value]
+                      [--summary_file file]
+                      file.ino
+
+Helper shell wrapper around the 'arduino' commandline binary and the
+'serial_monitor.py' script. This allows the 'auniter.sh' to wrap a flock(1)
+command around the serial port to prevent concurrent access to the arduino
+board. This script is not meant to be used by the end-user.
+
+Flags:
+    --summary_file file     Send error logs to 'file'
+    {all other flags are identical to 'auniter.sh'}
 END
     exit 1
 }

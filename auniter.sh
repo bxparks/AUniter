@@ -1,50 +1,9 @@
 #!/usr/bin/env bash
 #
-# auniter.sh
-#
-#   A shell wrapper around the arduino(1) commandline program which can verify
-#   and upload an Arduino sketch, and validate an AUnit unit test.
-#
-#   Copyright 2018 (c) Brian T. Park <brian@xparks.net>
-#
-#   MIT License
-#
-# Usage:
-#
-#   $ auniter.sh [--help] [--config file] [--verbose]
-#       [--verify | --upload | --test | --monitor | --list_ports]
-#       [--board {package}:{arch}:{board}[:parameters]]
-#       [--port port] [--baud baud]
-#       [--boards {alias}[:{port}],...]
-#       [--pref key=value]
-#       [--port_timeout seconds]
-#       (file.ino | dir) [...]
-#
-# Flags:
-#
-#   --config file Read configs from 'file' instead of $HOME/.auniter.conf
-#   --verbose Verbose output from the Arduino binary
-#   --verify Verify the compile of the given sketch files. (Default)
-#   --upload Upload the sketch to the given board at port.
-#   --test Upload an AUnit unit test, and verify pass or fail. Automatically
-#       invokes the --upload flag.
-#   --monitor Use serial_monitor.py to read and echo the serial output.
-#   --port /dev/ttyXxx Location of the board.
-#   --baud baud Speed of the port for serial_montor.py. (Default: 115200)
-#   --board Fully qualified board name (fqbn) of the target board.
-#   --boards {alias}[:{port}],... Comma-separated list of {alias}:{port} pairs.
-#   --pref key=value Set the Arduino command line preferences. Multiple
-#       flags may be given.
-#   --port_timeout seconds Number of seconds to wait for a serial port
-#       to become available before uploading to an Arduino board
-#
-#   If the directory is given, then the script looks for a sketch file under
-#   the directory with the same name but ending with '.ino'. For example,
-#   './auniter.sh CommonTest' is equivalent to './auniter.sh
-#   CommonTest/CommonTest.ino' if CommonTest is a directory.
+# Copyright 2018 (c) Brian T. Park <brian@xparks.net>
+# MIT License
 #
 # Dependencies:
-#
 #   * run_arduino.sh
 #   * serial_monitor.py
 
@@ -66,13 +25,52 @@ FLOCK_TIMEOUT_CODE=10
 function usage() {
     cat <<'END'
 Usage: auniter.sh [--help] [--config file] [--verbose]
-    [--verify | --upload | --test | --monitor | --list_ports]
-    [--board {package}:{arch}:{board}[:parameters]]
-    [--port port] [--baud baud]
-    [--boards {alias}[:{port}],...]
-    [--pref key=value]
-    [--port_timeout seconds]
-    (file.ino | directory) [...]
+                  [--verify | --upload | --test | --monitor | --list_ports]
+                  [--board {package}:{arch}:{board}[:parameters]]
+                  [--port port] [--baud baud]
+                  [--boards {alias}[:{port}],...]
+                  [--pref key=value]
+                  [--port_timeout seconds]
+                  (file.ino | directory) [...]
+
+The script that uses the 'arduino' commandline binary to allow compiling,
+uploading, and validating Arduino sketches and AUnit unit tests against Arduino
+boards connected to the serial port. It has 5 major modes:
+
+1) Verify (compile) the `*.ino` files. (--verify)
+2) Upload the `*.ino` files to the boards. (--upload)
+3) Upload and validate AUnit unit tests. (--test)
+4) Upload a sketch and monitor the serial port. (--monitor)
+5) List the tty ports and the associated Arduino boards. (--list_ports)
+
+Flags:
+   --config file        Read configs from 'file' instead of
+                        '$HOME/.auniter.conf'.
+   --verbose            Verbose output from the Arduino binary.
+   --verify             Verify the compile of the sketch file(s). (Default)
+   --upload             Upload the sketch(es) to the given board at port.
+   --test               Upload the AUnit unit test(s), and verify pass or fail.
+   --list_ports         List the tty ports and the associated Arduino boards.
+   --monitor            Upload, the monitor the serial port using
+                        serial_monitor.py, echoing the serial port to the
+                        STDOUT.
+   --port /dev/ttyXxx   Serial port of the board.
+   --baud baud          Speed of the serial port for serial_montor.py.
+                        (Default: 115200)
+   --board {package}:{arch}:{board}[:parameters]]
+                        Fully qualified board name (fqbn) of the target board.
+   --boards {alias}[:{port}],...
+                        Comma-separated list of {alias}:{port} pairs.
+   --pref key=value     Set the Arduino commandline preferences. Multiple flags
+                        may be given.
+   --port_timeout n     Set the timeout for waiting for a serial port to become
+                        available to 'n' seconds. (Default: 120)
+
+Multiple *.ino files and directories may be given. If a directory is given, then
+the script looks for an Arduino sketch file under the directory with the same
+name but ending with '.ino'. For example, './auniter.sh CommonTest' is
+equivalent to './auniter.sh CommonTest/CommonTest.ino' if CommonTest is a
+directory.
 END
     exit 1
 }
