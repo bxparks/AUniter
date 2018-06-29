@@ -19,13 +19,14 @@ and the results can be tracked on the Jenkins dashboard.
 
 The following installation instructions are known to work on:
 
+* Ubuntu 16.04
 * Ubuntu 17.10
 * Ubuntu 18.04 (minimal desktop install)
 * Xubuntu 18.04 (minimal desktop install)
 
 Other Linux installations may also work but I have not verified them.
 
-### Pre-requisite
+### Prerequisite
 
 Jenkins is Java app that requires the Java runtime to be installed. Only
 Java 8 is supported. (The Arduino IDE is also a Java app, but it seems to be
@@ -36,6 +37,8 @@ Install the Open JDK 8 runtime:
 ```
 $ sudo apt install openjdk-8-jdk
 ```
+(It might be possible to just install `openjdk-8-jre` but I have not verified
+this.)
 
 ### Install Jenkins
 
@@ -43,20 +46,13 @@ Jenkins can be run as a Docker service, or as a normal Linux service.
 For the integration with `AUniter` and the Arduino IDE, we will run
 it as a normal Linux service.
 
-The normal Ubuntu 18.04 `apt` repository has Jenkins version 2.121.1, so you
-can just type:
-```
-$ sudo apt install jenkins
-```
-
-If you are on an older Ubuntu, or want to use the latest Jenkins version
-(2.129 as if this writing), then you can following the
+Follow the
 [Jenkins install instructions](https://jenkins.io/doc/book/installing/#debian-ubuntu):
 ```
 $ wget -q -O - https://pkg.jenkins.io/debian/jenkins.io.key | sudo apt-key add -
 $ sudo sh -c 'echo deb http://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
-$ sudo apt-get update
-$ sudo apt-get install jenkins
+$ sudo apt update
+$ sudo apt install jenkins
 ```
 
 ### Allow Jenkins to Access the Serial Ports
@@ -106,7 +102,7 @@ like `/home/{yourusername}/Downloads/arduino-1.8.5-linux64.tar.xz`.
 2. Become user `jenkins` and install (i.e. un-tar) the IDE in its home directory
 (`/var/lib/jenkins`):
 ```
-$ sudo -i -u jenkins`
+$ sudo -i -u jenkins
 jenkins$ tar -xf * /home/{yourusername}/Downloads/arduino-1.8.5-linux64.tar.xz
 jenkins$ cd arduino-1.8.5
 jenkins$ mkdir portable
@@ -148,7 +144,7 @@ jenkins$ python2 get.py
 
 6. (TODO) Add instructions for installing Teensyduino.
 
-7. You might get some validation of a correct install by dumping the prefs:
+7. You might be able to verify a correct install by dumping the prefs:
 ```
 jenkins$ cd
 jenkins$ arduino-1.8.5/arduino --get-pref
@@ -184,6 +180,20 @@ server, and you can access your machine using a DNS name, then you can set the
 Jenkins URL (Manage Jenkins > Configure System > Jenkins Location > Jenkins URL)
 to be `http://{yourmachine}:8080`.
 
+### Set the Environment Variables
+
+* From the main dashboard page, click on the "Manage Jenkins" link on the left
+nav bar.
+* Click on "Configure System".
+* Under the "Global properties" section about a page down from the top,
+click on the "Environment variables" checkbox.
+    * Click on the "Add" button, and add the following variable:
+        * Name: "AUNITER_ARDUINO_BINARY"
+        * Value: "/var/lib/jenkins/arduino-1.8.5/arduino"
+* Click the "Save" button at the bottom of the page.
+
+![EnvironmentVariables](EnvironmentVars.png)
+
 ## Tutorial: Creating a Jenkins Pipeline
 
 This section is a tutorial on how to create a new Jenkins pipeline. A "pipeline"
@@ -193,19 +203,29 @@ testing one or more Arduino sketches. I have created a Jenkins pipeline for the
 library that I ever wrote, which provides button debouncing and event
 dispatching.
 
-1. Clone the `AceButton` git repository. Here, I will assume that your
-git repository is located in the `$HOME` directory. If you generally keep
-your git repos somewhere else, just `cd` to that directory before running
-the following commands, and everything should be just fine, as long as you
-remember to use the correct paths.
+I have also assumed that you have an Arduino UNO (or an equivalent clone)
+attached to the serial port, and that the OS has assigned it to the serial port
+`/dev/ttyACM0`. The argument to the `--boards` flag will be set to
+`uno:/dev/ttyACM0`. If you are using another Arduino board, for example an old
+Nano, then the `--boards` flag could be something like `nano:/dev/ttyUSB0`.
+
+### 1. Clone the AceButton Project
+
+Clone the [AceButton](https://github.com/bxparks/AceButton) repository. Here, I
+will assume that your git repository is located in the `$HOME` directory.
 
 ```
 $ cd
 $ git clone https://github.com/bxparks/AceButton.git
 ```
+
+If you generally keep your git repos somewhere else, just `cd` to that directory
+before running the following commands, and everything should be just fine, as
+long as you remember to use the correct paths.
+
 By default, you will be in the 'develop` branch of this project.
 
-2. Create a new Pipeline using the Jenkins web tool:
+### 2. Create a New Pipeline
 
 * Goto http://localhost:8080, and log in using your user account.
 * Click "New Item" on the left side.
@@ -217,21 +237,22 @@ named "AceButton" otherwise.)
 
 ![New Pipeline](NewItem-AceButtonPipeline.png)
 
-3. Configure the pipeline
+### 3. Configure the Pipeline
 
 In the **General** section at the top, fill in the serial port of the Arudino
-Nano board that you have connected to. (This step is optional if you don't want
-to run the AUnit tests on the Arduino board.)
+UNO board that you want to compile your programs against. For the
+purposes of this tutorial, I will assume that you have an Arduino UNO.
 
 * Check the box next to "This project is parameterized". A dialog box opens up.
 * Click on the "Add Parameter" drop down menu and select "String Parameter".
-    * In the "Name" parameter, enter "PORT".
-    * In the "Default Value", enter "/dev/ttyUSB0" or which ever serial
-      port that you have your Arduino UNO or Nano connected to.
-      (Use the `auniter.sh --list_ports` if you need to.)
-    * In the "Description", enter "Serial port of the Arduino board."
+    * In the "Name" parameter, enter "BOARDS".
+    * In the "Default Value", enter "uno:/dev/ttyACM0".
 
-![Port Parameter](PortParameter.png)
+This is the value that is passed into the `--boards {alias}[:{port}],...` flag
+of the `auniter.sh` script. Use the `auniter.sh --list_ports` command if you
+need to.
+
+![Boards Parameter](BoardsParameter.png)
 
 Scroll down to the bottom of the configuration page, to the **Pipeline**
 section:
@@ -259,13 +280,19 @@ section:
 
 ![Pipeline configuration image](PipelineConfiguration.png)
 
-4. Start the Build process
+* Don't forget to the click the **Save** button.
 
-* From the left nav bar, click "Build with Parameters" item. It will
-be filled in with the default value "/dev/ttyUSB0". Change this to
-something else, or leave it as it is. Then click the "Build" button.
+### 4. Start the Build process
+
+From the left nav bar, click "Build with Parameters" item. It will
+be filled in with the default value "uno:/dev/ttyACM0". Change this to
+something else, or leave it as it is.
+
+Then click the "Build" button.
 
 ![Build with Parameters](BuildWithParameters.png)
+
+### 5. Build Results
 
 If everything works ok, then you should see a table that fills in
 as the build progresses along. If all 5 stages complete (most likely
@@ -273,21 +300,23 @@ the last stage 'Test' will fail for you), you should see this:
 
 ![Stage View image](StageView.png)
 
-If you don't have an Arduino board connected, or the serial port is incorrect,
-the 'Test' stage probably failed. In that case, you probably see this instead:
+If you don't have an Arduino board connected, or the serial port is
+incorrect, the 'Test' stage probably failed. In that case, you probably see
+this instead:
 
 ![Stage View failed image](StageViewFailedTest.png)
 
 The `AceButton/tests/Jenkinsfile` file contains 4 stages:
-* 'Setup': checkout source from github
-* 'Verify Examples': verify `AceButton/examples/*` compile
-* 'Verify Tests': verify `AceButton/examples/*` compile
-* 'Test': upload `AceButton/tests/*Test` to an Arduino Nano board connected to
-`/dev/ttyUSB0`, run the AUnit tests, and verify that they pass or fail
+* `Setup`: checkout source from github
+* `Verify Examples`: verify `AceButton/examples/*` compile
+* `Verify Tests`: verify `AceButton/examples/*` compile
+* `Test`: upload `AceButton/tests/*Test` to an Arduino UNO board connected
+  to `/dev/ttyACM0`, run the AUnit tests, and verify that they pass or fail
 
-Normally, you would first verify that the `auniter.sh --test` works successfully
-when you run it on the commmand line. If it works on the command line, then
-Jenkins should be able to use the same command in the `Jenkinsfile`.
+Normally, you would first verify that the `auniter.sh --test` works
+successfully when you run it on the commmand line. If it works on the
+command line, then Jenkins should be able to use the same command in the
+`Jenkinsfile`.
 
 ## Inside the Jenkinsfile
 
@@ -301,9 +330,6 @@ Here is the `Jenkinsfile` from the `AceButton` project:
 ```
 pipeline {
     agent { label 'master' }
-    environment {
-        AUNITER_ARDUINO_BINARY = '/var/lib/jenkins/arduino-1.8.5/arduino'
-    }
     stages {
         stage('Setup') {
             steps {
@@ -322,7 +348,7 @@ pipeline {
                 sh "AUniter/auniter.sh --verify \
                     --pref sketchbook.path=$WORKSPACE \
                     --config libraries/AceButton/tests/auniter.conf \
-                    --boards nano \
+                    --boards $BOARDS \
                     libraries/AceButton/examples/*"
             }
         }
@@ -331,7 +357,7 @@ pipeline {
                 sh "AUniter/auniter.sh --verify \
                     --pref sketchbook.path=$WORKSPACE \
                     --config libraries/AceButton/tests/auniter.conf \
-                    --boards nano \
+                    --boards $BOARDS \
                     libraries/AceButton/tests/AceButtonTest"
             }
         }
@@ -340,7 +366,7 @@ pipeline {
                 sh "AUniter/auniter.sh --test \
                     --pref sketchbook.path=$WORKSPACE \
                     --config libraries/AceButton/tests/auniter.conf \
-                    --boards nano:$PORT \
+                    --boards $BOARDS \
                     libraries/AceButton/tests/AceButtonTest"
             }
         }
@@ -354,11 +380,16 @@ The Jenkins service is a master/slave architecture. Since we have only a single
 Jenkins instance, we don't need to define any slaves or nodes, so the `agent {
 label 'master' }` statement tells Jenkins to run all tasks on the master.
 
-### Environment
+### Environment Variables
 
-The `auniter.sh` script needs to be told where to find the Arduino IDE command
-line binary. We installed a new copy of Arduino IDE for the `jenkins` user at
-`/var/lib/jenkins/arduino-1.8.5`.
+The `AUNITER_ARDUINO_BINARY` environment variable required by
+`auniter.sh` is defined using the Jenkins system configuration
+through the web tool.
+
+### Build with Parameters
+
+The `$BOARDS` variable was defined in the Pipeline configuration above
+with the "This project is parameterized" checkbox option.
 
 ### Stages
 
@@ -366,13 +397,8 @@ I separated out the continuous integration into 4 stages:
 * `Setup` - checking out the libraries from GitHub
 * `Verify Examples` - compile all sketches under `AceButton/examples/`
 * `Verify Tests` - compile all AUnit tests under `AceButton/tests/`
-* `Test` - upload the AUnit test to an Arduino Nano on the local machine
+* `Test` - upload the AUnit test to an Arduino board on the local machine
 and validate the test output
-
-### Build with Parameters
-
-The `$PORT` variable was defined in the Pipeline configuration above
-with the "This project is parameterized" checkbox option.
 
 ### Folder Layout
 
@@ -424,6 +450,29 @@ dependencies and it is not the layout expected by the Arduino IDE.
 
 ## Additional Features
 
+### Adjust Number of Executors
+
+If you create multiple Pipelines to build multiple Arduino projects at the
+same time, you will probably want to increase the number of Executors (i.e.
+threads) that Jenkins uses to run the pipeline. The default is 2, but can be
+increased nusing the "Manage Jenkins > Configure System > # of executors"
+configuration parameter.
+
+If 2 executors were to able to run the `auniter.sh` script and upload 2 sketches
+to the same Arduino board at the same time, it could cause errors. Either one of
+the uploads would fail, or slightly worse, one upload would succeed but the
+AUnit sketch would be replaced by another AUnit sketch just before the
+`serial_monitor.py` validates the unit test output of the first AUnit sketch.
+
+Fortunately, the `auniter.sh` script uses the `flock(1)` mechanism to allow only
+a single Arduino binary to upload to a given Arduino board at the same time. The
+second executor that tries to upload a sketch will wait up to 120 seconds for
+the Arduino board to finish its "upload/test" cycle. The locking happens only
+for the `--upload` mode. There is no locking for the `--verify` mode which
+allows multiple pipelines to verify multiple sketches at the same time, limited
+only by CPU and memory. The default wait time of 120 seconds can be overridden
+using the `--port_timeout` flag on the `auniter.sh` script.
+
 ### Trigger Build When Something Changes
 
 You can configure the Jenkins pipeline to poll the SCM (i.e. the local git
@@ -447,6 +496,9 @@ visualizing the pipelines. It can be installed from inside Jenkins by going to
 "Main > Manage Jenkins > Manage Plugins > Available". Then Filter by "blue
 ocean", select the plugin, and click "Install without restart". The download may
 take several minutes.
+
+As far as I can tell, Blue Ocean does not provide all the detailed information
+of the classic user interface but it looks a lot nicer.
 
 ### Email Notifications
 

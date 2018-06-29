@@ -1,11 +1,11 @@
 # AUniter
 
-A set of command line tools for compiling Arduino sketches, uploading them to
+Command line tools for compiling Arduino sketches, uploading them to
 microcontroller boards, and validating unit tests written in
 [AUnit](https://github.com/bxparks/AUnit). The tools
 also work with the [Jenkins](https://jenkins.io) continuous integration system.
 
-Version: 1.1.1 (2018-06-27)
+Version: 1.2 (2018-06-29)
 
 ## Summary
 
@@ -38,6 +38,8 @@ sketch.
 * Can parse the output of an AUnit unit test to determine if the test passed or
 failed.
 * Can be integrated into the Jenkins continuous integration system.
+* Uses a locking mechanism to prevent multiple uploads to the same Arduino
+  board at the same time.
 
 ## Installation
 
@@ -322,13 +324,43 @@ Unfortunately, the version on Ubuntu is stuck at Arduino version 1.0.5
 and the process for upgrading been
 [stuck for years](https://github.com/arduino/Arduino/pull/2703).
 
-It is possible to make Arduino-Makefile use the latest Arduino IDE however.
+It is possible to configure Arduino-Makefile to use the latest Arduino IDE
+however.
 
 The problem with `Arduino-Makefile` is that it seems to allow only a single
 board type target in the Makefile. Changing the target board would mean editting
 the `Makefile`. Since I wanted to be able to easily compile, upload and validate
 against multiple boards, the `Makefile` solution did not seem to be flexible
 enough.
+
+### PlatformIO
+
+[PlatformIO](https://platformio.org) is a comprehensive platform for
+IoT development. It is split into several components. The
+[PlatformIO IDE](http://docs.platformio.org/en/latest/ide/pioide.html)
+is based on the [Atom](https://atom.io) editor. The
+[PlatformIO Core](http://docs.platformio.org/en/latest/core.html)
+is a set of command line tools (written in Python mostly) that build, compile,
+and upload the code.
+
+A given Arduino project is defined by the `platformio.ini` file, which is the
+equilvalent to the `Makefile`. Unlike `Arduino-Makefile`, multiple embedded
+boards (e.g. Nano, ESP8266, ESP32) can be defined in a single `platformio.ini`
+file. Like a `Makefile`, the `platformio.ini` file allows finer-grained control
+of the various build options, as well as better control over the dependencies.
+
+I currently have only limited experience with PlatformIO, but I think it would
+be feasible to integrate PlatformIO tools into a locally running Jenkins service
+like I did with `auniter.sh`. However, I think it has some disadvantages. It is
+a far more complex than the Arduino IDE, so the learning curve is longer. Also,
+it seems that the `platformio.ini` file must be created for every unit of
+compilation and upload, in other words, for every `*.ino` file. This seems to be
+too much overhead when a project has numerous AUnit unit test files, each of
+them being a separate `*.ino` file.
+
+The `platformio.ini` files provide better isolation between `*.ino` files, but
+the overhead seem too much for me and I think most people. I may revisit
+PlatformIO at a later time.
 
 ### Arduino Builder
 
@@ -344,6 +376,7 @@ script wrapper around the Arduino IDE program.
 I used Arduino IDE 1.8.5 for all my testing, and the `AUniter` scripts
 have been verified to work under:
 
+* Ubuntu 16.04
 * Ubuntu 17.10
 * Ubuntu 18.04
 * Xubuntu 18.04
@@ -352,8 +385,8 @@ Some limited testing on MacOS has been done, but it is currently not supported.
 
 Windows is definitely not supported because the scripts require the `bash`
 shell. I am not familiar with
-[Linux Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10)
-so I do not know if would work on that.
+[Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10)
+so I do not know if it would work on that.
 
 ## Limitations
 
