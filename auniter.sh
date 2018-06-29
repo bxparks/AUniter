@@ -227,6 +227,7 @@ function process_file() {
                 --$mode \
                 --board $board \
                 --port $port \
+                --baud $baud \
                 $prefs \
                 $verbose \
                 --summary_file $summary_file \
