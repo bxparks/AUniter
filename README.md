@@ -5,7 +5,7 @@ microcontroller boards, and validating unit tests written in
 [AUnit](https://github.com/bxparks/AUnit). The tools
 also work with the [Jenkins](https://jenkins.io) continuous integration system.
 
-Version: 1.1.1 (2018-06-27)
+Version: 1.2 (2018-06-29)
 
 ## Summary
 
@@ -386,7 +386,7 @@ Some limited testing on MacOS has been done, but it is currently not supported.
 Windows is definitely not supported because the scripts require the `bash`
 shell. I am not familiar with
 [Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10)
-so I do not know if would work on that.
+so I do not know if it would work on that.
 
 ## Limitations
 
