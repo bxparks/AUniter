@@ -364,6 +364,7 @@ pipeline {
         stage('Test') {
             steps {
                 sh "AUniter/auniter.sh --test \
+                    --skip_if_no_port \
                     --pref sketchbook.path=$WORKSPACE \
                     --config libraries/AceButton/tests/auniter.conf \
                     --boards $BOARDS \
@@ -390,6 +391,15 @@ through the web tool.
 
 The `$BOARDS` variable was defined in the Pipeline configuration above
 with the "This project is parameterized" checkbox option.
+
+Sometimes you may want to verify compiliation against multiple boards but you
+don't have all of them connected to your serial ports. If you use the
+`--skip_if_no_port` flag with the `--test` flag, the absence of a port in the
+`{alias}:{port}` pair of the `$BOARDS` parameter means that the test (hence, the
+upload) should be skipped for that particular board. For example, if `$BOARDS`
+is set to `nano:/dev/ttyUSB0,leonardo,esp8266,esp32`, that means that only an
+Arduino Nano board is connected and the upload and test should be run only on
+that board and skipped for the others.
 
 ### Stages
 
