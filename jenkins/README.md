@@ -464,11 +464,12 @@ AUnit sketch would be replaced by another AUnit sketch just before the
 
 Fortunately, the `auniter.sh` script uses the `flock(1)` mechanism to allow only
 a single Arduino binary to upload to a given Arduino board at the same time. The
-second executor that tries to upload a sketch will wait up to 2 minutes for the
-Arduino board to finish its "upload/test" cycle. The locking happens only for
-the `--upload` mode. There is no locking for the `--verify` mode which allows
-multiple pipelines to verify multiple sketches at the same time, limited only by
-CPU and memory.
+second executor that tries to upload a sketch will wait up to 120 seconds for
+the Arduino board to finish its "upload/test" cycle. The locking happens only
+for the `--upload` mode. There is no locking for the `--verify` mode which
+allows multiple pipelines to verify multiple sketches at the same time, limited
+only by CPU and memory. The default wait time of 120 seconds can be overridden
+using the `--port_timeout` flag on the `auniter.sh` script.
 
 ### Trigger Build When Something Changes
 

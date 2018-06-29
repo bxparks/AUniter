@@ -16,10 +16,14 @@
 #       [--board {package}:{arch}:{board}[:parameters]]
 #       [--port port] [--baud baud]
 #       [--boards {alias}[:{port}],...]
-#       [--pref key=value] (file.ino | dir) [...]
+#       [--pref key=value]
+#       [--port_timeout seconds]
+#       (file.ino | dir) [...]
 #
 # Flags:
 #
+#   --config file Read configs from 'file' instead of $HOME/.auniter.conf
+#   --verbose Verbose output from the Arduino binary
 #   --verify Verify the compile of the given sketch files. (Default)
 #   --upload Upload the sketch to the given board at port.
 #   --test Upload an AUnit unit test, and verify pass or fail. Automatically
@@ -29,10 +33,10 @@
 #   --baud baud Speed of the port for serial_montor.py. (Default: 115200)
 #   --board Fully qualified board name (fqbn) of the target board.
 #   --boards {alias}[:{port}],... Comma-separated list of {alias}:{port} pairs.
-#   --verbose Verbose output from the Arduino binary
 #   --pref key=value Set the Arduino command line preferences. Multiple
 #       flags may be given.
-#   --config file Read configs from 'file' instead of $HOME/.auniter.conf
+#   --port_timeout seconds Number of seconds to wait for a serial port
+#       to become available before uploading to an Arduino board
 #
 #   If the directory is given, then the script looks for a sketch file under
 #   the directory with the same name but ending with '.ino'. For example,
@@ -50,9 +54,10 @@ set -eu
 DIRNAME=$(dirname $0)
 
 # Default config file in the absence of --config flag.
-DEFAULT_CONFIG_FILE=$HOME/.auniter.conf
+CONFIG_FILE=$HOME/.auniter.conf
 
-# Number of seconds that flock(1) should wait on a serial port.
+# Number of seconds that flock(1) will wait on a serial port.
+# Can be overridden by --port_timeout.
 PORT_TIMEOUT=120
 
 # Status code returned by flock(1) if it times out.
@@ -66,6 +71,7 @@ Usage: auniter.sh [--help] [--config file] [--verbose]
     [--port port] [--baud baud]
     [--boards {alias}[:{port}],...]
     [--pref key=value]
+    [--port_timeout seconds]
     (file.ino | directory) [...]
 END
     exit 1
@@ -220,7 +226,8 @@ function process_file() {
 
         # Use flock(1) to prevent multiple uploads to the same board at the same
         # time.
-        local status=0; flock --timeout $PORT_TIMEOUT \
+        local timeout=${port_timeout:-$PORT_TIMEOUT}
+        local status=0; flock --timeout $timeout \
                 --conflict-exit-code $FLOCK_TIMEOUT_CODE \
                 $port \
                 $DIRNAME/run_arduino.sh \
@@ -294,6 +301,7 @@ baud=115200
 verbose=
 config=
 prefs=
+port_timeout=
 while [[ $# -gt 0 ]]; do
     case $1 in
         --help|-h) usage ;;
@@ -309,6 +317,7 @@ while [[ $# -gt 0 ]]; do
         --baud) shift; baud=$1 ;;
         --boards) shift; boards=$1 ;;
         --pref) shift; prefs="$prefs --pref $1" ;;
+        --port_timeout) shift; port_timeout=$1 ;;
         -*) echo "Unknown option '$1'"; usage ;;
         *) break ;;
     esac
@@ -320,7 +329,7 @@ if [[ "$mode" != 'list_ports' && $# -eq 0 ]]; then
 fi
 
 # Determine the location of the config file.
-config_file=${config:-$DEFAULT_CONFIG_FILE}
+config_file=${config:-$CONFIG_FILE}
 
 # Must install a trap for Control-C because the script ignores almost all
 # interrupts and continues processing.
