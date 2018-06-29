@@ -37,6 +37,8 @@ Install the Open JDK 8 runtime:
 ```
 $ sudo apt install openjdk-8-jdk
 ```
+(It might be possible to just install `openjdk-8-jre` but I have not verified
+this.)
 
 ### Install Jenkins
 
@@ -49,8 +51,8 @@ Follow the
 ```
 $ wget -q -O - https://pkg.jenkins.io/debian/jenkins.io.key | sudo apt-key add -
 $ sudo sh -c 'echo deb http://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
-$ sudo apt-get update
-$ sudo apt-get install jenkins
+$ sudo apt update
+$ sudo apt install jenkins
 ```
 
 ### Allow Jenkins to Access the Serial Ports
@@ -100,7 +102,7 @@ like `/home/{yourusername}/Downloads/arduino-1.8.5-linux64.tar.xz`.
 2. Become user `jenkins` and install (i.e. un-tar) the IDE in its home directory
 (`/var/lib/jenkins`):
 ```
-$ sudo -i -u jenkins`
+$ sudo -i -u jenkins
 jenkins$ tar -xf * /home/{yourusername}/Downloads/arduino-1.8.5-linux64.tar.xz
 jenkins$ cd arduino-1.8.5
 jenkins$ mkdir portable
@@ -142,7 +144,7 @@ jenkins$ python2 get.py
 
 6. (TODO) Add instructions for installing Teensyduino.
 
-7. You might get some validation of a correct install by dumping the prefs:
+7. You might be able to verify a correct install by dumping the prefs:
 ```
 jenkins$ cd
 jenkins$ arduino-1.8.5/arduino --get-pref
