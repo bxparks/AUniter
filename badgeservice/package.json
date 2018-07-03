@@ -1,0 +1,39 @@
+{
+  "name": "badgeservice",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "author": "Brian T. Park",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bxparks/AUniter.git"
+  },
+  "engines": {
+    "node": ">=4.3.2"
+  },
+  "scripts": {
+    "lint": "repo-tools lint",
+    "pretest": "npm run lint"
+  },
+  "dependencies": {
+    "@google-cloud/debug-agent": "2.4.0",
+    "@google-cloud/storage": "^1.5.0",
+    "safe-buffer": "5.1.1"
+  },
+  "devDependencies": {
+    "@google-cloud/nodejs-repo-tools": "2.2.5",
+    "@google-cloud/pubsub": "^0.17.0",
+    "@google-cloud/storage": "^1.5.0"
+  },
+  "cloud-repo-tools": {
+    "requiresKeyFile": true,
+    "requiresProjectId": true,
+    "requiredEnvVars": [
+      "BASE_URL",
+      "GCF_REGION",
+      "TOPIC",
+      "BUCKET",
+      "FUNCTIONS_CMD"
+    ]
+  }
+}
