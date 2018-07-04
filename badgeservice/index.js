@@ -23,21 +23,21 @@
 'use strict';
 
 // The Google Cloud Storage bucket name used to hold the continuous integration
-// test results. NOTE: Change this to your own bucket.
+// // (CI) test results. NOTE: Change this to your own bucket.
 const bucketName = 'xparks-jenkins';
 
 // List of acceptable projects. Anything that does not match returns
 // an "invalid" badge. NOTE: Change this to your own list of projects.
 const projects = ['AceButton'];
 
-// Change this if you want longer or shorter checking intervals.
-const checkIntervalMillis = 1 * 1000; // 5 minutes
+// Number of milliseconds between successive calls to checkPassOrFail().
+const checkIntervalMillis = 1 * 60 * 1000;
 
 const Buffer = require('safe-buffer').Buffer;
 
 const badgeBaseUrl = 'https://img.shields.io/badge/';
 
-// Cache of various info related to a particular project.
+// Cache of various meta-info related to the CI status of particular project.
 var projectInfos = {};
 
 /**
