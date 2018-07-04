@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 #
-# Create the {project}-PASSED or {project}-FAILED marker file on the indicated
+# Create the {project}#PASSED or {project}#FAILED marker file on the indicated
 # Google Cloud Storage bucket. That file will be used by the 'badge()' function
 # running in Google Functions to determine the shields.io badge to redirect to.
 #
-# This script tries hard to make sure that only one of {project}-PASSED or
-# {project}-FAILED exists at the same time.
+# This script tries hard to make sure that only one of {project}#PASSED or
+# {project}#FAILED exists at the same time. (The '#' character was selected
+# because a {project} could easily have a '-' character).
 
 set -eu
 
@@ -30,7 +31,7 @@ function remove_status() {
     local bucket=$1
     local project=$2
     local status=$3
-    gsutil -q rm "gs://$bucket/$project-$status" > /dev/null 2>&1 || true;
+    gsutil -q rm "gs://$bucket/$project#$status" > /dev/null 2>&1 || true;
 }
 
 function set_status() {
