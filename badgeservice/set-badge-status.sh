@@ -16,24 +16,13 @@ END
     exit 1
 }
 
-function clean_temp_files() {
-    if [[ "$temp_file" != '' ]]; then
-        rm -f $temp_file
-    fi
-}
-
 # Create the status file.
 function create_status() {
     local bucket=$1
     local project=$2
     local status=$3
 
-    temp_file=
-    trap "clean_temp_files" EXIT
-    temp_file=$(mktemp /tmp/badge_status_XXXXXX)
-
-    gsutil -q cp $temp_file "gs://$bucket/$project-$status"
-    rm -f $temp_file
+    gsutil -q cp /dev/null "gs://$bucket/$project-$status"
 }
 
 # Remove the status file. Works even if the file doesn't exist already.

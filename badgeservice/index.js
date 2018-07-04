@@ -1,28 +1,31 @@
 /**
  * Copyright 2018 Brian T. Park
+ *
  * MIT License
  *
- * The GET handler at
+ * A Google Functions microservice which returns a shields.io badge depending
+ * on the status of the Jenkins continuous integration of a given project.
  *
- * https://us-central1-xparks2015.cloudfunctions.net/badge?project={project}
+ * The GET handler is at:
+ *  - https://us-central1-xparks2015.cloudfunctions.net/badge?project={project}
+ * The {project} is the name of the project being queried.
  *
- * looks for the presence of a file in the given 'bucketName', with the form:
+ * It looks for a status file in Google Cloud Storage, in the given
+ * 'bucketName', with the form:
  *
- *    - {project}-PASSED
- *    - {project}-FAILED
+ *  - {project}-PASSED
+ *  - {project}-FAILED
  *
  * There are 4 possible badges:
  *
  *  - If the PASSED file is detected, then a "passing" badge from shields.io is
- *    returned with a 302 redirect.
+ *  returned with a 302 redirect.
  *  - If the FAILED file is detected, a "failure" badge from shields.io is
  *    returned.
  *  - If both of these marker files are miising, then an "unknown" badge is
  *    returned.
  *  - If both of these markers file exist (which shouldn't happen), then
  *    an "error" badge is returned.
- *
- * Multiple projects are supported using the 'project' query parameter.
  */
 
 'use strict';
@@ -115,8 +118,8 @@ exports.badge = (req, res) => {
     return;
   }
 
-	const Storage = require('@google-cloud/storage');
-	const storage = new Storage();
+  const Storage = require('@google-cloud/storage');
+  const storage = new Storage();
 
   // Update the cache, then return the results.
   return storage
