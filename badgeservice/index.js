@@ -13,8 +13,8 @@
  * It looks for a status file in Google Cloud Storage, in the given
  * 'bucketName', with the form:
  *
- *  - {project}#PASSED
- *  - {project}#FAILED
+ *  - '{project}=PASSED'
+ *  - '{project}=FAILED'
  *
  * There are 4 possible badges:
  *
@@ -52,19 +52,19 @@ var projectInfos = {};
 var lastCheckedTime = 0;
 
 /**
- * Check for the presence of the {project}#PASSED or {project}#FAILED files
+ * Check for the presence of the {project}=PASSED or {project}=FAILED files
  * in the Google Cloud Storage bucket named by bucketName.
  */
 function updateProjectInfos(files) {
   console.log('updateProjectInfos(): processing ', files.length, ' files');
-  const re = /(^[^# ]+)-([^# ]+)$/;
+  const re = /(^[^= ]+)=([^= ]+)$/;
   files.forEach(file => {
     const m = file.name.match(re);
     if (m) {
       const projectName = m[1];
       projectInfos[projectName] = {
         passedFound: (m[2] == 'PASSED'),
-        failedFound: (m[3] == 'FAILED')
+        failedFound: (m[2] == 'FAILED')
       };
     }
   });
@@ -100,7 +100,7 @@ function getUri(project) {
 
 /**
  * HTTP Cloud Function which redirect to a "passing" badge or a "failure"
- * badge, depending on whether the {project}#PASSED or {project}#FAILED
+ * badge, depending on whether the {project}=PASSED or {project}=FAILED
  * files were found.
  *
  * @param {Object} req Cloud Function request context.
