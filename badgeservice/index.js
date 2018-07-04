@@ -109,7 +109,7 @@ function getUri(project) {
 exports.badge = (req, res) => {
   const project = req.query.project;
   if (project == null) {
-    res.redirect(badgeBaseUrl + 'build-invalid-orange.svg');
+    res.redirect(307, badgeBaseUrl + 'build-invalid-orange.svg');
     return;
   }
   console.log('badge(): Processing project: ', project);
@@ -118,7 +118,7 @@ exports.badge = (req, res) => {
   const nowMillis = new Date().getTime();
   if (nowMillis - lastCheckedTime <= checkIntervalMillis) {
     const uri = getUri(project);
-    res.redirect(badgeBaseUrl + uri);
+    res.redirect(307, badgeBaseUrl + uri);
     return;
   }
 
@@ -134,7 +134,7 @@ exports.badge = (req, res) => {
         updateProjectInfos(files);
         lastCheckedTime = nowMillis;
         const uri = getUri(project);
-        res.redirect(badgeBaseUrl + uri);
+        res.redirect(307, badgeBaseUrl + uri);
       })
       .catch(err => {
         console.error('ERROR: ', err);
