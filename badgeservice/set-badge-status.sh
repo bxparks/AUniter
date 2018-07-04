@@ -62,7 +62,7 @@ function set_status() {
 if [[ $# -ne 3 ]]; then
     usage
 fi
-if [[ $3 != 'PASSED' || $3 != 'FAILED' ]]; then
+if [[ $3 != 'PASSED' && $3 != 'FAILED' ]]; then
     echo 'Status must be PASSED or FAILED'
     usage
 fi
