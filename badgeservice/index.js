@@ -26,6 +26,10 @@
  *    returned.
  *  - If both of these markers file exist (which shouldn't happen), then
  *    an "error" badge is returned.
+ *
+ * Deployment:
+ *
+ *  $ gcloud functions badge hello --trigger-http
  */
 
 'use strict';
