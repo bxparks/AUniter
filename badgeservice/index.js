@@ -19,7 +19,7 @@
  * There are 4 possible badges:
  *
  *  - If the PASSED file is detected, then a "passing" badge from shields.io is
- *  returned with a 302 redirect.
+ *    returned.
  *  - If the FAILED file is detected, a "failure" badge from shields.io is
  *    returned.
  *  - If both of these marker files are miising, then an "unknown" badge is
@@ -99,9 +99,61 @@ function getUri(project) {
 }
 
 /**
- * HTTP Cloud Function which redirect to a "passing" badge or a "failure"
- * badge, depending on whether the {project}=PASSED or {project}=FAILED
- * files were found.
+ * Fetch the shields.io badge and echo it back to res. I tried using a 307
+ * redirect, but shields.io returns a response with "cache-control:
+ * max-age=86400" for static badges, which causes GitHub to cache the badge for
+ * 1 whole day. To bypass the cache-control, we fetch it ourselves, then proxy
+ * the image back the requester. Our header is set to "cache-control: no-cache,
+ * must-revalidate" which is enough to prevent GitHub from permanently caching
+ * that image. I also notice an "etag" header being set. That must be set
+ * automatically by the Google Frontend in front of this service.
+ *
+ * For explanation of the https.get() and Promise chaining, see:
+ *
+ *  - https://nodejs.org/docs/latest/api/https.html.
+ *  - https://javascript.info/promise-chaining
+ *  - https://valentinog.com/blog/http-requests-node-js-async-await/
+ */
+function fetchBadge(res, url) {
+  return new Promise((resolve, reject) => {
+    var https = require('https');
+
+    https.get(url, (http_res) => {
+      const { statusCode } = http_res;
+      if (statusCode !== 200) {
+        console.log('fetchBadge(): statusCode: ', statusCode, '; url: ', url);
+        http_res.resume();
+        res.end();
+        resolve();
+        return;
+      }
+
+      var data = '';
+      http_res.on('data', (chunk) => {
+        data += chunk;
+      });
+      http_res.on('end', () => {
+        res.send(data);
+        res.end();
+        resolve();
+      });
+    }).on('error', e => {
+      console.error('ERROR: ', err);
+      res.end();
+      reject();
+    });
+  });
+}
+
+/**
+ * HTTP Cloud Function which returns a badge from shields.io, depending on
+ * whether the {project}=PASSED or {project}=FAILED files were found. The
+ * entire GET request seems to take between 300-800 millis, even when the cache
+ * is updated using updateProjectInfos().
+ *
+ * When multiple requests are made quickly, the service returns 304
+ * automatically. (Not really sure where that happens, I'm guessing at the
+ * Google Frontend just in front of this service.)
  *
  * @param {Object} req Cloud Function request context.
  * @param {Object} res Cloud Function response context.
@@ -109,8 +161,7 @@ function getUri(project) {
 exports.badge = (req, res) => {
   const project = req.query.project;
   if (project == null) {
-    res.redirect(307, badgeBaseUrl + 'build-invalid-orange.svg');
-    return;
+    return fetchBadge(res, badgeBaseUrl + 'build-invalid-orange.svg');
   }
   console.log('badge(): Processing project: ', project);
 
@@ -118,8 +169,7 @@ exports.badge = (req, res) => {
   const nowMillis = new Date().getTime();
   if (nowMillis - lastCheckedTime <= checkIntervalMillis) {
     const uri = getUri(project);
-    res.redirect(307, badgeBaseUrl + uri);
-    return;
+    return fetchBadge(res, badgeBaseUrl + uri);
   }
 
   const Storage = require('@google-cloud/storage');
@@ -134,9 +184,10 @@ exports.badge = (req, res) => {
         updateProjectInfos(files);
         lastCheckedTime = nowMillis;
         const uri = getUri(project);
-        res.redirect(307, badgeBaseUrl + uri);
+        return fetchBadge(res, badgeBaseUrl + uri);
       })
       .catch(err => {
         console.error('ERROR: ', err);
+        res.end();
       });
 };
