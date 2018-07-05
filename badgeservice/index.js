@@ -29,7 +29,7 @@
  *
  * Deployment:
  *
- *  $ gcloud functions badge hello --trigger-http
+ *  $ gcloud functions deploy badge --trigger-http
  */
 
 'use strict';
