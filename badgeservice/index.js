@@ -139,7 +139,7 @@ function fetchBadge(res, url) {
       });
     }).on('error', e => {
       console.error('ERROR: ', err);
-      res.status(404).end();
+      res.status(500).end();
       reject();
     });
   });
@@ -188,6 +188,6 @@ exports.badge = (req, res) => {
       })
       .catch(err => {
         console.error('ERROR: ', err);
-        res.status(404).end();
+        res.status(500).end();
       });
 };
