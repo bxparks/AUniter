@@ -123,7 +123,7 @@ function fetchBadge(res, url) {
       if (statusCode !== 200) {
         console.log('fetchBadge(): statusCode: ', statusCode, '; url: ', url);
         http_res.resume();
-        res.end();
+        res.status(404).end();
         resolve();
         return;
       }
@@ -133,13 +133,13 @@ function fetchBadge(res, url) {
         data += chunk;
       });
       http_res.on('end', () => {
+        res.type('image/svg+xml;charset=utf-8');
         res.send(data);
-        res.end();
         resolve();
       });
     }).on('error', e => {
       console.error('ERROR: ', err);
-      res.end();
+      res.status(404).end();
       reject();
     });
   });
@@ -188,6 +188,6 @@ exports.badge = (req, res) => {
       })
       .catch(err => {
         console.error('ERROR: ', err);
-        res.end();
+        res.status(404).end();
       });
 };
