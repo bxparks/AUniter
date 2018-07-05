@@ -41,8 +41,6 @@ const bucketName = 'xparks-jenkins';
 // Number of milliseconds between successive calls to checkPassOrFail().
 const checkIntervalMillis = 1 * 60 * 1000;
 
-const Buffer = require('safe-buffer').Buffer;
-
 const badgeBaseUrl = 'https://img.shields.io/badge/';
 
 // Cache of various meta-info related to the CI status of particular project.
