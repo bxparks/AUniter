@@ -1,5 +1,7 @@
 # AUniter Badge Service
 
+(Work in progress)
+
 ## Introduction
 
 [Continuous Integration with Jenkins](../jenkins/README.md) explains that
@@ -86,7 +88,7 @@ state of the build.
 
 ## Setup Instructions
 
-(Work in progress)
+(TODO: Need to flush this out)
 
 ### Setup Badge Service
 
@@ -144,3 +146,13 @@ post {
     * `{Name of Pipeline} > Configure > This project is parmeterized`
     * `Add Parameter > String Parameter`
     * `BADGE_BUCKET`: {name of GCS bucket}
+
+### Security
+
+* The Google Cloud Storage bucket does not need to be publically visible.
+* The **BadgeService** runs with your credentials so it is able to access the
+  GCS bucket.
+* The badge URL takes a `project` parameter so someone could insert an
+  arbitrary project name in there and determine the existence of certain files.
+  However, the GCS bucket is *only* used for maintaining continuous integration
+  build statuses, so this leakage of information has no consequences.
