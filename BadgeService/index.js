@@ -35,7 +35,7 @@
 'use strict';
 
 // The Google Cloud Storage bucket name used to hold the continuous integration
-// // (CI) test results. NOTE: Change this to your own bucket.
+// (CI) test results. NOTE: Change this to your own bucket.
 const bucketName = 'xparks-jenkins';
 
 // Number of milliseconds between successive calls to checkPassOrFail().
