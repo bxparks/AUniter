@@ -39,7 +39,7 @@ modified by a shell script, which can be called from a
 [Jenkinsfile](https://jenkins.io/doc/book/pipeline/jenkinsfile/)
 by the locall hosted Jenkins server.
 
-An example might make this more clear. 
+An example might make this more clear.
 For the [AceSegment](https://github.com/bxparks/AceSegment) project,
 I created a **BadgeService** at
 https://us-central1-xparks2015.cloudfunctions.net/badge?project=AceSegment.
@@ -68,11 +68,11 @@ Here's a dependency diagram which might make this more clear:
           |    \         /
  (create/ |     \       / (GET badge)
   remove  |      \     /
-  marker  |     BadgeService
+  marker  |    BadgeService
   files)  |         ^
           |         | (embedded
           |         |  image)
-          |         | 
+          |         |
           |       GitHub
 ----------|----  README.md
  firewall |         ^
@@ -96,24 +96,39 @@ state of the build.
 1. Create project.
     * Enable billing.
     * Add Google Functions API.
-1. Install `gsutil` for user `jenkins`.
+1. Install `gsutil` for user `jenkins` in its home directory.
     * `$ sudo -i -u jenkins`
-    * `$ cd`
     * Install [standalone gsutil](https://cloud.google.com/storage/docs/gsutil_install)
-    1. Authenticate using OAuth2 (`gsutil config`)
+1. Authenticate using OAuth2.
+    * `$ gsutil config`
+    * Go the the URL displayed by the script and follow the instructions.
 1. Create Google Cloud Storage bucket
+    * Go to the [Google Cloud Console](https://console.cloud.google.com).
+    * Go to the Google Cloud Storage Browser.
+    * Click on the `Create Bucket` link.
+    * Create `{bucketName}` (must be globally unique).
 1. Git clone AUniter project.
-1. Configure the `bucketName` in `index.js` with the bucket name.
-1. Upload Google Functions.
+    * `$ git clone https://github.com/bxparks/AUniter`
+1. Configure **BadgeService**.
+    * `$ cd AUniter/BadgeService`
+    * Change the value of `bucketName` in `index.js` with the bucket name.
+1. Upload script to Google Functions.
     * `$ gcloud functions deploy badge --trigger-http`
-1. Create `gs://{bucketName}/test=PASSED`.
+    * Take note of the trigger URL. Will look something like
+      https://us-central1-xparks2015.cloudfunctions.net/badge.
+1. Test passing project.
+    * Create `gs://{bucketName}/test=PASSED` using the `set-badge-status.sh`
+      script.
+        * `$ BadgeService/set-badge-script.sh {bucketName} test PASSED``
     * Goto https://{path-to-badge-server}?project=test
     * Verify got green badge.
-1. Create `gs://{bucketName}/test=FAILED`.
+1. Testing failing project.
+    1. Create `gs://{bucketName}/test=FAILED`.
+        * `$ BadgeService/set-badge-script.sh {bucketName} test FAILED``
     * Goto https://{path-to-badge-server}?project=test.
     * Verify got red badge.
 1. Insert `![Alt Text](https://{path-to-badge-service}?project={project}]` in
-   README.md
+   README.md file.
 
 ### Setup Jenkinsfile
 
@@ -142,17 +157,19 @@ post {
 
 ### Setup Jenkins Pipeline
 
-1. Add "BADGE_BUCKET" build parameter.
+1. Add `BADGE_BUCKET` build parameter.
     * `{Name of Pipeline} > Configure > This project is parmeterized`
     * `Add Parameter > String Parameter`
-    * `BADGE_BUCKET`: {name of GCS bucket}
+    * `BADGE_BUCKET`: {bucketName}
 
 ### Security
 
-* The Google Cloud Storage bucket does not need to be publically visible.
+* The Google Cloud Storage bucket does *not* need to be publically visible.
 * The **BadgeService** runs with your credentials so it is able to access the
   GCS bucket.
-* The badge URL takes a `project` parameter so someone could insert an
-  arbitrary project name in there and determine the existence of certain files.
-  However, the GCS bucket is *only* used for maintaining continuous integration
-  build statuses, so this leakage of information has no consequences.
+* The badge URL takes a `project` parameter. Someone could insert an
+  arbitrary project name in there and determine the existence of certain files
+  in that bucket in a specific format (i.e `{project}=PASSED` or
+  `{project}-FAILED`). However, this GCS bucket is *only* used for maintaining
+  the status information of continuous integrations, so this leakage of
+  information has no consequences.
