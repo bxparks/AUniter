@@ -1,6 +1,6 @@
 # AUniter Badge Service
 
-(Work in progress)
+Status: Implementation done. README.md in progress.
 
 ## Introduction
 
@@ -66,20 +66,24 @@ Here's a dependency diagram which might make this more clear:
         Storage            ^
           ^   ^           /
           |    \         /
- (create/ |     \       / (GET badge)
-  remove  |      \     /
-  marker  |    BadgeService
-  files)  |         ^
-          |         | (embedded
-          |         |  image)
-          |         |
-          |       GitHub
-----------|----  README.md
- firewall |         ^
-          |         |
-      local         | (GET)
-      Jenkins       |
-      service      user
+          |     \       / (GET badge)
+ (create/ |      \     /
+  remove  |    BadgeService
+  marker  |          ^
+  files)  |          | (GET embedded
+          |          |  image)
+          |          |
+          |        GitHub
+----------|----   README.md
+ firewall |          ^
+          |          |
+set-badge-status.sh  |
+          ^          |
+          |          | (GET)
+          |          |
+       local         |
+       Jenkins       |
+       service      user
 ```
 
 Since shields.io cannot contact the local Jenkins serice, and neither can the
@@ -95,60 +99,74 @@ state of the build.
 1. Download and install [Google Cloud SDK](https://cloud.google.com/sdk/).
 1. Create project.
     * Enable billing.
-    * Add Google Functions API.
+    * Add Google Cloud Functions API.
 1. Install `gsutil` for user `jenkins` in its home directory.
     * `$ sudo -i -u jenkins`
-    * Install [standalone gsutil](https://cloud.google.com/storage/docs/gsutil_install)
+    * Install [Standalone gsutil](https://cloud.google.com/storage/docs/gsutil_install)
 1. Authenticate using OAuth2.
+    * Verify that you are still user `jenkins`.
     * `$ gsutil config`
     * Go the the URL displayed by the script and follow the instructions.
 1. Create Google Cloud Storage bucket
     * Go to the [Google Cloud Console](https://console.cloud.google.com).
-    * Go to the Google Cloud Storage Browser.
+    * Go to the [Google Cloud Storage Browser](https://console.cloud.google.com/storage/browser).
     * Click on the `Create Bucket` link.
     * Create `{bucketName}` (must be globally unique).
 1. Git clone AUniter project.
     * `$ git clone https://github.com/bxparks/AUniter`
 1. Configure **BadgeService**.
     * `$ cd AUniter/BadgeService`
-    * Change the value of `bucketName` in `index.js` with the bucket name.
-1. Upload script to Google Functions.
+    * Edit `index.js`.
+    * Change the value of `bucketName` in `index.js` with the `{bucketName}`.
+1. Upload script to Google Cloud Functions.
     * `$ gcloud functions deploy badge --trigger-http`
-    * Take note of the trigger URL. Will look something like
+    * Take note of the trigger URL (called `{badge-service-url}` below).
+      This will look something like
       https://us-central1-xparks2015.cloudfunctions.net/badge.
 1. Test passing project.
     * Create `gs://{bucketName}/test=PASSED` using the `set-badge-status.sh`
       script.
-        * `$ BadgeService/set-badge-script.sh {bucketName} test PASSED``
-    * Goto https://{path-to-badge-server}?project=test
+        * `$ BadgeService/set-badge-script.sh {bucketName} test PASSED`
+    * Goto https://{badge-service-url}?project=test
     * Verify got green badge.
 1. Testing failing project.
     1. Create `gs://{bucketName}/test=FAILED`.
-        * `$ BadgeService/set-badge-script.sh {bucketName} test FAILED``
-    * Goto https://{path-to-badge-server}?project=test.
+        * `$ BadgeService/set-badge-script.sh {bucketName} test FAILED`
+    * Goto https://{badge-service-url}?project=test.
     * Verify got red badge.
-1. Insert `![Alt Text](https://{path-to-badge-service}?project={project}]` in
+1. Insert `![Alt Text](https://{badge-service-urle}?project={project}]` in
    README.md file.
 
 ### Setup Jenkinsfile
 
 The Jenkins file contains these additional `post` section, right after
-the `stages` section:
+the `stages` section (see
+[Inside the Jenkinsfile](../jenkins/README.md) for a description of the
+Jenkinsfile used by AUniter):
 ```
-post {
-    failure {
-        script {
-            if (env.BADGE_BUCKET?.trim()) {
-                sh "AUniter/BadgeService/set-badge-status.sh \
-                    $BADGE_BUCKET AceSegment FAILED"
+pipeline {
+    agent { label 'master' }
+    stages {
+        stage('Setup') {
+            [...]
+        }
+        [...]
+    }
+    post {
+        failure {
+            script {
+                if (env.BADGE_BUCKET?.trim()) {
+                    sh "AUniter/BadgeService/set-badge-status.sh \
+                        $BADGE_BUCKET AceSegment FAILED"
+                }
             }
         }
-    }
-    success {
-        script {
-            if (env.BADGE_BUCKET?.trim()) {
-                sh "AUniter/BadgeService/set-badge-status.sh \
-                    $BADGE_BUCKET AceSegment PASSED"
+        success {
+            script {
+                if (env.BADGE_BUCKET?.trim()) {
+                    sh "AUniter/BadgeService/set-badge-status.sh \
+                        $BADGE_BUCKET AceSegment PASSED"
+                }
             }
         }
     }
@@ -173,3 +191,17 @@ post {
   `{project}-FAILED`). However, this GCS bucket is *only* used for maintaining
   the status information of continuous integrations, so this leakage of
   information has no consequences.
+* Queries to the Google Cloud Storage are relatively expensive. To mitigate this
+  overhead, the **BadgeService** Function caches the results for one minute.
+  Multiple calls to the same Function cause no additional queries to the Google
+  Cloud Storage within that one minute caching period.
+
+### Pricing
+
+For projects with limited traffic to the GitHub README.md page, we can depend on
+the [free tier](https://cloud.google.com/functions/pricing) which provides for
+the following resources free per month:
+* 2 million invocations
+* 400,000 GB-seconds of CPU time
+* 200,000 GHz-seconds of CPU performance (clock frequency)
+* and 5GB of Internet egress traffic
