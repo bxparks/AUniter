@@ -86,11 +86,11 @@ esac
 I also recommend creating an alias for the `auniter.sh` script in your `.bashrc`
 file if you use it often:
 ```
-alias auniter='{Path-to-AUniter-directory}/auniter.sh'
+alias auniter='{path-to-AUniter-directory}/tools/auniter.sh'
 ```
-(Don't add `{Path-to-AUniter-directory}` to your `$PATH`. It won't work
-because `auniter.sh` needs to know its own install directory to find
-helper scripts.)
+(Don't add `{path-to-AUniter-directory}/tools` to your `$PATH`. It won't work
+because `auniter.sh` needs to know its own install directory to find helper
+scripts.)
 
 ## Usage
 
