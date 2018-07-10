@@ -19,10 +19,10 @@ Version: 1.2 (2018-06-29)
 
 ## Installation
 
-1. See [AUniter tools](tools/README.md) to install the command line tools.
-1. See [AUniter Jenkins Integration](jenkins/README.md) to integrate with
+1. See [AUniter tools](tools/) to install the command line tools.
+1. See [AUniter Jenkins Integration](jenkins/) to integrate with
    Jenkins.
-1. See [AUniter Badge Service](BadgeService/README.md) to display the
+1. See [AUniter Badge Service](BadgeService/) to display the
    build status in the source repository.
 
 ## System Requirements
