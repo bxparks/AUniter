@@ -1,4 +1,4 @@
-# Continuous Integration with Jenkins
+# AUniter Integration with Jenkins
 
 [Jenkins](https://jenkins.io) is a software automation tool for continuous
 integration (CI) and continous deployment (CD). It has a master/slave
@@ -9,7 +9,9 @@ execute all jobs by itself.
 The [AUniter](https://github.com/bxparks/AUniter) scripts can be configured to
 run from Jenkins so that the Arduino command line runs periodically (or upon
 source code change) and the results will be tracked by Jenkins and displayed on
-the Jenkins dashboard. If unit tests are written in
+the Jenkins dashboard.
+
+If unit tests are written in
 [AUnit](https://github.com/bxparks/AUnit) and an Arduino board is connected to
 the local machine, the `auniter.sh` can upload the unit test to the board,
 and monitor the serial port to determine if the test passed or failed,
