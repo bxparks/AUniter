@@ -132,6 +132,7 @@ function fetchBadge(res, url) {
       });
       http_res.on('end', () => {
         res.type('image/svg+xml;charset=utf-8');
+        res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.send(data);
         resolve();
       });
