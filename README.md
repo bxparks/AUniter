@@ -15,7 +15,7 @@ There are 3 components to the **AUniter** package:
    locally hosted Jenkins system to update the status of the build, so that an
    indicator badge can be displayed on a source control repository like GitHub.
 
-Version: 1.2 (2018-06-29)
+Version: 1.3 (2018-07-21)
 
 ## Installation
 
