@@ -460,6 +460,55 @@ structure would look like this:
 But this structure does not leave any room to hold the external libraries
 dependencies and it is not the layout expected by the Arduino IDE.
 
+## Arduino IDE Maintenance
+
+The `jenkins` user uses a completely independent instance of the Arduino IDE
+located at `/var/lib/jenkins/arduino-1.8.5/`. This copy of the IDE needs to
+be peridically updated with new versions of various libraries. Otherwise, the
+version of the Arduino IDE used by `jenkins` will be different than the
+version of the Arduino IDE by yourself.
+
+As far as I can tell from the
+[command line interface](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc),
+there is no programmatic way to tell the Arduino IDE to update *all* updatable
+libraries. You can tell it to update one library at a time, but it is
+difficult and time consuming to determine the complete list of libraries.
+
+The easiest way to update the libraries seems to be through the graphical UI
+of the Arduino IDE.
+
+### Running the Arduino IDE as the Jenkins User
+
+We can run the Arduino IDE as the user `jenkins`, but we must first give
+permission to that user to connect to the X11 server using the `xhost` command:
+
+```
+$ xhost +si:localhost:jenkins
+```
+
+Then `sudo` as user `jenkins` and start the Arduino IDE:
+```
+$ sudo -i -u jenkins
+jenkins$ ./arduino-1.8.5/arduino
+```
+
+### Update the Libraries
+
+To update the libraries from the Arduino IDE (running as user `jenkins`):
+
+* Go to "Sketch > Include Library > Manage Libraries..." to bring up the Library
+  Manager.
+* Select "Type > Updatable".
+* Click each library and click on the "Update" button for each library.
+
+### Update the Board Managers
+
+To update the board managers, use the Arduino IDE in the same way:
+
+* Go to "Tools > Boards > Board Manager..."
+* Select "Type > Updatable".
+* Click "Update" on each board manager that needs to be updated.
+
 ## Additional Features
 
 ### Adjust Number of Executors
