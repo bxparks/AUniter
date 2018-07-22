@@ -1,5 +1,11 @@
 # Changelog
 
+* 1.3 (2018-07-21)
+    * Add BadgeService implemented using Google Functions to allow a locally
+      hosted Jenkins to determine the shields.io that can be displayed in
+      a GitHub README.md file.
+    * Split the AUniter project into 3 parts: tools, jenkins, and
+      BadgeService.
 * 1.2 (2018-06-29)
     * Use a lock on the serial port (/dev/ttyXxx) to ensure that
       only one program uploads to a given Arduino board at the same time.

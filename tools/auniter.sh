@@ -31,6 +31,7 @@ Usage: auniter.sh [--help] [--config file] [--verbose]
                   [--boards {alias}[:{port}],...]
                   [--pref key=value]
                   [--port_timeout seconds]
+                  [--skip_if_no_port]
                   (file.ino | directory) [...]
 
 The script that uses the 'arduino' commandline binary to allow compiling,
@@ -44,27 +45,33 @@ boards connected to the serial port. It has 5 major modes:
 5) List the tty ports and the associated Arduino boards. (--list_ports)
 
 Flags:
-   --config file        Read configs from 'file' instead of
-                        '$HOME/.auniter.conf'.
-   --verbose            Verbose output from the Arduino binary.
-   --verify             Verify the compile of the sketch file(s). (Default)
-   --upload             Upload the sketch(es) to the given board at port.
-   --test               Upload the AUnit unit test(s), and verify pass or fail.
-   --list_ports         List the tty ports and the associated Arduino boards.
-   --monitor            Upload, the monitor the serial port using
+    --config file       Read configs from 'file' instead of
+                        $HOME/.auniter.conf'.
+    --verbose           Verbose output from the Arduino binary.
+    --verify            Verify the compile of the sketch file(s). (Default)
+    --upload            Upload the sketch(es) to the given board at port.
+    --test              Upload the AUnit unit test(s), and verify pass or fail.
+    --list_ports        List the tty ports and the associated Arduino boards.
+    --monitor           Upload, the monitor the serial port using
                         serial_monitor.py, echoing the serial port to the
                         STDOUT.
-   --port /dev/ttyXxx   Serial port of the board.
-   --baud baud          Speed of the serial port for serial_montor.py.
+    --port /dev/ttyXxx  Serial port of the board.
+    --baud baud         Speed of the serial port for serial_montor.py.
                         (Default: 115200)
-   --board {package}:{arch}:{board}[:parameters]]
+    --board {package}:{arch}:{board}[:parameters]]
                         Fully qualified board name (fqbn) of the target board.
-   --boards {alias}[:{port}],...
+    --boards {alias}[:{port}],...
                         Comma-separated list of {alias}:{port} pairs.
-   --pref key=value     Set the Arduino commandline preferences. Multiple flags
+    --pref key=value    Set the Arduino commandline preferences. Multiple flags
                         may be given.
-   --port_timeout n     Set the timeout for waiting for a serial port to become
+    --port_timeout n    Set the timeout for waiting for a serial port to become
                         available to 'n' seconds. (Default: 120)
+    --skip_if_no_port   Normally a missing --port or {:port} specification
+                        causes a FAILED status in --test or --monitor mode. This
+                        flag effectives turns the mode into just a --verify, and
+                        a SKIPPED message is printed. Useful in Continuous
+                        Integration on multiple boards where only some boards
+                        are actually connected to a serial port.
 
 Multiple *.ino files and directories may be given. If a directory is given, then
 the script looks for an Arduino sketch file under the directory with the same
@@ -164,8 +171,13 @@ function process_boards() {
             continue
         fi
         if [[ "$board_port" == '' && "$mode" != 'verify' ]]; then
-            echo "FAILED $mode: Unknown port for '$board_alias'" \
-                | tee -a $summary_file
+            if [[ "$skip_if_no_port" == 0 ]]; then
+                echo "FAILED $mode: Unknown port for $board_alias: $*" \
+                    | tee -a $summary_file
+            else
+                echo "SKIPPED $mode: Unknown port for $board_alias: $*" \
+                    | tee -a $summary_file
+            fi
             continue
         fi
 
@@ -198,16 +210,22 @@ function process_file() {
             | tee -a $summary_file
         return
     fi
+
     if [[ "$port" == '' && "$mode" != 'verify' ]]; then
-        echo "FAILED $mode: port for '$board' not defined: $file" \
-            | tee -a $summary_file
+        if [[ "$skip_if_no_port" == 0 ]]; then
+            echo "FAILED $mode: undefined port for $board: $file" \
+                | tee -a $summary_file
+        else
+            echo "SKIPPED $mode: undefined port for $board: $file" \
+                | tee -a $summary_file
+        fi
         return
     fi
 
     if [[ "$mode" == 'verify' ]]; then
         # Allow multiple --verify commands to run at the same time.
         $DIRNAME/run_arduino.sh \
-            --$mode \
+            --verify \
             --board $board \
             $prefs \
             $verbose \
@@ -217,7 +235,7 @@ function process_file() {
         # flock(1) returns status 1 if the lock file doesn't exist, which
         # prevents distinguishing that from failure of run_arduino.sh.
         if [[ ! -e $port ]]; then
-            echo "FAILED $mode: $port does not exist for $file" \
+            echo "FAILED $mode: cannot find port $port for $board: $file" \
                 | tee -a $summary_file
             return
         fi
@@ -300,6 +318,7 @@ verbose=
 config=
 prefs=
 port_timeout=
+skip_if_no_port=0
 while [[ $# -gt 0 ]]; do
     case $1 in
         --help|-h) usage ;;
@@ -316,6 +335,7 @@ while [[ $# -gt 0 ]]; do
         --boards) shift; boards=$1 ;;
         --pref) shift; prefs="$prefs --pref $1" ;;
         --port_timeout) shift; port_timeout=$1 ;;
+        --skip_if_no_port) skip_if_no_port=1 ;;
         -*) echo "Unknown option '$1'"; usage ;;
         *) break ;;
     esac

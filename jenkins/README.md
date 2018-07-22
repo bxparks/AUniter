@@ -1,4 +1,4 @@
-# Continuous Integration with Jenkins
+# AUniter Integration with Jenkins
 
 [Jenkins](https://jenkins.io) is a software automation tool for continuous
 integration (CI) and continous deployment (CD). It has a master/slave
@@ -9,7 +9,9 @@ execute all jobs by itself.
 The [AUniter](https://github.com/bxparks/AUniter) scripts can be configured to
 run from Jenkins so that the Arduino command line runs periodically (or upon
 source code change) and the results will be tracked by Jenkins and displayed on
-the Jenkins dashboard. If unit tests are written in
+the Jenkins dashboard.
+
+If unit tests are written in
 [AUnit](https://github.com/bxparks/AUnit) and an Arduino board is connected to
 the local machine, the `auniter.sh` can upload the unit test to the board,
 and monitor the serial port to determine if the test passed or failed,
@@ -142,7 +144,8 @@ jenkins$ cd tools
 jenkins$ python2 get.py
 ```
 
-6. (TODO) Add instructions for installing Teensyduino.
+6. Instructions for installing Teensyduino. This is not currently supported
+because of [Issue #4](https://github.com/bxparks/AUniter/issues/4).
 
 7. You might be able to verify a correct install by dumping the prefs:
 ```
@@ -364,6 +367,7 @@ pipeline {
         stage('Test') {
             steps {
                 sh "AUniter/auniter.sh --test \
+                    --skip_if_no_port \
                     --pref sketchbook.path=$WORKSPACE \
                     --config libraries/AceButton/tests/auniter.conf \
                     --boards $BOARDS \
@@ -390,6 +394,15 @@ through the web tool.
 
 The `$BOARDS` variable was defined in the Pipeline configuration above
 with the "This project is parameterized" checkbox option.
+
+Sometimes you may want to verify compiliation against multiple boards but you
+don't have all of them connected to your serial ports. If you use the
+`--skip_if_no_port` flag with the `--test` flag, the absence of a port in the
+`{alias}:{port}` pair of the `$BOARDS` parameter means that the test (hence, the
+upload) should be skipped for that particular board. For example, if `$BOARDS`
+is set to `nano:/dev/ttyUSB0,leonardo,esp8266,esp32`, that means that only an
+Arduino Nano board is connected and the upload and test should be run only on
+that board and skipped for the others.
 
 ### Stages
 
@@ -447,6 +460,55 @@ structure would look like this:
 ```
 But this structure does not leave any room to hold the external libraries
 dependencies and it is not the layout expected by the Arduino IDE.
+
+## Arduino IDE Maintenance
+
+The `jenkins` user uses a completely independent instance of the Arduino IDE
+located at `/var/lib/jenkins/arduino-1.8.5/`. This copy of the IDE needs to
+be peridically updated with new versions of various libraries. Otherwise, the
+version of the Arduino IDE used by `jenkins` will be different than the
+version of the Arduino IDE by yourself.
+
+As far as I can tell from the
+[command line interface](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc),
+there is no programmatic way to tell the Arduino IDE to update *all* updatable
+libraries. You can tell it to update one library at a time, but it is
+difficult and time consuming to determine the complete list of libraries.
+
+The easiest way to update the libraries seems to be through the graphical UI
+of the Arduino IDE.
+
+### Running the Arduino IDE as the Jenkins User
+
+We can run the Arduino IDE as the user `jenkins`, but we must first give
+permission to that user to connect to the X11 server using the `xhost` command:
+
+```
+$ xhost +si:localhost:jenkins
+```
+
+Then `sudo` as user `jenkins` and start the Arduino IDE:
+```
+$ sudo -i -u jenkins
+jenkins$ ./arduino-1.8.5/arduino
+```
+
+### Update the Libraries
+
+To update the libraries from the Arduino IDE (running as user `jenkins`):
+
+* Go to "Sketch > Include Library > Manage Libraries..." to bring up the Library
+  Manager.
+* Select "Type > Updatable".
+* Click each library and click on the "Update" button for each library.
+
+### Update the Board Managers
+
+To update the board managers, use the Arduino IDE in the same way:
+
+* Go to "Tools > Boards > Board Manager..."
+* Select "Type > Updatable".
+* Click "Update" on each board manager that needs to be updated.
 
 ## Additional Features
 
