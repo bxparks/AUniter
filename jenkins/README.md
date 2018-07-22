@@ -144,7 +144,8 @@ jenkins$ cd tools
 jenkins$ python2 get.py
 ```
 
-6. (TODO) Add instructions for installing Teensyduino.
+6. Instructions for installing Teensyduino. This is not currently supported
+because of [Issue #4](https://github.com/bxparks/AUniter/issues/4).
 
 7. You might be able to verify a correct install by dumping the prefs:
 ```
