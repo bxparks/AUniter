@@ -1,6 +1,10 @@
 # AUniter Badge Service
 
-Status: Implementation done. README.md in progress.
+Status: Implementation done. However, GitHub seems to cache the badge image
+aggressively even though the response sets the `cache-control` header.
+It is not clear how long the cache lasts.
+
+Here is a test badge to find out how long GitHub caches the image:
 
 ![Test Badge](https://us-central1-xparks2015.cloudfunctions.net/badge?project=test2)
 
