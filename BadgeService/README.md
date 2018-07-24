@@ -1,13 +1,5 @@
 # AUniter Badge Service
 
-Status: Implementation done. However, GitHub seems to cache the badge image
-aggressively even though the response sets the `cache-control` header.
-It is not clear how long the cache lasts.
-
-Here is a test badge to find out how long GitHub caches the image:
-
-![Test Badge](https://us-central1-xparks2015.cloudfunctions.net/badge?project=test2)
-
 ## Introduction
 
 [Continuous Integration with Jenkins](../jenkins/README.md) explains that
@@ -48,7 +40,7 @@ by the locall hosted Jenkins server.
 An example might make this more clear.
 For the [AceSegment](https://github.com/bxparks/AceSegment) project,
 I created a **BadgeService** at
-https://us-central1-xparks2015.cloudfunctions.net/badge?project=AceSegment.
+https://us-central1-xparks2018.cloudfunctions.net/badge?project=AceSegment.
 This microservice looks for two files in Google Cloud Storage:
 * `gs://xparks-jenkins/AceSegment=PASSED`, or
 * `gs://xparks-jenkins/AceSegment=FAILED`.
@@ -139,7 +131,7 @@ state of the build.
     * It will needed below where you will replace `{badgeServiceUrl}` with this
     * URL.
     * The URL will will look something like
-      https://us-central1-xparks2015.cloudfunctions.net/badge.
+      https://us-central1-xparks2018.cloudfunctions.net/badge.
 1. Test the badge for a project that passes the continuous integration.
     * Create `gs://{bucketName}/test=PASSED` using the `set-badge-status.sh`
       script.
@@ -227,6 +219,16 @@ following verification:
 
 Finally, add the image Markdown tag into the README.md file of your
 project pointing to the {badgeServiceUrl}.
+
+### GitHub Caching
+
+Even though the badge image is returned with a header that disables caching of
+the image:
+```
+Cache-Control: no-cache, no-store, must-revalidate
+```
+GitHub will ignore that setting and cache the badge image anyway. Fortunately,
+the cache time period seems to be relatively short (a few hours?).
 
 ## Security, Privacy and Scalability
 

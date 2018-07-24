@@ -7,7 +7,7 @@
  * on the status of the Jenkins continuous integration of a given project.
  *
  * The GET handler is at:
- *  - https://us-central1-xparks2015.cloudfunctions.net/badge?project={project}
+ *  - https://us-central1-xparks2018.cloudfunctions.net/badge?project={project}
  * The {project} is the name of the project being queried.
  *
  * It looks for a status file in Google Cloud Storage, in the given
