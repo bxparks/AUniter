@@ -91,7 +91,7 @@ preferences, the `preferences.txt` file is saved with its file mode set to
 `600`, which prevents any other user on the computer from accessing that
 preferences file.)
 
-We are make some changes to the instructions for installing the
+We make some changes to the instructions for installing the
 [Arduino IDE on Linux](https://www.arduino.cc/en/Guide/Linux), because
 we will install it as a
 [Portable IDE](https://www.arduino.cc/en/Guide/PortableIDE) into
@@ -105,7 +105,7 @@ like `/home/{yourusername}/Downloads/arduino-1.8.5-linux64.tar.xz`.
 (`/var/lib/jenkins`):
 ```
 $ sudo -i -u jenkins
-jenkins$ tar -xf * /home/{yourusername}/Downloads/arduino-1.8.5-linux64.tar.xz
+jenkins$ tar -xf /home/{yourusername}/Downloads/arduino-1.8.5-linux64.tar.xz
 jenkins$ cd arduino-1.8.5
 jenkins$ mkdir portable
 ```
