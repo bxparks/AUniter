@@ -2,6 +2,8 @@
 
 Status: Implementation done. README.md in progress.
 
+![Test Badge](https://us-central1-xparks2015.cloudfunctions.net/badge?project=test)
+
 ## Introduction
 
 [Continuous Integration with Jenkins](../jenkins/README.md) explains that
