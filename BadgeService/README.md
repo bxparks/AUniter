@@ -2,7 +2,7 @@
 
 Status: Implementation done. README.md in progress.
 
-![Test Badge](https://us-central1-xparks2015.cloudfunctions.net/badge?project=test)
+![Test Badge](https://us-central1-xparks2015.cloudfunctions.net/badge?project=test2)
 
 ## Introduction
 
