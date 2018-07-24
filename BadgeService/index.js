@@ -88,7 +88,7 @@ function getUri(project) {
       }
     } else {
       if (projectInfo.failedFound) {
-        return 'build-failure-brightred.svg';
+        return 'build-failure-red.svg';
       } else {
         return 'build-unknown-lightgrey.svg';
       }
