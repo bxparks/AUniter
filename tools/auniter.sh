@@ -32,6 +32,7 @@ Usage: auniter.sh [--help] [--config file] [--verbose]
                   [--pref key=value]
                   [--port_timeout seconds]
                   [--skip_if_no_port]
+                  [--nolocking]
                   (file.ino | directory) [...]
 
 The script that uses the 'arduino' commandline binary to allow compiling,
@@ -72,6 +73,9 @@ Flags:
                         a SKIPPED message is printed. Useful in Continuous
                         Integration on multiple boards where only some boards
                         are actually connected to a serial port.
+    --nolocking         Do not use flock(1) to lock the tty. Needed for
+                        Arduino Pro Micro, Leonardo or other boards using
+                        virtual serial ports.
 
 Multiple *.ino files and directories may be given. If a directory is given, then
 the script looks for an Arduino sketch file under the directory with the same
@@ -243,7 +247,8 @@ function process_file() {
         # Use flock(1) to prevent multiple uploads to the same board at the same
         # time.
         local timeout=${port_timeout:-$PORT_TIMEOUT}
-        local status=0; flock --timeout $timeout \
+        if [[ "$locking" == 1 ]]; then
+            local status=0; flock --timeout $timeout \
                 --conflict-exit-code $FLOCK_TIMEOUT_CODE \
                 $port \
                 $DIRNAME/run_arduino.sh \
@@ -255,6 +260,18 @@ function process_file() {
                 $verbose \
                 --summary_file $summary_file \
                 $file || status=$?
+        else
+            local status=0; \
+                $DIRNAME/run_arduino.sh \
+                --$mode \
+                --board $board \
+                --port $port \
+                --baud $baud \
+                $prefs \
+                $verbose \
+                --summary_file $summary_file \
+                $file || status=$?
+        fi
 
         if [[ "$status" == $FLOCK_TIMEOUT_CODE ]]; then
             echo "FAILED $mode: could not obtain lock on $port for $file" \
@@ -319,6 +336,7 @@ config=
 prefs=
 port_timeout=
 skip_if_no_port=0
+locking=1
 while [[ $# -gt 0 ]]; do
     case $1 in
         --help|-h) usage ;;
@@ -336,6 +354,7 @@ while [[ $# -gt 0 ]]; do
         --pref) shift; prefs="$prefs --pref $1" ;;
         --port_timeout) shift; port_timeout=$1 ;;
         --skip_if_no_port) skip_if_no_port=1 ;;
+        --nolocking) locking=0 ;;
         -*) echo "Unknown option '$1'"; usage ;;
         *) break ;;
     esac
