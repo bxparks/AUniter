@@ -32,7 +32,7 @@ Usage: auniter.sh [--help] [--config file] [--verbose]
                   [--pref key=value]
                   [--port_timeout seconds]
                   [--skip_if_no_port]
-                  [--nolocking]
+                  [--[no]locking
                   (file.ino | directory) [...]
 
 The script that uses the 'arduino' commandline binary to allow compiling,
@@ -73,9 +73,10 @@ Flags:
                         a SKIPPED message is printed. Useful in Continuous
                         Integration on multiple boards where only some boards
                         are actually connected to a serial port.
-    --nolocking         Do not use flock(1) to lock the tty. Needed for
-                        Arduino Pro Micro, Leonardo or other boards using
-                        virtual serial ports.
+    --[no]locking       Use (or not use) flock(1) to lock the tty for the board.
+                        Needed for Arduino Pro Micro, Leonardo or other boards
+                        using virtual serial ports. Can be set in the [options]
+                        section of the CONFIG_FILE.
 
 Multiple *.ino files and directories may be given. If a directory is given, then
 the script looks for an Arduino sketch file under the directory with the same
@@ -185,9 +186,25 @@ function process_boards() {
             continue
         fi
 
+        # Get the config file options, then add the command line options
+        # afterwards, so that the command line options take precedence.
+        local config_options=$(get_config "$config_file" 'options' "$board_alias")
+        process_options $config_options $options
+
         board=$board_value
         port=$board_port
         process_files "$@"
+    done
+}
+
+function process_options() {
+    echo "Process options: $*"
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --locking) locking=1 ;;
+            --nolocking) locking=0 ;;
+        esac
+        shift
     done
 }
 
@@ -336,7 +353,7 @@ config=
 prefs=
 port_timeout=
 skip_if_no_port=0
-locking=1
+options=''
 while [[ $# -gt 0 ]]; do
     case $1 in
         --help|-h) usage ;;
@@ -354,7 +371,8 @@ while [[ $# -gt 0 ]]; do
         --pref) shift; prefs="$prefs --pref $1" ;;
         --port_timeout) shift; port_timeout=$1 ;;
         --skip_if_no_port) skip_if_no_port=1 ;;
-        --nolocking) locking=0 ;;
+        --nolocking) options="$options --nolocking" ;;
+        --locking) options="$options --locking" ;;
         -*) echo "Unknown option '$1'"; usage ;;
         *) break ;;
     esac
