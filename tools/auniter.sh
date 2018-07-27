@@ -371,8 +371,7 @@ while [[ $# -gt 0 ]]; do
         --pref) shift; prefs="$prefs --pref $1" ;;
         --port_timeout) shift; port_timeout=$1 ;;
         --skip_if_no_port) skip_if_no_port=1 ;;
-        --nolocking) options="$options --nolocking" ;;
-        --locking) options="$options --locking" ;;
+        --locking|--nolocking) options="$options $1" ;;
         -*) echo "Unknown option '$1'"; usage ;;
         *) break ;;
     esac
