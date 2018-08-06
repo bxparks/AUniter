@@ -199,6 +199,7 @@ function process_boards() {
 
 function process_options() {
     echo "Process options: $*"
+    locking=0
     while [[ $# -gt 0 ]]; do
         case $1 in
             --locking) locking=1 ;;
