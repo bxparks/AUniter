@@ -32,7 +32,8 @@ Usage: auniter.sh [--help] [--config file] [--verbose]
                   [--pref key=value]
                   [--port_timeout seconds]
                   [--skip_if_no_port]
-                  [--[no]locking
+                  [--[no]locking]
+                  [--exclude regexp]
                   (file.ino | directory) [...]
 
 The script that uses the 'arduino' commandline binary to allow compiling,
@@ -77,6 +78,14 @@ Flags:
                         Needed for Arduino Pro Micro, Leonardo or other boards
                         using virtual serial ports. Can be set in the [options]
                         section of the CONFIG_FILE.
+    --exclude regexp    Exclude 'file.ino' whose fullpath matches the given
+                        egrep regular expression. This will normally be used in
+                        the [options] section of the CONFIG_FILE to exclude
+                        files which are not compatible with certain board (e.g.
+                        ESP8266 or ESP32). Multiple files can be specified using
+                        the 'a|b' pattern supported by egrep. Use 'none' (or
+                        some other pattern which matches nothing) to clobber the
+                        value from the CONFIG_FILE.
 
 Multiple *.ino files and directories may be given. If a directory is given, then
 the script looks for an Arduino sketch file under the directory with the same
@@ -188,7 +197,8 @@ function process_boards() {
 
         # Get the config file options, then add the command line options
         # afterwards, so that the command line options take precedence.
-        local config_options=$(get_config "$config_file" 'options' "$board_alias")
+        local config_options=$(get_config "$config_file" 'options' \
+            "$board_alias")
         process_options $config_options $options
 
         board=$board_value
@@ -200,10 +210,12 @@ function process_boards() {
 function process_options() {
     echo "Process options: $*"
     locking=0
+    exclude='^$'
     while [[ $# -gt 0 ]]; do
         case $1 in
             --locking) locking=1 ;;
             --nolocking) locking=0 ;;
+            --exclude) shift; exclude=$1 ;;
         esac
         shift
     done
@@ -213,6 +225,12 @@ function process_files() {
     local file
     for file in "$@"; do
         local ino_file=$(get_ino_file $file)
+        if realpath $ino_file | egrep --silent "$exclude"; then
+            echo "SKIPPED $mode: excluding $file" \
+                | tee -a $summary_file
+            continue
+        fi
+
         if [[ ! -f $ino_file ]]; then
             echo "FAILED $mode: file not found: $ino_file" \
                 | tee -a $summary_file
@@ -373,6 +391,7 @@ while [[ $# -gt 0 ]]; do
         --port_timeout) shift; port_timeout=$1 ;;
         --skip_if_no_port) skip_if_no_port=1 ;;
         --locking|--nolocking) options="$options $1" ;;
+        --exclude) shift; options="$options --exclude $1" ;;
         -*) echo "Unknown option '$1'"; usage ;;
         *) break ;;
     esac

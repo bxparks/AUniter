@@ -276,7 +276,7 @@ It did not seem worth providing aliases for the ports in the
 `$HOME/.auniter.conf` file because the specific serial port is assigned by the
 OS and can vary depending on the presence of other USB or serial devices.
 
-### Mutually Exclusive Access
+### Mutually Exclusive Access (--locking, --nolocking)
 
 Multiple instances of the `auniter.sh` script can be executed, which can help
 with the `--verify` operation if you have multiple CPU cores. However, when the
@@ -296,7 +296,7 @@ By default, the locking is performed. There are 2 ways to disable the locking:
 1) Use the `--[no]locking` flag on the `auniter.sh` script.
 
 2) Add an entry for a specific board alias under the `[options]` section in the
-  `CONFIG_FILE`. The format looking like this:
+  `CONFIG_FILE`. The format looks like this:
 ```
 [boards]
   leonardo = arduino:avr:leonardo
@@ -308,6 +308,42 @@ By default, the locking is performed. There are 2 ways to disable the locking:
 If the flag is given in both places, then the the command line flag takes
 precedence over the `CONFIG_FILE` to allow overriding of the value in the config
 file.
+
+### Excluding Files (--exclude regexp)
+
+Some programs cannot be compiled under some microcontroller boards.
+The `--exclude regexp` option will skip any `*.ino` files whose fullpath
+matches the regular expression used by
+[egrep](https://linux.die.net/man/1/egrep).
+
+This flag is intended to be used in the `[options]` section of the
+`CONFIG_FILE` for a given board target, like this:
+```
+[boards]
+  esp8266 = ...
+  esp32 = ...
+
+[options]
+  esp8266 = --exclude AceButton/examples/CapacitiveButton
+  esp32 = --exclude AceButton/examples/CapacitiveButton
+```
+
+The `CapacitiveButton` program does not compile for ESP8266 or ESP32 boards.
+This entry in the `CONFIG_FILE` will cause `auniter.sh` to skip this file for
+all modes (verify, upload, test, monitor).
+
+Multiple files can be specified using the `a|b` regular expression:
+```
+  esp8266 = --exclude AceButton/examples/CapacitiveButton|AceButton/examples/StopWatch
+```
+
+If the flag is given to the `auniter.sh` script explicitly, it will override
+the value in `CONFIG_FILE`. Therefore, you can explicitly compile a program
+that is excluded from the `CONFIG_FILE` by giving a regexp which matches
+nothing. For example:
+```
+$ ./auniter.sh --exclude none --boards esp8266 CapacitiveButton
+```
 
 ## Integration with Jenkins
 
