@@ -1,5 +1,15 @@
 # Changelog
 
+* 1.4 (2018-08-16)
+    * Reduce latency of BadgeService using statically cached images
+      from shields.io.
+    * Add proper cache-control directive in BadgeService to prevent GitHub
+      from caching badges too aggressively.
+    * Add --exclude option to allow some boards to skip some sketches which
+      don't compile for those targets.
+    * Add --nolocking option to avoid flock(1) for Leonardo/Mciro boards
+      which use virtual serial ports. (Fixes #9)
+    * Add new [options] section to the auniter.conf file format.
 * 1.3 (2018-07-21)
     * Add BadgeService implemented using Google Functions to allow a locally
       hosted Jenkins to determine the shields.io that can be displayed in

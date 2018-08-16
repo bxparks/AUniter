@@ -49,39 +49,48 @@ If it finds a file named `AceSegment=PASSED`, the **BadgeService** returns
 a green "passing" badge from shields.io. If it detects a file named
 `AceSegment=FAILED`, it returns a red "failure" badge from shields.io.
 
-The **BadgeService** *proxies* the content of the badge instead of returning
-a 302 (or 307) redirect. In other words, the microservice fetches the image from
-shields.io, then returns the content of image to the requesting web browser. It
-needs to do this because shields.io sets the cache for static images to be 1
-day, which causes GitHub to generate a cached image of that badge which doesn't
-expire for an entire day.
+Prior to v1.4, **BadgeService** fetched the images from shields.io at serving
+time, then proxied the image to the original requester. This had 2
+problems:
+1. It increased the latency of the request since the image was fetched at
+   serving time,
+1. It made shields.io a point of failure of the service.
+
+After v1.4, the service uses statically-compiled copies of various badge images
+from shields.io. The badges are only about 500 bytes each, and we use only 5 of
+them, so the images are compiled directly into the JavaScript/NodeJS code.
 
 ## Architecture Diagram
 
 Here's a dependency diagram which might make this more clear:
 ```
-      Google Cloud    shields.io
-        Storage            ^
-          ^   ^           /
-          |    \         /
-          |     \       / (GET badge)
- (create/ |      \     /
-  remove  |    BadgeService
-  marker  |          ^
-  files)  |          | (GET embedded
-          |          |  image)
-          |          |
-          |        GitHub
-----------|----   README.md
- firewall |          ^
-          |          |
-set-badge-status.sh  |
-          ^          |
-          |          | (GET)
-          |          |
-       local         |
-       Jenkins       |
-       service      user/browser
+                  Google Cloud
+                    Storage
+                     ^    ^
+                    /      \
+                   /        \
+                  |          \
+                  |       Google Functions
+                  |       BadgeService (statically cached images)
+                  |             ^
+        firewall  |             |
+=========================       | (GET badge image)
+                  |             |
+                  |             |
+  (create/remove  |             |
+   marker files)  |         GitHub/README.md
+                  |             ^
+     set-badge-status.sh        |
+                  ^             |
+                  |             |
+Arduino board     |             | (GET)
+        ^         |             |
+         \        |             |
+    auniter.sh    |             |
+           ^      |             |
+            \     |             |
+         local Jenkins        user/browser
+           service
 ```
 
 Since shields.io cannot contact the local Jenkins serice, and neither can the
@@ -257,15 +266,6 @@ the cache time period seems to be relatively short (a few hours?).
       instances to handle the load.
     * However, at some point, the system will hit various
       [quotas and rate limits](https://cloud.google.com/functions/quotas).
-* I cannot think of any security problems related to proxying the image
-  from shields.io, but it's possible that it could be an issue.
-    * GitHub itself is doing essentially the same thing by caching
-      the shields.io image on its CDN servers.
-    * It is possible that shields.io could get hacked and the content may
-      contain something malicious. But that would be equivalent to placing the
-      shields.io URL directly into the GitHub README.md file, so the act of
-      *proxying* the image does not seem like it should introduce any
-      *additional* security problemns.
 
 ## Pricing
 
