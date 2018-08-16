@@ -53,7 +53,7 @@ so I do not know if it would work on that.
 ## Limitations
 
 * [Teensyduino](https://pjrc.com/teensy/teensyduino.html) is not supported
-  due to Issue #4.
+  due to [Issue #4](https://github.com/bxparks/AUniter/issues/4).
 
 ## License
 
