@@ -11,9 +11,11 @@ There are 3 components to the **AUniter** package:
 1. Command line tools (`tools/`) that can compile and upload Arduino programs
    to microcontroller boards programmatically.
 1. Integration with a locally hosted Jenkins system (`jenkins/`).
-1. A badge service (`BadgeService/`) running on Google Functions that allows the
-   locally hosted Jenkins system to update the status of the build, so that an
-   indicator badge can be displayed on a source control repository like GitHub.
+1. A badge service (`BadgeService/`) running on
+   [Google Cloud Functions](https://cloud.google.com/functions/)
+   that allows the locally hosted Jenkins system to update the status of the
+   build, so that an indicator badge can be displayed on a source control
+   repository like GitHub.
 
 Version: 1.4 (2018-08-16)
 

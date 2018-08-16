@@ -35,7 +35,7 @@ project. The state of the build is stored as zero-length files on
 (Google's file system in the cloud). These files can be created and
 modified by a shell script (`set-badge-status.sh`) which can be called from a
 [Jenkinsfile](https://jenkins.io/doc/book/pipeline/jenkinsfile/)
-by the locall hosted Jenkins server.
+by the locally hosted Jenkins server.
 
 An example might make this more clear.
 For the [AceSegment](https://github.com/bxparks/AceSegment) project,
@@ -71,18 +71,20 @@ Here's a dependency diagram which might make this more clear:
                    /        \
                   |          \
                   |       Google Functions
-                  |       BadgeService (statically cached images)
+                  |       BadgeService
                   |             ^
-        firewall  |             |
-=========================       | (GET badge image)
                   |             |
+                  |             | (GET badge image)
+                  |             |
+                  |       GitHub/README.md
+     firewall     |             ^
+=========================       |
                   |             |
   (create/remove  |             |
-   marker files)  |         GitHub/README.md
-                  |             ^
+   marker files)  |             |
+                  |             |
      set-badge-status.sh        |
                   ^             |
-                  |             |
 Arduino board     |             | (GET)
         ^         |             |
          \        |             |
@@ -152,7 +154,7 @@ state of the build.
         * `$ ./set-badge-script.sh {bucketName} test FAILED`
     * Goto https://{badgeServiceUrl}?project=test.
     * Verify that you see a red badge.
-1. Insert `![Alt Text](https://{badgeServiceUrle}?project={project}]` in
+1. Insert `![Alt Text](https://{badgeServiceUrl}?project={project}]` in
    README.md file. (You can replace "Alt Text" with something descriptive
    about your project status.)
 
