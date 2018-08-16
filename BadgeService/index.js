@@ -7,7 +7,7 @@
  * on the status of the Jenkins continuous integration of a given project.
  *
  * The GET handler is at:
- *  - https://us-central1-xparks2015.cloudfunctions.net/badge?project={project}
+ *  - https://us-central1-xparks2018.cloudfunctions.net/badge?project={project}
  * The {project} is the name of the project being queried.
  *
  * It looks for a status file in Google Cloud Storage, in the given
@@ -16,7 +16,7 @@
  *  - '{project}=PASSED'
  *  - '{project}=FAILED'
  *
- * There are 4 possible badges:
+ * There are 5 possible badges:
  *
  *  - If the PASSED file is detected, then a "passing" badge from shields.io is
  *    returned.
@@ -26,6 +26,7 @@
  *    returned.
  *  - If both of these markers file exist (which shouldn't happen), then
  *    an "error" badge is returned.
+ *  - If {project} is not given, then an "invalid" badge is returned.
  *
  * Deployment:
  *
@@ -41,7 +42,19 @@ const bucketName = 'xparks-jenkins';
 // Number of milliseconds between successive calls to checkPassOrFail().
 const checkIntervalMillis = 1 * 60 * 1000;
 
-const badgeBaseUrl = 'https://img.shields.io/badge/';
+// Cache of static badges from https://img.shields.io/badge/
+const badges = {
+  'build-passing-brightgreen.svg':
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="88" height="20"><linearGradient id="b" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient><clipPath id="a"><rect width="88" height="20" rx="3" fill="#fff"/></clipPath><g clip-path="url(#a)"><path fill="#555" d="M0 0h37v20H0z"/><path fill="#4c1" d="M37 0h51v20H37z"/><path fill="url(#b)" d="M0 0h88v20H0z"/></g><g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="110"> <text x="195" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="270">build</text><text x="195" y="140" transform="scale(.1)" textLength="270">build</text><text x="615" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="410">passing</text><text x="615" y="140" transform="scale(.1)" textLength="410">passing</text></g> </svg>',
+  'build-failure-red.svg':
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="82" height="20"><linearGradient id="b" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient><clipPath id="a"><rect width="82" height="20" rx="3" fill="#fff"/></clipPath><g clip-path="url(#a)"><path fill="#555" d="M0 0h37v20H0z"/><path fill="#e05d44" d="M37 0h45v20H37z"/><path fill="url(#b)" d="M0 0h82v20H0z"/></g><g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="110"> <text x="195" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="270">build</text><text x="195" y="140" transform="scale(.1)" textLength="270">build</text><text x="585" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="350">failure</text><text x="585" y="140" transform="scale(.1)" textLength="350">failure</text></g> </svg>',
+  'build-invalid-orange.svg':
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="82" height="20"><linearGradient id="b" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient><clipPath id="a"><rect width="82" height="20" rx="3" fill="#fff"/></clipPath><g clip-path="url(#a)"><path fill="#555" d="M0 0h37v20H0z"/><path fill="#fe7d37" d="M37 0h45v20H37z"/><path fill="url(#b)" d="M0 0h82v20H0z"/></g><g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="110"> <text x="195" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="270">build</text><text x="195" y="140" transform="scale(.1)" textLength="270">build</text><text x="585" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="350">invalid</text><text x="585" y="140" transform="scale(.1)" textLength="350">invalid</text></g> </svg>',
+  'build-error-yellow.svg':
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="74" height="20"><linearGradient id="b" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient><clipPath id="a"><rect width="74" height="20" rx="3" fill="#fff"/></clipPath><g clip-path="url(#a)"><path fill="#555" d="M0 0h37v20H0z"/><path fill="#dfb317" d="M37 0h37v20H37z"/><path fill="url(#b)" d="M0 0h74v20H0z"/></g><g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="110"> <text x="195" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="270">build</text><text x="195" y="140" transform="scale(.1)" textLength="270">build</text><text x="545" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="270">error</text><text x="545" y="140" transform="scale(.1)" textLength="270">error</text></g> </svg>',
+  'build-unknown-lightgrey.svg':
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="98" height="20"><linearGradient id="b" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient><clipPath id="a"><rect width="98" height="20" rx="3" fill="#fff"/></clipPath><g clip-path="url(#a)"><path fill="#555" d="M0 0h37v20H0z"/><path fill="#9f9f9f" d="M37 0h61v20H37z"/><path fill="url(#b)" d="M0 0h98v20H0z"/></g><g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="110"> <text x="195" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="270">build</text><text x="195" y="140" transform="scale(.1)" textLength="270">build</text><text x="665" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="510">unknown</text><text x="665" y="140" transform="scale(.1)" textLength="510">unknown</text></g> </svg>',
+};
 
 // Cache of various meta-info related to the CI status of particular project.
 var projectInfos = {};
@@ -71,7 +84,7 @@ function updateProjectInfos(files) {
 /**
  * Return the badge URI fragment of the project using the projectInfos cache.
  */
-function getUri(project) {
+function getBadgeForProject(project) {
   if (project == null) {
     return 'build-invalid-orange.svg';
   }
@@ -88,7 +101,7 @@ function getUri(project) {
       }
     } else {
       if (projectInfo.failedFound) {
-        return 'build-failure-brightred.svg';
+        return 'build-failure-red.svg';
       } else {
         return 'build-unknown-lightgrey.svg';
       }
@@ -96,51 +109,12 @@ function getUri(project) {
   }
 }
 
-/**
- * Fetch the shields.io badge and echo it back to res. I tried using a 307
- * redirect, but shields.io returns a response with "cache-control:
- * max-age=86400" for static badges, which causes GitHub to cache the badge for
- * 1 whole day. To bypass the cache-control, we fetch it ourselves, then proxy
- * the image back the requester. Our header is set to "cache-control: no-cache,
- * must-revalidate" which is enough to prevent GitHub from permanently caching
- * that image. I also notice an "etag" header being set. That must be set
- * automatically by the Google Frontend in front of this service.
- *
- * For explanation of the https.get() and Promise chaining, see:
- *
- *  - https://nodejs.org/docs/latest/api/https.html.
- *  - https://javascript.info/promise-chaining
- *  - https://valentinog.com/blog/http-requests-node-js-async-await/
- */
-function fetchBadge(res, url) {
-  return new Promise((resolve, reject) => {
-    var https = require('https');
-
-    https.get(url, (http_res) => {
-      const { statusCode } = http_res;
-      if (statusCode !== 200) {
-        console.log('fetchBadge(): statusCode: ', statusCode, '; url: ', url);
-        http_res.resume();
-        res.status(404).end();
-        resolve();
-        return;
-      }
-
-      var data = '';
-      http_res.on('data', (chunk) => {
-        data += chunk;
-      });
-      http_res.on('end', () => {
-        res.type('image/svg+xml;charset=utf-8');
-        res.send(data);
-        resolve();
-      });
-    }).on('error', e => {
-      console.error('ERROR: ', err);
-      res.status(500).end();
-      reject();
-    });
-  });
+/** Send the image corresponding to 'badge'. */
+function sendBadgeImage(res, badge) {
+  const badgeImage = badges[badge];
+  res.type('image/svg+xml;charset=utf-8');
+  res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.send(badgeImage);
 }
 
 /**
@@ -158,16 +132,17 @@ function fetchBadge(res, url) {
  */
 exports.badge = (req, res) => {
   const project = req.query.project;
-  if (project == null) {
-    return fetchBadge(res, badgeBaseUrl + 'build-invalid-orange.svg');
+  if (!project) {
+    sendBadgeImage(res, 'build-invalid-orange.svg');
+    return;
   }
   console.log('badge(): Processing project: ', project);
 
   // Use the cache if it was updated recently.
   const nowMillis = new Date().getTime();
   if (nowMillis - lastCheckedTime <= checkIntervalMillis) {
-    const uri = getUri(project);
-    return fetchBadge(res, badgeBaseUrl + uri);
+    sendBadgeImage(res, getBadgeForProject(project));
+    return;
   }
 
   const Storage = require('@google-cloud/storage');
@@ -181,8 +156,7 @@ exports.badge = (req, res) => {
         const files = results[0];
         updateProjectInfos(files);
         lastCheckedTime = nowMillis;
-        const uri = getUri(project);
-        return fetchBadge(res, badgeBaseUrl + uri);
+        sendBadgeImage(res, getBadgeForProject(project));
       })
       .catch(err => {
         console.error('ERROR: ', err);

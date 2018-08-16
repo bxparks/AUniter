@@ -186,19 +186,6 @@ $ ./auniter.sh --list_ports
 /dev/ttyACM0 - Arduino Leonardo
 ```
 
-### Mutually Exclusive Access
-
-Multiple instances of the `auniter.sh` script can be executed, which can help
-with the `--verify` operation if you have multiple CPU cores. However, when the
-`--upload` or `--test` mode is selected, it is important to ensure that only one
-instance of the Arduino IDE uploads and/or monitors the serial port at given
-time. Otherwise one instance of the `auniter.sh` script can accidentally
-see the output of another `auniter.sh` and cause confusion.
-
-The `auniter.sh` script uses a locking mechanism on the serial port of the
-Arduino board to prevent multiple uploads to and serial monitoring of the same
-Arduino board at the same time.
-
 ### Automatic Directory Expansion
 
 If the `auniter.sh` is given a directory `dir`, it tries to find
@@ -227,9 +214,9 @@ espressif:esp32:esp32:PartitionScheme=default,FlashMode=qio,FlashFreq=80,FlashSi
 It is likely that not all the extra parameters are needed, but it is not
 easy to figure out which ones can be left out.
 
-Instead of using the `fqbn`, the `auniter.sh` script allows
-the user to define aliases for the `fqbn` in a file. The format of the file is
-the [INI file](https://en.wikipedia.org/wiki/INI_file), and the aliases are
+Instead of using the `fqbn`, the `auniter.sh` script allows the user to define
+aliases for the `fqbn` in a file. The format of the file is the
+[INI file](https://en.wikipedia.org/wiki/INI_file), and the aliases are
 in the `[boards]` section:
 ```
 # Board aliases
@@ -246,7 +233,8 @@ limited to the usual character set for identifiers (`a-z`, `A-Z`, `0-9`,
 underscore `_`). It definitely cannot contain an equal sign `=` or space
 character.
 
-The board aliases can be saved into the AUniter config file.
+The board aliases can be saved into the AUniter config file. They can be
+referenced using the `--boards` flag.
 
 ### Config File (--config)
 
@@ -287,6 +275,75 @@ This runs the 5 unit tests on 4 boards connected to the ports specified by the
 It did not seem worth providing aliases for the ports in the
 `$HOME/.auniter.conf` file because the specific serial port is assigned by the
 OS and can vary depending on the presence of other USB or serial devices.
+
+### Mutually Exclusive Access (--locking, --nolocking)
+
+Multiple instances of the `auniter.sh` script can be executed, which can help
+with the `--verify` operation if you have multiple CPU cores. However, when the
+`--upload` or `--test` mode is selected, it is important to ensure that only one
+instance of the Arduino IDE uploads and/or monitors the serial port at given
+time. Otherwise one instance of the `auniter.sh` script can accidentally
+see the output of another `auniter.sh` and cause confusion.
+
+The `auniter.sh` script uses a locking mechanism on the serial port of the
+Arduino board (using the [flock(1)](https://linux.die.net/man/1/flock) command)
+to prevent multiple uploads to and monitoring of the same Arduino board
+at the same time. Unfortunately, the locking does not work for the Pro Micro or
+Leonardo boards (using ATmega32U4) which use virtual serial ports.
+
+By default, the locking is performed. There are 2 ways to disable the locking:
+
+1) Use the `--[no]locking` flag on the `auniter.sh` script.
+
+2) Add an entry for a specific board alias under the `[options]` section in the
+  `CONFIG_FILE`. The format looks like this:
+```
+[boards]
+  leonardo = arduino:avr:leonardo
+
+[options]
+  leonardo = --nolocking
+```
+
+If the flag is given in both places, then the the command line flag takes
+precedence over the `CONFIG_FILE` to allow overriding of the value in the config
+file.
+
+### Excluding Files (--exclude regexp)
+
+Some programs cannot be compiled under some microcontroller boards.
+The `--exclude regexp` option will skip any `*.ino` files whose fullpath
+matches the regular expression used by
+[egrep](https://linux.die.net/man/1/egrep).
+
+This flag is intended to be used in the `[options]` section of the
+`CONFIG_FILE` for a given board target, like this:
+```
+[boards]
+  esp8266 = ...
+  esp32 = ...
+
+[options]
+  esp8266 = --exclude AceButton/examples/CapacitiveButton
+  esp32 = --exclude AceButton/examples/CapacitiveButton
+```
+
+The `CapacitiveButton` program does not compile for ESP8266 or ESP32 boards.
+This entry in the `CONFIG_FILE` will cause `auniter.sh` to skip this file for
+all modes (verify, upload, test, monitor).
+
+Multiple files can be specified using the `a|b` regular expression:
+```
+  esp8266 = --exclude AceButton/examples/CapacitiveButton|AceButton/examples/StopWatch
+```
+
+If the flag is given to the `auniter.sh` script explicitly, it will override
+the value in `CONFIG_FILE`. Therefore, you can explicitly compile a program
+that is excluded from the `CONFIG_FILE` by giving a regexp which matches
+nothing. For example:
+```
+$ ./auniter.sh --exclude none --boards esp8266 CapacitiveButton
+```
 
 ## Integration with Jenkins
 

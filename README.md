@@ -15,7 +15,7 @@ There are 3 components to the **AUniter** package:
    locally hosted Jenkins system to update the status of the build, so that an
    indicator badge can be displayed on a source control repository like GitHub.
 
-Version: 1.3 (2018-07-21)
+Version: 1.4 (2018-08-16)
 
 ## Installation
 
@@ -53,7 +53,7 @@ so I do not know if it would work on that.
 ## Limitations
 
 * [Teensyduino](https://pjrc.com/teensy/teensyduino.html) is not supported
-  due to Issue #4.
+  due to [Issue #4](https://github.com/bxparks/AUniter/issues/4).
 
 ## License
 
