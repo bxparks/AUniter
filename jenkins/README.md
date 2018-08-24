@@ -510,6 +510,25 @@ To update the board managers, use the Arduino IDE in the same way:
 * Select "Type > Updatable".
 * Click "Update" on each board manager that needs to be updated.
 
+## Troubleshooting
+
+### Failure to Upload Due to Arduino IDE Serial Monitor
+
+The `auniter.sh` script tries to prevent multiple instance of the `Arduino`
+command line binary from accessing the same board, on the same `/dev/tty*`
+serial port, at the same time. However, if you have an Arduino IDE running on
+the same machine, and it has a serial monitor open, the `auniter.sh` script will
+not be able to obtain an exclusive lock on the serial port. The Jenkins script
+will fail on the `Test` stage when it fails to upload the program to the Arduino
+board.
+
+### Failure to add New Library Dependency
+
+When a new library is added as a dependency, the Arduino IDE will pick it up
+automatically after the library is added through the Library Manager. However,
+the Jenkins server will not pick up the new library unless it is explicitly
+added to the project's `Jenkinsfile`.
+
 ## Additional Features
 
 ### Adjust Number of Executors
