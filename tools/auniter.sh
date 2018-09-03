@@ -220,8 +220,8 @@ function process_boards() {
 
 function process_options() {
     echo "Process options: $*"
-    locking=0
-    exclude='^$'
+    locking=1 # lock serial port using flock(1) by default
+    exclude='^$' # exclude files by default
     while [[ $# -gt 0 ]]; do
         case $1 in
             --locking) locking=1 ;;
