@@ -11,11 +11,13 @@ There are 3 components to the **AUniter** package:
 1. Command line tools (`tools/`) that can compile and upload Arduino programs
    to microcontroller boards programmatically.
 1. Integration with a locally hosted Jenkins system (`jenkins/`).
-1. A badge service (`BadgeService/`) running on Google Functions that allows the
-   locally hosted Jenkins system to update the status of the build, so that an
-   indicator badge can be displayed on a source control repository like GitHub.
+1. A badge service (`BadgeService/`) running on
+   [Google Cloud Functions](https://cloud.google.com/functions/)
+   that allows the locally hosted Jenkins system to update the status of the
+   build, so that an indicator badge can be displayed on a source control
+   repository like GitHub.
 
-Version: 1.4 (2018-08-16)
+Version: 1.4.1 (2018-09-03)
 
 ## Installation
 
@@ -58,6 +60,16 @@ so I do not know if it would work on that.
 ## License
 
 [MIT License](https://opensource.org/licenses/MIT)
+
+## Feedback and Support
+
+If you have any questions, comments, bug reports, or feature requests, please
+file a GitHub ticket or send me an email. I'd love to hear about how this
+software and its documentation can be improved. Instead of forking the
+repository to modify or add a feature for your own projects, let me have a
+chance to incorporate the change into the main repository so that your external
+dependencies are simpler and so that others can benefit. I can't promise that I
+will incorporate everything, but I will give your ideas serious consideration.
 
 ## Authors
 

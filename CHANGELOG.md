@@ -1,5 +1,8 @@
 # Changelog
 
+* 1.4.1 (2018-09-03)
+    * Fix bug which disabled --locking by default.
+    * Allow serial port specifier in --boards flag to omit "/dev/tty" prefix.
 * 1.4 (2018-08-16)
     * Reduce latency of BadgeService using statically cached images
       from shields.io.

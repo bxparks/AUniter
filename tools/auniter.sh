@@ -168,13 +168,15 @@ function process_sketches() {
     fi
 }
 
+# Requires $boards to define the target environments as a comma-separated list
+# of {board}:{port}.
 function process_boards() {
-    local alias_ports=$(echo "$boards" | sed -e 's/,/ /g')
-    for alias_port in $alias_ports; do
+    local board_and_ports=$(echo "$boards" | sed -e 's/,/ /g')
+    for board_and_port in $board_and_ports; do
         # Split {alias}:{port} into two fields.
-        local board_alias=$(echo $alias_port \
+        local board_alias=$(echo $board_and_port \
                 | sed -E -e 's/([^:]*):?([^:]*)/\1/')
-        local board_port=$(echo $alias_port \
+        local board_port=$(echo $board_and_port \
                 | sed -E -e 's/([^:]*):?([^:]*)/\2/')
 
         echo "======== Processing board=$board_alias, port=$board_port"
@@ -202,15 +204,24 @@ function process_boards() {
         process_options $config_options $options
 
         board=$board_value
-        port=$board_port
+
+        # If a port is not fully qualified (i.e. start with /), then append
+        # "/dev/tty" to the given port. On Linux, all serial ports seem to start
+        # with this prefix, so we can specify "/dev/ttyUSB0" as just "USB0".
+        if [[ $board_port =~ ^/ ]]; then
+            port=$board_port
+        else
+            port="/dev/tty$board_port"
+        fi
+
         process_files "$@"
     done
 }
 
 function process_options() {
     echo "Process options: $*"
-    locking=0
-    exclude='^$'
+    locking=1 # lock serial port using flock(1) by default
+    exclude='^$' # exclude files by default
     while [[ $# -gt 0 ]]; do
         case $1 in
             --locking) locking=1 ;;
@@ -221,6 +232,7 @@ function process_options() {
     done
 }
 
+# Requires $board and $port to define the target environment.
 function process_files() {
     local file
     for file in "$@"; do
@@ -241,6 +253,7 @@ function process_files() {
     done
 }
 
+# Requires $board and $port to define the target environment.
 function process_file() {
     local file=$1
     echo "==== Processing $file"

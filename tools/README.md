@@ -215,7 +215,7 @@ It is likely that not all the extra parameters are needed, but it is not
 easy to figure out which ones can be left out.
 
 Instead of using the `fqbn`, the `auniter.sh` script allows the user to define
-aliases for the `fqbn` in a file. The format of the file is the
+aliases for the `fqbn` in a config file. The format of the file is the
 [INI file](https://en.wikipedia.org/wiki/INI_file), and the aliases are
 in the `[boards]` section:
 ```
@@ -233,8 +233,9 @@ limited to the usual character set for identifiers (`a-z`, `A-Z`, `0-9`,
 underscore `_`). It definitely cannot contain an equal sign `=` or space
 character.
 
-The board aliases can be saved into the AUniter config file. They can be
-referenced using the `--boards` flag.
+The board alias can be used with the `--boards` flag (not to be confused with
+the `--board` flag which is passed directly to the Arduino binary). The
+`--boards` flag is described below.
 
 ### Config File (--config)
 
@@ -272,9 +273,18 @@ $ ./auniter.sh --test \
 This runs the 5 unit tests on 4 boards connected to the ports specified by the
 `--boards` flag.
 
-It did not seem worth providing aliases for the ports in the
-`$HOME/.auniter.conf` file because the specific serial port is assigned by the
-OS and can vary depending on the presence of other USB or serial devices.
+There are no provision for creating aliases for the ports in the
+`$HOME/.auniter.conf` file because the serial port is assigned by the OS and can
+vary depending on the presence of other USB or serial devices. However, the
+serial ports on Linux boxes always seem to start with a '/dev/tty' prefix. If a
+port in the `--boards` flag does not start with a `/` character, we assume that
+it is a shorthand and automatically prepend the `/dev/tty` prefix. The example
+above can be typed as:
+```
+$ ./auniter.sh --test \
+  --boards nano:USB0,leonardo:ACM0,esp8266:USB2,esp32:USB1 \
+  CommonTest DriverTest LedMatrixTest RendererTest WriterTest
+```
 
 ### Mutually Exclusive Access (--locking, --nolocking)
 
