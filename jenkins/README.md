@@ -252,7 +252,7 @@ purposes of this tutorial, I will assume that you have an Arduino UNO.
     * In the "Default Value", enter "uno:/dev/ttyACM0".
 
 This is the value that is passed into the `--boards {alias}[:{port}],...` flag
-of the `auniter.sh` script. Use the `auniter.sh --list_ports` command if you
+of the `auniter.sh` script. Use the `auniter.sh ports` command if you
 need to.
 
 ![Boards Parameter](BoardsParameter.png)
@@ -316,7 +316,7 @@ The `AceButton/tests/Jenkinsfile` file contains 4 stages:
 * `Test`: upload `AceButton/tests/*Test` to an Arduino UNO board connected
   to `/dev/ttyACM0`, run the AUnit tests, and verify that they pass or fail
 
-Normally, you would first verify that the `auniter.sh --test` works
+Normally, you would first verify that the `auniter.sh test` command works
 successfully when you run it on the commmand line. If it works on the
 command line, then Jenkins should be able to use the same command in the
 `Jenkinsfile`.
@@ -348,28 +348,31 @@ pipeline {
         }
         stage('Verify Examples') {
             steps {
-                sh "AUniter/auniter.sh --verify \
-                    --pref sketchbook.path=$WORKSPACE \
+                sh "AUniter/auniter.sh \
                     --config libraries/AceButton/tests/auniter.conf \
+                    verify \
+                    --pref sketchbook.path=$WORKSPACE \
                     --boards $BOARDS \
                     libraries/AceButton/examples/*"
             }
         }
         stage('Verify Tests') {
             steps {
-                sh "AUniter/auniter.sh --verify \
-                    --pref sketchbook.path=$WORKSPACE \
+                sh "AUniter/auniter.sh \
                     --config libraries/AceButton/tests/auniter.conf \
+                    verify \
+                    --pref sketchbook.path=$WORKSPACE \
                     --boards $BOARDS \
                     libraries/AceButton/tests/AceButtonTest"
             }
         }
         stage('Test') {
             steps {
-                sh "AUniter/auniter.sh --test \
+                sh "AUniter/auniter.sh \
+                    --config libraries/AceButton/tests/auniter.conf \
+                    test \
                     --skip_if_no_port \
                     --pref sketchbook.path=$WORKSPACE \
-                    --config libraries/AceButton/tests/auniter.conf \
                     --boards $BOARDS \
                     libraries/AceButton/tests/AceButtonTest"
             }
@@ -397,7 +400,7 @@ with the "This project is parameterized" checkbox option.
 
 Sometimes you may want to verify compiliation against multiple boards but you
 don't have all of them connected to your serial ports. If you use the
-`--skip_if_no_port` flag with the `--test` flag, the absence of a port in the
+`--skip_if_no_port` flag with the `test` command, the absence of a port in the
 `{alias}:{port}` pair of the `$BOARDS` parameter means that the test (hence, the
 upload) should be skipped for that particular board. For example, if `$BOARDS`
 is set to `nano:/dev/ttyUSB0,leonardo,esp8266,esp32`, that means that only an
@@ -549,10 +552,11 @@ Fortunately, the `auniter.sh` script uses the `flock(1)` mechanism to allow only
 a single Arduino binary to upload to a given Arduino board at the same time. The
 second executor that tries to upload a sketch will wait up to 120 seconds for
 the Arduino board to finish its "upload/test" cycle. The locking happens only
-for the `--upload` mode. There is no locking for the `--verify` mode which
-allows multiple pipelines to verify multiple sketches at the same time, limited
-only by CPU and memory. The default wait time of 120 seconds can be overridden
-using the `--port_timeout` flag on the `auniter.sh` script.
+for the `auniter.sh upload` or `auniter.sh test` command. There is no locking
+for the `verify` command which allows multiple pipelines to verify multiple
+sketches at the same time, limited only by CPU and memory. The default wait time
+of 120 seconds can be overridden using the `--port_timeout` flag on the
+`auniter.sh` script.
 
 ### Trigger Build When Something Changes
 
