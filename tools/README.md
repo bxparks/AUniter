@@ -85,20 +85,24 @@ esac
 ```
 (The script does not yet work on MacOS.)
 
-I also recommend creating an alias for the `auniter.sh` script in your `.bashrc`
-file if you use it often:
+### Shell Alias
+
+I recommend creating an alias for the `auniter.sh` script in your `.bashrc`
+file:
 ```
 alias auniter='{path-to-AUniter-directory}/tools/auniter.sh'
 ```
-(Don't add `{path-to-AUniter-directory}/tools` to your `$PATH`. It won't work
+Don't add `{path-to-AUniter-directory}/tools` to your `$PATH`. It won't work
 because `auniter.sh` needs to know its own install directory to find helper
-scripts.)
+scripts.
+
+*(The rest of the document will assume that you  have created this alias.)*
 
 ## Usage
 
-Type `auniter.sh --help` to get the latest usage:
+Type `auniter --help` to get the latest usage:
 ```
-$ ./auniter.sh --help
+$ auniter --help
 Usage: auniter.sh [auniter_flags] command [command_flags] [boards] [files...]
     auniter.sh verify {board} files ...
     auniter.sh upload {board:port} files ...
@@ -135,9 +139,9 @@ The following examples (all equivalent) verify that the `Blink.ino` sketch
 compiles. The `--port` flag is not necessary in this case:
 
 ```
-$ ./auniter.sh verify --board arduino:avr:nano:cpu=atmega328old Blink.ino
-$ ./auniter.sh verify --boards nano Blink.ino
-$ ./auniter.sh verify nano Blink.ino
+$ auniter verify --board arduino:avr:nano:cpu=atmega328old Blink.ino
+$ auniter verify --boards nano Blink.ino
+$ auniter verify nano Blink.ino
 ```
 
 ### Upload
@@ -146,20 +150,20 @@ To upload the sketch to the Arduino board, we need to provide the `--port`
 flag. The following examples are all equivalent:
 
 ```
-$ ./auniter.sh upload --port /dev/ttyUSB0 \
+$ auniter upload --port /dev/ttyUSB0 \
     --board arduino:avr:nano:cpu=atmega328old Blink.ino
-$ ./auniter.sh upload --boards nano:USB0 Blink.ino
-$ ./auniter.sh upload nano:USB0 Blink.ino
+$ auniter upload --boards nano:USB0 Blink.ino
+$ auniter upload nano:USB0 Blink.ino
 ```
 
 ### Test
 
 To run the AUnit test and verify pass or fail:
 ```
-$ ./auniter.sh test --port /dev/ttyUSB0 \
+$ auniter test --port /dev/ttyUSB0 \
     --board arduino:avr:nano:cpu=atmega328old tests/*Test
-$ ./auniter.sh test --boards nano:USB0 tests/*Test
-$ ./auniter.sh test nano:USB0 tests/*Test
+$ auniter test --boards nano:USB0 tests/*Test
+$ auniter test nano:USB0 tests/*Test
 ```
 
 A summary of all the test runs are given at the end, like this:
@@ -181,7 +185,7 @@ The `ALL PASSED` indicates that all unit tests passed.
 
 The `ports` command lists the available serial ports:
 ```
-$ ./auniter.sh ports
+$ auniter ports
 /dev/ttyS4 - n/a
 /dev/ttyS0 - ttyS0
 /dev/ttyUSB2 - CP2102 USB to UART Bridge Controller
@@ -254,7 +258,7 @@ file.) This may be useful if the config file is checked into source control for
 each Arduino project.
 
 ```
-$ ./auniter.sh --config {path-to-config-file} subcommand {board:port} ...
+$ auniter --config {path-to-config-file} subcommand {board:port} ...
 ```
 
 ### Multiple Boards
@@ -262,13 +266,13 @@ $ ./auniter.sh --config {path-to-config-file} subcommand {board:port} ...
 The `--boards` flag accepts a comma-separated list of `{alias}[:{port}]` pairs.
 
 ```
-$ ./auniter.sh verify nano,leonardo,esp8266,esp32 BlinkTest.ino
+$ auniter verify nano,leonardo,esp8266,esp32 BlinkTest.ino
 ```
 
 If you want to run the AUnit tests on multiple boards, you must provide the
 port of each board, like this:
 ```
-$ ./auniter.sh test \
+$ auniter test \
     nano:USB0,leonardo:ACM0,esp8266:USB2,esp32:USB1 \
   CommonTest DriverTest LedMatrixTest RendererTest WriterTest
 ```
@@ -296,7 +300,7 @@ By default, the locking is performed. There are 2 ways to disable the locking:
 
 1) Use the `--[no]locking` flag on the `auniter.sh` script.
 ```
-$ ./auniter.sh test --nolocking leonardo:USB0 tests/*Test
+$ auniter test --nolocking leonardo:USB0 tests/*Test
 ```
 
 2) Add an entry for a specific board alias under the `[options]` section in the
@@ -346,7 +350,7 @@ the value in `CONFIG_FILE`. Therefore, you can explicitly compile a program
 that is excluded from the `CONFIG_FILE` by giving a regexp which matches
 nothing. For example:
 ```
-$ ./auniter.sh --exclude none --boards esp8266 CapacitiveButton
+$ auniter --exclude none --boards esp8266 CapacitiveButton
 ```
 
 ## Integration with Jenkins
