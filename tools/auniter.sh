@@ -24,74 +24,63 @@ FLOCK_TIMEOUT_CODE=10
 
 function usage() {
     cat <<'END'
-Usage: auniter.sh [--help] [--config file] [--verbose]
-                  [--verify | --upload | --test | --monitor | --list_ports]
-                  [--board {package}:{arch}:{board}[:parameters]]
-                  [--port port] [--baud baud]
-                  [--boards {alias}[:{port}],...]
-                  [--pref key=value]
-                  [--port_timeout seconds]
-                  [--skip_if_no_port]
-                  [--[no]locking]
-                  [--exclude regexp]
-                  (file.ino | directory) [...]
+Usage: auniter.sh [auniter_flags] command [command_flags] [board] [files...]
 
-The script that uses the 'arduino' commandline binary to allow compiling,
-uploading, and validating Arduino sketches and AUnit unit tests against Arduino
-boards connected to the serial port. It has 5 major modes:
+    auniter.sh verify {board} files ...
+    auniter.sh upload {board:port} files ...
+    auniter.sh test {board:port} files ...
+    auniter.sh ports
 
-1) Verify (compile) the `*.ino` files. (--verify)
-2) Upload the `*.ino` files to the boards. (--upload)
-3) Upload and validate AUnit unit tests. (--test)
-4) Upload a sketch and monitor the serial port. (--monitor)
-5) List the tty ports and the associated Arduino boards. (--list_ports)
+Commands:
+    verify  Verify the compile of the sketch file(s).
+    upload  Upload the sketch(es) to the given board at port.
+    test    Upload the AUnit unit test(s), and verify pass or fail.
+    ports   List the tty ports and the associated Arduino boards.
 
-Flags:
-    --config file       Read configs from 'file' instead of
-                        $HOME/.auniter.conf'.
-    --verbose           Verbose output from the Arduino binary.
-    --verify            Verify the compile of the sketch file(s). (Default)
-    --upload            Upload the sketch(es) to the given board at port.
-    --test              Upload the AUnit unit test(s), and verify pass or fail.
-    --list_ports        List the tty ports and the associated Arduino boards.
-    --monitor           Upload, the monitor the serial port using
-                        serial_monitor.py, echoing the serial port to the
-                        STDOUT.
-    --port /dev/ttyXxx  Serial port of the board.
-    --baud baud         Speed of the serial port for serial_montor.py.
-                        (Default: 115200)
-    --board {package}:{arch}:{board}[:parameters]]
-                        Fully qualified board name (fqbn) of the target board.
+AUniter Flags:
+    --help          Print this help page.
+    --config {file} Read configs from 'file' instead of $HOME/.auniter.conf'.
+    --verbose       Verbose output from the Arduino binary.
+
+Command Flags:
     --boards {alias}[:{port}],...
-                        Comma-separated list of {alias}:{port} pairs.
-    --pref key=value    Set the Arduino commandline preferences. Multiple flags
-                        may be given.
-    --port_timeout n    Set the timeout for waiting for a serial port to become
-                        available to 'n' seconds. (Default: 120)
-    --skip_if_no_port   Normally a missing --port or {:port} specification
-                        causes a FAILED status in --test or --monitor mode. This
-                        flag effectives turns the mode into just a --verify, and
-                        a SKIPPED message is printed. Useful in Continuous
-                        Integration on multiple boards where only some boards
-                        are actually connected to a serial port.
-    --[no]locking       Use (or not use) flock(1) to lock the tty for the board.
-                        Needed for Arduino Pro Micro, Leonardo or other boards
-                        using virtual serial ports. Can be set in the [options]
-                        section of the CONFIG_FILE.
-    --exclude regexp    Exclude 'file.ino' whose fullpath matches the given
-                        egrep regular expression. This will normally be used in
-                        the [options] section of the CONFIG_FILE to exclude
-                        files which are not compatible with certain board (e.g.
-                        ESP8266 or ESP32). Multiple files can be specified using
-                        the 'a|b' pattern supported by egrep. Use 'none' (or
-                        some other pattern which matches nothing) to clobber the
-                        value from the CONFIG_FILE.
+        Comma-separated list of {alias}:{port} pairs. The {alias} should be
+        listed in the [boards] section of the CONFIG_FILE. The {port} can be
+        shortened by omitting the '/dev/tty' part (e.g. 'USB0').
+    --board {package}:{arch}:{board}[:parameters]]
+        Fully qualified board name (fqbn) of the target board.
+    --port /dev/ttyXxx
+        Serial port of the board.
+    --baud baud
+        Speed of the serial port for serial_montor.py. (Default: 115200)
+    --port_timeout N
+        Set the timeout for waiting for a serial port to become available to 'N'
+        seconds. (Default: 120)
+    --pref key=value
+        Set the Arduino commandline preferences. Multiple flags may be given.
+        Useful in continuous integration.
+    --skip_if_no_port
+        (test, upload command) Just perform a --verify if --port or {:port}
+        is missing. Useful in Continuous Integration on multiple boards where
+        only some boards are actually connected to a serial port.
+    --[no]locking
+        (test command) Use (or not use) flock(1) to lock the tty for the board.
+        Needed for Arduino Pro Micro, Leonardo or other boards using virtual
+        serial ports. Can be set in the [options] section of the CONFIG_FILE.
+    --exclude regexp
+        Exclude 'file.ino' whose fullpath matches the given egrep regular
+        expression. This will normally be used in the [options] section of the
+        CONFIG_FILE to exclude files which are not compatible with certain board
+        (e.g. ESP8266 or ESP32). Multiple files can be specified using the 'a|b'
+        pattern supported by egrep. Use 'none' (or some other pattern which
+        matches nothing) to clobber the value from the CONFIG_FILE.
 
-Multiple *.ino files and directories may be given. If a directory is given, then
-the script looks for an Arduino sketch file under the directory with the same
-name but ending with '.ino'. For example, './auniter.sh CommonTest' is
-equivalent to './auniter.sh CommonTest/CommonTest.ino' if CommonTest is a
-directory.
+Files:
+    Multiple *.ino files and directories may be given. If a directory is given,
+    then the script looks for an Arduino sketch file under the directory with
+    the same name but ending with '.ino'. For example, './auniter.sh CommonTest'
+    is equivalent to './auniter.sh CommonTest/CommonTest.ino' if CommonTest is a
+    directory.
 END
     exit 1
 }
@@ -374,59 +363,95 @@ function interrupted() {
     exit 1
 }
 
-# Parse command line flags
-mode='verify'
-board=
-boards=
-port=
-baud=115200
-verbose=
-config=
-prefs=
-port_timeout=
-skip_if_no_port=0
-options=''
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --help|-h) usage ;;
-        --config) shift; config=$1 ;;
-        --verbose) verbose='--verbose' ;;
-        --verify) mode='verify' ;;
-        --upload) mode='upload' ;;
-        --test) mode='test' ;;
-        --monitor) mode='monitor' ;;
-        --list_ports) mode='list_ports' ;;
-        --board) shift; board=$1 ;;
-        --port) shift; port=$1 ;;
-        --baud) shift; baud=$1 ;;
-        --boards) shift; boards=$1 ;;
-        --pref) shift; prefs="$prefs --pref $1" ;;
-        --port_timeout) shift; port_timeout=$1 ;;
-        --skip_if_no_port) skip_if_no_port=1 ;;
-        --locking|--nolocking) options="$options $1" ;;
-        --exclude) shift; options="$options --exclude $1" ;;
-        -*) echo "Unknown option '$1'"; usage ;;
-        *) break ;;
-    esac
-    shift
-done
-if [[ "$mode" != 'list_ports' && $# -eq 0 ]]; then
-    echo 'Must provide file or directory'
-    usage
-fi
+# process build (verify, upload, or test) commands
+function build() {
+    board=
+    boards=
+    port=
+    prefs=
+    port_timeout=
+    skip_if_no_port=0
+    options=''
+    baud=115200
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --boards) shift; boards=$1 ;;
+            --board) shift; board=$1 ;;
+            --port) shift; port=$1 ;;
+            --baud) shift; baud=$1 ;;
+            --pref) shift; prefs="$prefs --pref $1" ;;
+            --port_timeout) shift; port_timeout=$1 ;;
+            --skip_if_no_port) skip_if_no_port=1 ;;
+            --locking|--nolocking) options="$options $1" ;;
+            --exclude) shift; options="$options --exclude $1" ;;
+            -*) echo "Unknown build option '$1'"; usage ;;
+            *) break ;;
+        esac
+        shift
+    done
 
-# Determine the location of the config file.
-config_file=${config:-$CONFIG_FILE}
+    # If the --board or --boards flag was not given, assume that the next
+    # non-flag argument is a --boards value (e.g. "nano", or "uno").
+    if [[ "$board" == '' && "$boards" == '' ]]; then
+        if [[ $# -lt 1 ]]; then
+            echo 'No board specification given'; usage
+        elif [[ $# -lt 2 ]]; then
+            echo "Board assumed to be '$1', but no file given"; usage
+        fi
+        boards=$1
+        shift
+    else
+        if [[ $# -lt 1 ]]; then
+            echo 'No file given'; usage
+        fi
+    fi
 
-# Must install a trap for Control-C because the script ignores almost all
-# interrupts and continues processing.
-trap interrupted INT
-
-check_environment_variables
-create_temp_files
-if [[ "$mode" == 'list_ports' ]]; then
-    $DIRNAME/serial_monitor.py --list
-else
     process_sketches "$@"
     print_summary_file
-fi
+}
+
+function list_ports() {
+    $DIRNAME/serial_monitor.py --list
+}
+
+# Parse auniter command line flags
+function main() {
+    mode=verify
+    verbose=
+    config=
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --help|-h) usage ;;
+            --config) shift; config=$1 ;;
+            --verbose) verbose='--verbose' ;;
+            -*) echo "Unknown auniter option '$1'"; usage ;;
+            *) break ;;
+        esac
+        shift
+    done
+    if [[ $# -lt 1 ]]; then
+        echo 'Must provide a command (verify, upload, test, ports)'
+        usage
+    fi
+    mode=$1
+    shift
+
+    # Determine the location of the config file.
+    config_file=${config:-$CONFIG_FILE}
+
+    # Must install a trap for Control-C because the script ignores almost all
+    # interrupts and continues processing.
+    trap interrupted INT
+
+    check_environment_variables
+    create_temp_files
+    case $mode in
+        ports) list_ports "$@" ;;
+        verify) mode='verify'; build "$@" ;;
+        upload) mode='upload'; build "$@" ;;
+        test) mode='test'; build "$@" ;;
+        *) echo "Unknown command '$mode'"; usage ;;
+    esac
+}
+
+main "$@"

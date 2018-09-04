@@ -8,7 +8,7 @@ to microcontroller boards, and validating unit tests written in
 
 The `auniter.sh` shell is a wrapper around the
 [Arduino Commandline Interface](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc)
-that allows programmatic workflows:
+that supports the following functionality:
 
 1) Verifying (compile) multiple `*.ino` files across multiple boards.
 2) Uploading multiple `*.ino` files across multiple boards.
@@ -41,9 +41,10 @@ integration on the following systems:
     * Ubuntu 18.04
     * Xubuntu 18.04
 
-The `auniter.sh` script depends on the
-[Arduino IDE](https://arduino.cc/en/Main/Software) being installed
-(tested with 1.8.5). I will assume that you already have this installed.
+The `auniter.sh` script has been tested with the following versions of
+[Arduino IDE](https://arduino.cc/en/Main/Software):
+    * 1.8.5
+    * 1.8.6
 
 The `serial_monitor.py` script depends on
 [pyserial](https://pypi.org/project/pyserial/) (tested with 3.4-1).
@@ -82,6 +83,7 @@ case $(uname -s) in
     ;;
 esac
 ```
+(The script does not yet work on MacOS.)
 
 I also recommend creating an alias for the `auniter.sh` script in your `.bashrc`
 file if you use it often:
@@ -97,50 +99,67 @@ scripts.)
 Type `auniter.sh --help` to get the latest usage:
 ```
 $ ./auniter.sh --help
-Usage: auniter.sh [--help] [--config file] [--verbose]
-    [--verify | --upload | --test | --monitor | --list_ports]
-    [--board {package}:{arch}:{board}[:parameters]] [--port port] [--baud baud]
-    [--boards {alias}[:{port}],...] (file.ino | dir) [...]
+Usage: auniter.sh [auniter_flags] command [command_flags] [boards] [files...]
+    auniter.sh verify {board} files ...
+    auniter.sh upload {board:port} files ...
+    auniter.sh test {board:port} files ...
+    auniter.sh ports
 ```
 
-At a minimum, the script needs to be given 3-4 pieces of information:
+The 4 subcommands (verify, upload, test, ports) are described below.
+Three of the commands need the board and port of the target
+controller. There are 3 ways to specify these:
 
-* mode (`--verify`, `--upload`, `--test`, `--monitor`) The mode determines the
-  actions performed. Verify checks for compiler errors. Upload pushes the sketch
-  to the board. Test runs the sketch as an AUnit unit test and verifies that it
-  passes. Monitor uploads the sketch then echos the Serial output to the STDOUT.
-* `--board board` The identifier for the particular board in the form
-  of `{package}:{arch}:{board}[:parameters]`.
-* `--port port` The tty port where the Arduino board can be found. This is
-  optional for the `--verify` mode which does not need to connect to the board.
-* `file.ino` The Arduino sketch file.
+* explicit flags
+    * `--board board` The identifier for the particular board in the form
+      of `{package}:{arch}:{board}[:parameters]`.
+    * `--port port` The tty port where the Arduino board can be found. This is
+      optional for the `verify` subcommand which does not need to connect to the
+      board.
+    * These flags are passed directly to the Arduino IDE.
+* --boards {alias:port}
+    * The `alias` is searched in the `auniter.conf` file and if found,
+      the actual value of the `--board` flag is passed to the Arduino IDE.
+    * The `port` is passed to the `--port` flag. For convenience, the
+      repetitive `/dev/tty` part can be omitted from the `{port}` spec. In other
+      words, you can write `nano:USB0`, instead of `nano:/dev/ttyUSB0`.
+* {alias:port}
+    * If the `--board` or `--boards` flags are not given, then the `verify`,
+      `upload`, and `test` commands expect the next (non-flag) argument to be
+      the `{alias:port}` parameter of the `--boards` flag, so that explicit flag
+      can be dropped. The examples below will hopefully make these more clear.
 
-### Verify (--verify)
+### Verify
 
-The following example verifies that the `Blink.ino` sketch compiles. The
-`--port` flag is not necessary in this case:
+The following examples (all equivalent) verify that the `Blink.ino` sketch
+compiles. The `--port` flag is not necessary in this case:
 
 ```
-$ ./auniter.sh --verify \
-  --board arduino:avr:nano:cpu=atmega328old Blink.ino
+$ ./auniter.sh verify --board arduino:avr:nano:cpu=atmega328old Blink.ino
+$ ./auniter.sh verify --boards nano Blink.ino
+$ ./auniter.sh verify nano Blink.ino
 ```
 
-### Upload (--upload)
+### Upload
 
-To upload the sketch to the Arduino board, we need to provide the
-`--port` flag:
+To upload the sketch to the Arduino board, we need to provide the `--port`
+flag. The following examples are all equivalent:
 
 ```
-$ ./auniter.sh --upload --port /dev/ttyUSB0 \
-  --board arduino:avr:nano:cpu=atmega328old Blink.ino
+$ ./auniter.sh upload --port /dev/ttyUSB0 \
+    --board arduino:avr:nano:cpu=atmega328old Blink.ino
+$ ./auniter.sh upload --boards nano:USB0 Blink.ino
+$ ./auniter.sh upload nano:USB0 Blink.ino
 ```
 
-### Test (--test)
+### Test
 
 To run the AUnit test and verify pass or fail:
 ```
-$ ./auniter.sh --test --port /dev/ttyUSB0 \
-  --board arduino:avr:nano:cpu=atmega328old tests/*Test
+$ ./auniter.sh test --port /dev/ttyUSB0 \
+    --board arduino:avr:nano:cpu=atmega328old tests/*Test
+$ ./auniter.sh test --boards nano:USB0 tests/*Test
+$ ./auniter.sh test nano:USB0 tests/*Test
 ```
 
 A summary of all the test runs are given at the end, like this:
@@ -158,25 +177,11 @@ ALL PASSED
 
 The `ALL PASSED` indicates that all unit tests passed.
 
-### Monitor (--monitor)
+### List Ports
 
-The `--monitor` mode uploads the given sketch and calls `serial_monitor.py`
-to listen to the serial monitor and echo the output to the STDOUT:
+The `ports` command lists the available serial ports:
 ```
-$ ./auniter.sh --monitor --port /dev/ttyUSB0 \
-  --board arduino:avr:nano:cpu=atmega328old BlinkTest.ino
-```
-
-The `serial_monitor.py` times out after 10 seconds if the serial monitor is
-inactive. If the sketch continues to output something to the serial monitor,
-then only one sketch can be monitored.
-
-### List Ports (--list_ports)
-
-The `--list_ports` flag will ask `serial_monitor.py` to list the available tty
-ports:
-```
-$ ./auniter.sh --list_ports
+$ ./auniter.sh ports
 /dev/ttyS4 - n/a
 /dev/ttyS0 - ttyS0
 /dev/ttyUSB2 - CP2102 USB to UART Bridge Controller
@@ -248,50 +253,36 @@ file in your home directory. The script can be told to look elsewhere using the
 file.) This may be useful if the config file is checked into source control for
 each Arduino project.
 
-### Multiple Boards (--boards)
+```
+$ ./auniter.sh --config {path-to-config-file} subcommand {board:port} ...
+```
 
-The board aliases can be used in the `--boards` flag, which accepts a
-comma-separated list of `{alias}[:{port}]` pairs.
+### Multiple Boards
 
-The `port` part of the `alias:port` pair is optional because it is not needed
-for the `--verify` mode. You can verify sketches across multiple boards like
-this:
+The `--boards` flag accepts a comma-separated list of `{alias}[:{port}]` pairs.
 
 ```
-$ ./auniter.sh --verify \
-  --boards nano,leonardo,esp8266,esp32 BlinkTest.ino
+$ ./auniter.sh verify nano,leonardo,esp8266,esp32 BlinkTest.ino
 ```
 
 If you want to run the AUnit tests on multiple boards, you must provide the
 port of each board, like this:
 ```
-$ ./auniter.sh --test \
-  --boards nano:/dev/ttyUSB0,leonardo:/dev/ttyACM0,esp8266:/dev/ttyUSB2,esp32:/dev/ttyUSB1 \
+$ ./auniter.sh test \
+    nano:USB0,leonardo:ACM0,esp8266:USB2,esp32:USB1 \
   CommonTest DriverTest LedMatrixTest RendererTest WriterTest
 ```
-
-This runs the 5 unit tests on 4 boards connected to the ports specified by the
-`--boards` flag.
 
 There are no provision for creating aliases for the ports in the
 `$HOME/.auniter.conf` file because the serial port is assigned by the OS and can
-vary depending on the presence of other USB or serial devices. However, the
-serial ports on Linux boxes always seem to start with a '/dev/tty' prefix. If a
-port in the `--boards` flag does not start with a `/` character, we assume that
-it is a shorthand and automatically prepend the `/dev/tty` prefix. The example
-above can be typed as:
-```
-$ ./auniter.sh --test \
-  --boards nano:USB0,leonardo:ACM0,esp8266:USB2,esp32:USB1 \
-  CommonTest DriverTest LedMatrixTest RendererTest WriterTest
-```
+vary depending on the presence of other USB or serial devices.
 
 ### Mutually Exclusive Access (--locking, --nolocking)
 
 Multiple instances of the `auniter.sh` script can be executed, which can help
-with the `--verify` operation if you have multiple CPU cores. However, when the
-`--upload` or `--test` mode is selected, it is important to ensure that only one
-instance of the Arduino IDE uploads and/or monitors the serial port at given
+with the `verify` subcommand if you have multiple CPU cores. However, when the
+`upload` or `test` subcommand is selected, it is important to ensure that only
+one instance of the Arduino IDE uploads and/or monitors the serial port at given
 time. Otherwise one instance of the `auniter.sh` script can accidentally
 see the output of another `auniter.sh` and cause confusion.
 
@@ -304,6 +295,9 @@ Leonardo boards (using ATmega32U4) which use virtual serial ports.
 By default, the locking is performed. There are 2 ways to disable the locking:
 
 1) Use the `--[no]locking` flag on the `auniter.sh` script.
+```
+$ ./auniter.sh test --nolocking leonardo:USB0 tests/*Test
+```
 
 2) Add an entry for a specific board alias under the `[options]` section in the
   `CONFIG_FILE`. The format looks like this:
