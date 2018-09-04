@@ -245,7 +245,7 @@ function process_files() {
 # Requires $board and $port to define the target environment.
 function process_file() {
     local file=$1
-    echo "==== Processing $file"
+    echo "-------- Processing $file"
 
     if [[ "$board" == '' ]]; then
         echo "FAILED $mode: board not defined: $file" \
