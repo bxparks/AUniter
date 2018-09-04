@@ -443,11 +443,48 @@ describes how to actually to use these programs. Maybe eventually I'll be able
 to reverse-engineer it, but for now, it was easier for me to write my down shell
 script wrapper around the Arduino IDE program.
 
+## Tips
+
+### Verify All Programs Under Current Directory
+
+When I write libraries, I tend create a lot of small sketches for various
+purposes (e.g. demos, examples, unit tests). For example, here's the directory
+structure for my [AceButton](https://github.com/bxparks/AceButton) library:
+```
+AceButton/
+|-- docs
+|   `-- html
+|-- examples
+|   |-- AutoBenchmark
+|   |-- CapacitiveButton
+|   |-- ClickVersusDoubleClickUsingBoth
+|   |-- ClickVersusDoubleClickUsingReleased
+|   |-- ClickVersusDoubleClickUsingSuppression
+|   |-- HelloButton
+|   |-- SingleButton
+|   |-- SingleButtonPullDown
+|   |-- Stopwatch
+|   `-- TunerButtons
+|-- src
+|   `-- ace_button
+`-- tests
+    `-- AceButtonTest
+```
+
+There are 11 `*.ino` program files under `AceButton/`. Here is a one-liner
+that will compile and verify all 11 sketches in one shot:
+```
+$ cd AceButton
+$ auniter verify nano $(find -name '*.ino')
+```
+
 ## System Requirements
 
-I used Arduino IDE 1.8.5 for all my testing, and the `AUniter` scripts
-have been verified to work under:
+I have verified that the script works for:
+* Arduino IDE 1.8.5
+* Arduino IDE 1.8.6
 
+I have verified that the script works for the following operating systems:
 * Ubuntu 16.04
 * Ubuntu 17.10
 * Ubuntu 18.04
