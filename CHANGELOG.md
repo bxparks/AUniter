@@ -1,5 +1,8 @@
 # Changelog
 
+* 1.5 (2018-09-03)
+    * Use subcommands instead of flags in auniter.sh to simplify the
+      common interactive use cases.
 * 1.4.1 (2018-09-03)
     * Fix bug which disabled --locking by default.
     * Allow serial port specifier in --boards flag to omit "/dev/tty" prefix.
