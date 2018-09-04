@@ -60,11 +60,11 @@ Command Flags:
         Set the Arduino commandline preferences. Multiple flags may be given.
         Useful in continuous integration.
     --skip_if_no_port
-        (test, upload command) Just perform a --verify if --port or {:port}
+        (test, upload) Just perform a 'verify' if --port or {:port}
         is missing. Useful in Continuous Integration on multiple boards where
         only some boards are actually connected to a serial port.
     --[no]locking
-        (test command) Use (or not use) flock(1) to lock the tty for the board.
+        (test) Use (or not use) flock(1) to lock the tty for the board.
         Needed for Arduino Pro Micro, Leonardo or other boards using virtual
         serial ports. Can be set in the [options] section of the CONFIG_FILE.
     --exclude regexp
@@ -265,7 +265,7 @@ function process_file() {
     fi
 
     if [[ "$mode" == 'verify' ]]; then
-        # Allow multiple --verify commands to run at the same time.
+        # Allow multiple verify commands to run at the same time.
         $DIRNAME/run_arduino.sh \
             --verify \
             --board $board \
