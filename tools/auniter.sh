@@ -22,14 +22,24 @@ PORT_TIMEOUT=120
 # Status code returned by flock(1) if it times out.
 FLOCK_TIMEOUT_CODE=10
 
-function usage() {
+function usage_common() {
     cat <<'END'
-Usage: auniter.sh [auniter_flags] command [command_flags] [board] [files...]
+Usage: auniter.sh [-h] [auniter_flags] command [command_flags] [args ...]
+       auniter.sh verify {board} files ...
+       auniter.sh upload {board:port} files ...
+       auniter.sh test {board:port} files ...
+       auniter.sh ports
+END
+}
 
-    auniter.sh verify {board} files ...
-    auniter.sh upload {board:port} files ...
-    auniter.sh test {board:port} files ...
-    auniter.sh ports
+function usage() {
+    usage_common
+    exit 1
+}
+
+function usage_long() {
+    usage_common
+    cat <<'END'
 
 Commands:
     verify  Verify the compile of the sketch file(s).
@@ -37,13 +47,13 @@ Commands:
     test    Upload the AUnit unit test(s), and verify pass or fail.
     ports   List the tty ports and the associated Arduino boards.
 
-AUniter Flags:
+AUniter Flags
     --help          Print this help page.
     --config {file} Read configs from 'file' instead of $HOME/.auniter.conf'.
-    --verbose       Verbose output from the Arduino binary.
+    --verbose       Verbose output from various subcommands.
 
 Command Flags:
-    --boards {alias}[:{port}],...
+    --boards {{alias}[:{port}]},...
         Comma-separated list of {alias}:{port} pairs. The {alias} should be
         listed in the [boards] section of the CONFIG_FILE. The {port} can be
         shortened by omitting the '/dev/tty' part (e.g. 'USB0').
@@ -421,7 +431,7 @@ function main() {
     config=
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --help|-h) usage ;;
+            --help|-h) usage_long ;;
             --config) shift; config=$1 ;;
             --verbose) verbose='--verbose' ;;
             -*) echo "Unknown auniter option '$1'"; usage ;;
