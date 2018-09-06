@@ -545,6 +545,21 @@ To update the board managers, use the Arduino IDE in the same way:
 * Select "Type > Updatable".
 * Click "Update" on each board manager that needs to be updated.
 
+### Updating the ESP32 Core
+
+If you are using the experimental ESP32 Core, then it must be updated manually,
+since it was installed manually (instead of through the Board Manager of
+the Arduino IDE). The update process is a truncated version of the installation
+process:
+
+```
+$ sudo -i -u jenkins
+jenkins$ cd arduino-1.8.5/hardware/espressif/esp32
+jenkins$ git pull
+jenkins$ cd tools
+jenkins$ python2 get.py
+```
+
 ## Troubleshooting
 
 ### Failure to Upload Due to Arduino IDE Serial Monitor
