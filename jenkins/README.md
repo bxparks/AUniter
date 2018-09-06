@@ -487,7 +487,7 @@ We can run the Arduino IDE as the user `jenkins`, but we must first give
 permission to that user to connect to the X11 server using the `xhost` command:
 
 ```
-$ xhost +si:localhost:jenkins
+$ xhost +si:localuser:jenkins
 ```
 
 Then `sudo` as user `jenkins` and start the Arduino IDE:
