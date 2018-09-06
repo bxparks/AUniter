@@ -331,6 +331,14 @@ to make it work with AUniter.
 
 Here is the `Jenkinsfile` from the `AceButton` project:
 ```
+// The following variables are used:
+//
+//  * AUNITER_ARDUINO_BINARY - defined in the Jenkins system configuration
+//  * WORKSPACE - automatically filled in by Jenkins
+//  * BOARDS - defined in the "This project is parameterized" section of the
+//    Jenkins Pipeline configuration
+//  * BADGE_BUCKET - defined in "This project is parameterized" section.
+//
 pipeline {
     agent { label 'master' }
     stages {
@@ -338,7 +346,7 @@ pipeline {
             steps {
                 dir('AUniter') {
                     git url: 'https://github.com/bxparks/AUniter',
-                        branch: 'develop'
+                        branch: 'master'
                 }
                 dir('libraries/AUnit') {
                     git url: 'https://github.com/bxparks/AUnit',
@@ -381,17 +389,17 @@ pipeline {
 }
 ```
 
-### Agent
-
-The Jenkins service is a master/slave architecture. Since we have only a single
-Jenkins instance, we don't need to define any slaves or nodes, so the `agent {
-label 'master' }` statement tells Jenkins to run all tasks on the master.
-
 ### Environment Variables
 
 The `AUNITER_ARDUINO_BINARY` environment variable required by
 `auniter.sh` is defined using the Jenkins system configuration
 through the web tool.
+
+### Agent
+
+The Jenkins service is a master/slave architecture. Since we have only a single
+Jenkins instance, we don't need to define any slaves or nodes, so the `agent {
+label 'master' }` statement tells Jenkins to run all tasks on the master.
 
 ### Build with Parameters
 
@@ -410,11 +418,35 @@ that board and skipped for the others.
 ### Stages
 
 I separated out the continuous integration into 4 stages:
-* `Setup` - checking out the libraries from GitHub
+* `Setup` - checking out the various projects from GitHub
 * `Verify Examples` - compile all sketches under `AceButton/examples/`
 * `Verify Tests` - compile all AUnit tests under `AceButton/tests/`
 * `Test` - upload the AUnit test to an Arduino board on the local machine
 and validate the test output
+
+### Dependencies to Other Repositories
+
+The dependencies to other repositories are listed in the `Setup` stage.
+Two repositories that will almost always be required are:
+```
+dir('AUniter') {
+    git url: 'https://github.com/bxparks/AUniter',
+        branch: 'master'
+}
+dir('libraries/AUnit') {
+    git url: 'https://github.com/bxparks/AUnit',
+        branch: 'develop'
+}
+```
+
+I recommend using the `master` branch for the `AUniter` project. If you use
+the `develop` branch, every incremental change that I make on the `develop`
+branch will trigger another iteration Jenkins.
+
+You may choose to use either the `develop` or the `master` branch of the
+`AUnit` project. I personally use the `develop` branch because I want changes
+to `AUnit` to trigger a build cycle. However, it's possible that most people
+don't want that and prefer the more stable `master` branch.
 
 ### Folder Layout
 
