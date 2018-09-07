@@ -45,11 +45,12 @@ function usage_long() {
     cat <<'END'
 
 Commands:
+    ports   List the tty ports and the associated Arduino boards.
     verify  Verify the compile of the sketch file(s).
     upload  Upload the sketch(es) to the given board at port.
     test    Upload the AUnit unit test(s), and verify pass or fail.
     monitor Run the serial terminal defined in aniter.conf on the given port.
-    ports   List the tty ports and the associated Arduino boards.
+    upmon   Upload the sketch and run the monitor upon success.
 
 AUniter Flags
     --help          Print this help page.
@@ -58,17 +59,19 @@ AUniter Flags
 
 Command Flags:
     --boards {{board}[:{port}]},...
-        (verify, upload, test) Comma-separated list of {board}:{port} pairs. The
-        {board} should be listed in the [boards] section of the CONFIG_FILE. The
-        {port} can be shortened by omitting the '/dev/tty' part (e.g. 'USB0').
+        (verify, upload, test, upmon) Comma-separated list of {board}:{port}
+        pairs. The {board} should be listed in the [boards] section of the
+        CONFIG_FILE. The {port} can be shortened by omitting the '/dev/tty' part
+        (e.g. 'USB0').
     --board {package}:{arch}:{board}[:parameters]]
-        (verify, upload, test) Fully qualified board name (fqbn) of the target
-        board.
+        (verify, upload, test, upmon) Fully qualified board name (fqbn) of the
+        target board.
     --port /dev/ttyXxx
-        (upload, test, monitor) Serial port of the board.
+        (upload, test, monitor, upmon) Serial port of the board.
     --baud baud
-        (upload, test, monitor) Speed of the serial port for serial_montor.py.
-        (Default: 115200)
+        (upload, test, monitor,up mon) Speed of the serial port for
+        serial_montor.py. (Default: 115200. The default value can be changed in
+        CONFIG_FILE.)
     --port_timeout N
         (upload, test) Set the timeout for waiting for a serial port to become
         available to 'N' seconds. (Default: 120)
@@ -80,11 +83,12 @@ Command Flags:
         Useful in Continuous Integration on multiple boards where only some
         boards are actually connected to a serial port.
     --[no]locking
-        (test, config) Use (or not use) flock(1) to lock the tty for the board.
-        Needed for Arduino Pro Micro, Leonardo or other boards using virtual
-        serial ports. Can be set in the [options] section of the CONFIG_FILE.
+        (upload, test, CONFIG) Use (or not use) flock(1) to lock the tty for the
+        board. Needed for Arduino Pro Micro, Leonardo or other boards using
+        virtual serial ports. Can be set in the [options] section of the
+        CONFIG_FILE.
     --exclude regexp
-        (verify, upload, test, config) Exclude 'file.ino' whose fullpath matches
+        (verify, upload, test, CONFIG) Exclude 'file.ino' whose fullpath matches
         the given egrep regular expression. This will normally be used in the
         [options] section of the CONFIG_FILE to exclude files which are not
         compatible with certain board (e.g. ESP8266 or ESP32). Multiple files
@@ -405,7 +409,6 @@ function handle_build() {
     port_timeout=
     skip_if_no_port=0
     options=
-    baud=115200
     while [[ $# -gt 0 ]]; do
         case $1 in
             --boards) shift; boards=$1 ;;
@@ -450,15 +453,13 @@ function list_ports() {
 
 # Determine the external terminal program and run it with $port and $baud.
 function run_monitor() {
-    # Lookup the external terminal program in CONFIG file.
-    local monitor_command=$(get_config "$config_file" 'auniter' 'monitor')
-    if [[ "$monitor_command" == '' ]]; then
+    if [[ "$monitor" == '' ]]; then
         echo "Property 'monitor' must be defined in $config_file"
         usage
     fi
 
     # Execute the monitor command as listed in the CONFIG_FILE.
-    eval "$monitor_command"
+    eval "$monitor"
 }
 
 # Run the serial monitor on the given port specifier. The port can be
@@ -471,7 +472,6 @@ function run_monitor() {
 function handle_monitor() {
     # Process the flags of the 'auniter.sh monitor' command.
     port=
-    baud=115200
     while [[ $# -gt 0 ]]; do
         case $1 in
             --port) shift; port=$1 ;;
@@ -486,7 +486,7 @@ function handle_monitor() {
     # is a port.
     if [[ "$port" == '' ]]; then
         if [[ $# -lt 1 ]]; then
-            echo 'No port given for monitor command'
+            echo 'No port given for 'monitor' command'
             usage
         fi
         port=$1
@@ -502,7 +502,7 @@ function handle_monitor() {
     fi
 
     if [[ "$port" == '' ]]; then
-        echo 'No port given for monitor command'
+        echo 'No port given for 'monitor' command'
         usage
     fi
 
@@ -514,9 +514,9 @@ function handle_upmon() {
     board=
     boards=
     port=
-    baud=115200
     options=
     prefs=
+    skip_if_no_port=0
     while [[ $# -gt 0 ]]; do
         case $1 in
             --boards) shift; boards=$1 ;;
@@ -558,6 +558,14 @@ function handle_upmon() {
     run_monitor
 }
 
+# Read in the default flags in the [auniter] section of the config file.
+function read_default_configs() {
+    monitor=$(get_config "$config_file" 'auniter' 'monitor')
+
+    local config_baud=$(get_config "$config_file" 'auniter' 'baud')
+    baud=${config_baud:-115200} # use config default, otherwise 115200
+}
+
 # Parse auniter command line flags
 function main() {
     mode=
@@ -587,6 +595,7 @@ function main() {
     # interrupts and continues processing.
     trap interrupted INT
 
+    read_default_configs
     check_environment_variables
     create_temp_files
     case $mode in

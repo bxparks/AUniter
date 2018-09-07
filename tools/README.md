@@ -448,13 +448,24 @@ $ auniter --config {path-to-config-file} subcommand {board:port} ...
 (The `--config` flag is an option on the `auniter.sh` command, not the
 subcommand, so it must occur *before* the subcommands.)
 
-### Verbose Mode (auniter.sh --verbose)
+### Verbose Mode (--verbose)
 
 (Valid on the `auniter.sh` command)
 
 The `auniter.sh` accepts a `--verbose` flag, which enables verbose mode for
 those subcommands which support it. In particular, it is passed into the Arduino
 binary, which then prints out the compilation steps in extreme detail.
+
+### Default Baud Rate
+
+If the `--baud` flag is not given, then default baud rate for the serial port is
+set to `115200`. You can change this default value in the `.auniter.conf` file
+using the `baud` property in the `[auniter]` section. For example, the following
+sets the default baud rate to 9600 in the absence of an explicit `--baud` flag:
+```
+[auniter]
+  baud = 9600
+```
 
 ## Integration with Jenkins
 
