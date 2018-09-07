@@ -25,11 +25,11 @@ FLOCK_TIMEOUT_CODE=10
 function usage_common() {
     cat <<'END'
 Usage: auniter.sh [-h] [auniter_flags] command [command_flags] [args ...]
+       auniter.sh ports
        auniter.sh verify {board} files ...
        auniter.sh upload {board:port} files ...
        auniter.sh test {board:port} files ...
        auniter.sh monitor ({port} | {board:port})
-       auniter.sh ports
 END
 }
 
@@ -479,16 +479,16 @@ function monitor() {
             echo 'No port given for monitor command'
             usage
         fi
-        port_specifier=$1
+        port=$1
         shift
     fi
 
     # If the port_specifier is {board}:{port}, extract the {port}. If there
     # is no ':', then assume that it's just the port.
-    if [[ "$port_specifier" =~ : ]]; then
-        process_board_and_port "$port_specifier"
+    if [[ "$port" =~ : ]]; then
+        process_board_and_port "$port"
     else
-        port=$(resolve_port $port_specifier)
+        port=$(resolve_port $port)
     fi
 
     if [[ "$port" == '' ]]; then
@@ -516,7 +516,7 @@ function main() {
         shift
     done
     if [[ $# -lt 1 ]]; then
-        echo 'Must provide a command (verify, upload, test, ports)'
+        echo 'Must provide a command (verify, upload, test, monitor, ports)'
         usage
     fi
     mode=$1

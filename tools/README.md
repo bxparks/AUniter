@@ -104,15 +104,16 @@ Type `auniter --help` to get the latest usage:
 ```
 $ auniter --help
 Usage: auniter.sh [auniter_flags] command [command_flags] [boards] [files...]
+    auniter.sh ports
     auniter.sh verify {board} files ...
     auniter.sh upload {board:port} files ...
     auniter.sh test {board:port} files ...
-    auniter.sh ports
+    auniter.sh monitor ({port} | {board:port})
 ```
 
-The 4 subcommands (verify, upload, test, ports) are described below.
-Three of the commands need the board and port of the target
-controller. There are 3 ways to specify these:
+The 5 subcommands (ports, verify, upload, test, monitor) are described below.
+Three of the commands need the board and port of the target controller. There
+are 3 ways to specify these:
 
 * explicit flags
     * `--board board` The identifier for the particular board in the form
@@ -132,77 +133,6 @@ controller. There are 3 ways to specify these:
       `upload`, and `test` commands expect the next (non-flag) argument to be
       the `{alias:port}` parameter of the `--boards` flag, so that explicit flag
       can be dropped. The examples below will hopefully make these more clear.
-
-### Verify
-
-The following examples (all equivalent) verify that the `Blink.ino` sketch
-compiles. The `--port` flag is not necessary in this case:
-
-```
-$ auniter verify --board arduino:avr:nano:cpu=atmega328old Blink.ino
-$ auniter verify --boards nano Blink.ino
-$ auniter verify nano Blink.ino
-```
-
-### Upload
-
-To upload the sketch to the Arduino board, we need to provide the `--port`
-flag. The following examples are all equivalent:
-
-```
-$ auniter upload --port /dev/ttyUSB0 \
-    --board arduino:avr:nano:cpu=atmega328old Blink.ino
-$ auniter upload --boards nano:USB0 Blink.ino
-$ auniter upload nano:USB0 Blink.ino
-```
-
-### Test
-
-To run the AUnit test and verify pass or fail:
-```
-$ auniter test --port /dev/ttyUSB0 \
-    --board arduino:avr:nano:cpu=atmega328old tests/*Test
-$ auniter test --boards nano:USB0 tests/*Test
-$ auniter test nano:USB0 tests/*Test
-```
-
-A summary of all the test runs are given at the end, like this:
-
-```
-[...]
-======== Test Run Summary
-PASSED test: arduino:avr:nano:cpu=atmega328old /dev/ttyUSB1 AceSegment/tests/CommonTest/CommonTest.ino
-PASSED test: arduino:avr:nano:cpu=atmega328old /dev/ttyUSB1 AceSegment/tests/DriverTest/DriverTest.ino
-PASSED test: arduino:avr:nano:cpu=atmega328old /dev/ttyUSB1 AceSegment/tests/LedMatrixTest/LedMatrixTest.ino
-PASSED test: arduino:avr:nano:cpu=atmega328old /dev/ttyUSB1 AceSegment/tests/RendererTest/RendererTest.ino
-PASSED test: arduino:avr:nano:cpu=atmega328old /dev/ttyUSB1 AceSegment/tests/WriterTest/WriterTest.ino
-ALL PASSED
-```
-
-The `ALL PASSED` indicates that all unit tests passed.
-
-### List Ports
-
-The `ports` command lists the available serial ports:
-```
-$ auniter ports
-/dev/ttyS4 - n/a
-/dev/ttyS0 - ttyS0
-/dev/ttyUSB2 - CP2102 USB to UART Bridge Controller
-/dev/ttyUSB1 - EzSBC ESP32
-/dev/ttyUSB0 - USB2.0-Serial
-/dev/ttyACM1 - USB Serial
-/dev/ttyACM0 - Arduino Leonardo
-```
-
-### Automatic Directory Expansion
-
-If the `auniter.sh` is given a directory `dir`, it tries to find
-an ino file located at `dir/dir.ino`, since the ino file must have the
-same base name as the parent directory.
-
-Multiple files and directories can be given. The Arduino Commandline will
-be executed on each of the ino files in sequence.
 
 ### Board Aliases
 
@@ -260,6 +190,131 @@ each Arduino project.
 ```
 $ auniter --config {path-to-config-file} subcommand {board:port} ...
 ```
+
+### Subcommand: Ports
+
+The `ports` command simply lists the available serial ports:
+```
+$ auniter ports
+/dev/ttyS4 - n/a
+/dev/ttyS0 - ttyS0
+/dev/ttyUSB2 - CP2102 USB to UART Bridge Controller
+/dev/ttyUSB1 - EzSBC ESP32
+/dev/ttyUSB0 - USB2.0-Serial
+/dev/ttyACM1 - USB Serial
+/dev/ttyACM0 - Arduino Leonardo
+```
+
+### Subcommand: Verify
+
+The following examples (all equivalent) verify that the `Blink.ino` sketch
+compiles. The `--port` flag is not necessary in this case:
+
+```
+$ auniter verify --board arduino:avr:nano:cpu=atmega328old Blink.ino
+$ auniter verify --boards nano Blink.ino
+$ auniter verify nano Blink.ino
+```
+
+### Subcommand: Upload
+
+To upload the sketch to the Arduino board, we need to provide the `--port`
+flag. The following examples are all equivalent:
+
+```
+$ auniter upload --port /dev/ttyUSB0 \
+    --board arduino:avr:nano:cpu=atmega328old Blink.ino
+$ auniter upload --boards nano:USB0 Blink.ino
+$ auniter upload nano:USB0 Blink.ino
+```
+
+### Subcommand: Test
+
+To run the AUnit test and verify pass or fail:
+```
+$ auniter test --port /dev/ttyUSB0 \
+    --board arduino:avr:nano:cpu=atmega328old tests/*Test
+$ auniter test --boards nano:USB0 tests/*Test
+$ auniter test nano:USB0 tests/*Test
+```
+
+A summary of all the test runs are given at the end, like this:
+
+```
+[...]
+======== Test Run Summary
+PASSED test: arduino:avr:nano:cpu=atmega328old /dev/ttyUSB1 AceSegment/tests/CommonTest/CommonTest.ino
+PASSED test: arduino:avr:nano:cpu=atmega328old /dev/ttyUSB1 AceSegment/tests/DriverTest/DriverTest.ino
+PASSED test: arduino:avr:nano:cpu=atmega328old /dev/ttyUSB1 AceSegment/tests/LedMatrixTest/LedMatrixTest.ino
+PASSED test: arduino:avr:nano:cpu=atmega328old /dev/ttyUSB1 AceSegment/tests/RendererTest/RendererTest.ino
+PASSED test: arduino:avr:nano:cpu=atmega328old /dev/ttyUSB1 AceSegment/tests/WriterTest/WriterTest.ino
+ALL PASSED
+```
+
+The `ALL PASSED` indicates that all unit tests passed.
+
+### Automatic Directory Expansion
+
+If the `auniter.sh` is given a directory `dir`, it tries to find
+an ino file located at `dir/dir.ino`, since the ino file must have the
+same base name as the parent directory.
+
+Multiple files and directories can be given. The Arduino Commandline will
+be executed on each of the ino files in sequence.
+
+### Subcommand: Monitor
+
+The serial port of the board can be monitored using the `monitor` subcommand. It
+needs to know the tty serial port which can be given in any of the following
+equivalent ways:
+```
+$ auniter monitor nano:USB0
+$ auniter monitor --port /dev/ttyUSB0
+$ auniter monitor /dev/ttyUSB0
+$ auniter monitor USB0
+```
+
+The speed of the serial port can be given by the `--baud` flag.
+The default is 115200, but you can change it like this:
+```
+$ auniter monitor --baud 9600 USB0
+```
+
+The `monitor` subcommand delegates the serial terminal functionality to a
+user-defined program defined in the `auniter.conf` file. The program that works
+well for me is the [picocom](https://linux.die.net/man/8/picocom) program. On
+Ubuntu Linux, install it using:
+```
+$ sudo apt install picocom
+```
+
+Then add the following proerty in the `[auniter]` section of your `auniter.conf`
+file:
+```
+[auniter]
+  monitor = picocom -b $baud --omap crlf --imap lfcrlf --echo $port
+```
+
+The `auniter.sh` script will fill in the `$baud` and `$port` and execute the
+command given in the config file. (The exit command for `picoterm` is `Ctrl-a
+Ctrl-q` but if you are in a terminal multiplexer like `screen`, then `Ctrl-a` is
+the escape character for `screen` itself, you have to type `Ctrl-a a Ctrl-q`
+instead.)
+
+### Upload and Monitor
+
+Often we want to upload a program then immediately monitor the serial port, to
+view the serial port output, or to send commands to the board over the serial
+port. You do that using this shell one-liner:
+```
+$ auniter upload nano:USB0 Blink.ino && auniter monitor USB0
+```
+
+The `&&` operator causes the `monitor` program to run only if the `upload`
+command was successful.
+
+(I may create a new subcommand that implements this compound statement directly
+into the `auniter.sh` script in the near future.)
 
 ### Multiple Boards
 
