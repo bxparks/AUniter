@@ -34,33 +34,40 @@ AUnit unit test to determine if the test passed or failed.
 
 ### Requirements
 
-These scripts are meant to be used from a Linux environment. I have tested the
-integration on the following systems:
+These scripts are meant to be used from a Linux environment. The following
+components and version numbers have been tested:
+
+* Ubuntu Linux
     * Ubuntu 16.04
     * Ubuntu 17.10
     * Ubuntu 18.04
     * Xubuntu 18.04
-
-The `auniter.sh` script has been tested with the following versions of
-[Arduino IDE](https://arduino.cc/en/Main/Software):
+* [Arduino IDE](https://arduino.cc/en/Main/Software):
     * 1.8.5
     * 1.8.6
+* [pyserial](https://pypi.org/project/pyserial/)
+    * 3.4-1
+    * install: `sudo apt install python3 python3-pip python3-serial`
+* [picocom](https://linux.die.net/man/8/picocom)
+    * (optional, for `auniter.sh monitor` functionality)
+    * 2.2
+    * install: `sudo apt install picocom`
 
-The `serial_monitor.py` script depends on
-[pyserial](https://pypi.org/project/pyserial/) (tested with 3.4-1).
-On Ubuntu (tested on 17.10 and 18.04), you can type:
-```
-$ sudo apt install python3 python3-pip python3-serial
-```
-to get the python3 dependencies.
+Some limited testing on MacOS has been done, but it is currently not supported.
+
+Windows is definitely not supported because the scripts require the `bash`
+shell. I am not familiar with
+[Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10)
+so I do not know if it would work on that.
 
 ### Obtain the Code
 
 The latest development version can be installed by cloning the
-[GitHub repository](https://github.com/bxparks/AUnit), and checking out the
-`develop` branch. The `master` branch contains the stable release.
+[GitHub repository](https://github.com/bxparks/AUniter), and checking out the
+`develop` branch. The `master` branch contains the stable release. The
+`auniter.sh` script is in the `./tools` directory.
 
-### Setup
+### Environment Variable
 
 There is one environment variable that **must** be defined in your `.bashrc`
 file:
@@ -68,22 +75,10 @@ file:
 * `export AUNITER_ARDUINO_BINARY={path}` - location of the Arduino command line
   binary
 
-I have something like this in my `$HOME/.bashrc` file (which I share across all
-my Linux and Mac computers):
+I have something like this in my `$HOME/.bashrc` file:
 ```
-case $(uname -s) in
-  Linux*)
-    export AUNITER_ARDUINO_BINARY="$HOME/dev/arduino-1.8.5/arduino"
-    ;;
-  Darwin*)
-    export AUNITER_ARDUINO_BINARY="$HOME/dev/Arduino.app/Contents/MacOS/Arduino"
-    ;;
-  *)
-    export AUNITER_ARDUINO_BINARY=
-    ;;
-esac
+export AUNITER_ARDUINO_BINARY="$HOME/dev/arduino-1.8.5/arduino"
 ```
-(The script does not yet work on MacOS.)
 
 ### Shell Alias
 
@@ -96,7 +91,7 @@ Don't add `{path-to-AUniter-directory}/tools` to your `$PATH`. It won't work
 because `auniter.sh` needs to know its own install directory to find helper
 scripts.
 
-*(The rest of the document will assume that you  have created this alias.)*
+**(The rest of the document will assume that you have created this alias.)**
 
 ## Usage
 
@@ -420,9 +415,6 @@ given in the [Continuous Integration with Jenkins](jenkins) page.
 
 The [amake](https://github.com/pavelmc/amake) tool is very similar to
 `auniter.sh`. It is a shell script that calls out to the Arduino commandline.
-Amake does not have the `serial_monitor.py` which allows the AUnit output on the
-serial port to be validated, but since `serial_monitor.py` is a separate
-Python script, `amake` could be extended to support it.
 
 There are a few features of `amake` that I found problemmatic for my purposes.
 * Although `amake` supports the concept of board aliases, the aliases are
@@ -533,31 +525,7 @@ $ cd AceButton
 $ auniter verify nano $(find -name '*.ino')
 ```
 
-## System Requirements
-
-I have verified that the script works for:
-* Arduino IDE 1.8.5
-* Arduino IDE 1.8.6
-
-I have verified that the script works for the following operating systems:
-* Ubuntu 16.04
-* Ubuntu 17.10
-* Ubuntu 18.04
-* Xubuntu 18.04
-
-Some limited testing on MacOS has been done, but it is currently not supported.
-
-Windows is definitely not supported because the scripts require the `bash`
-shell. I am not familiar with
-[Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10)
-so I do not know if it would work on that.
-
 ## Limitations
 
 [Teensyduino](https://pjrc.com/teensy/teensyduino.html) is not
 currently supported because of Issue #4.
-
-On MacOS, the [Teensyduino](https://pjrc.com/teensy/teensyduino.html)
-plugin to support Teensy boards causes the Arduino IDE to display
-[a security warning dialog box](https://forum.pjrc.com/threads/27197-OSX-pop-up-when-starting-Arduino).
-This means that the script is no longer able to run without human-intervention.
