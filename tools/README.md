@@ -126,7 +126,8 @@ Usage: auniter.sh [auniter_flags] command [command_flags] [boards] [files...]
        auniter.sh monitor ({port} | {board:port})
 ```
 
-The 5 subcommands (ports, verify, upload, test, monitor) are described below.
+The 5 subcommands (`ports`, `verify`, `upload`, `test`, `monitor`) are described
+below.
 
 ### Board Aliases
 
@@ -164,7 +165,7 @@ character.
 
 ### Port Specifier
 
-Most commands also needs to told the serial port that the Arduino board is
+Some subcommands (`upload`, `test`, `monitor`) also needs to be given the serial port that the Arduino board is
 connected to. The serial port on a Linux machine has the form `/dev/ttyXXXn`,
 for example `/dev/ttyUSB0`. For convenience, the repetitive `/dev/tty` part can
 be omitted from the `{port}` spec. In other words, you can write `uno:USB0`,
@@ -234,15 +235,6 @@ ALL PASSED
 
 The `ALL PASSED` indicates that all unit tests passed.
 
-### Automatic Directory Expansion
-
-If the `auniter.sh` is given a directory `dir`, it tries to find
-an ino file located at `dir/dir.ino`, since the ino file must have the
-same base name as the parent directory.
-
-Multiple files and directories can be given. The Arduino Commandline will
-be executed on each of the ino files in sequence.
-
 ### Subcommand: Monitor
 
 The serial port of the board can be monitored using the `monitor` subcommand. It
@@ -255,10 +247,10 @@ $ auniter monitor /dev/ttyUSB0
 $ auniter monitor --port /dev/ttyUSB0
 ```
 
-When the port is given as `uno:USB0`, the `uno` part is ignored. This format is
-accept so that in interactive mode, you can scroll through the shell history and
-simply change the `auniter upload ...` to `auniter monitor ...` without having
-to also remove the `uno:` part.
+When the port is given as `{board}:{port}`, the `{board}` part is ignored. This
+feature is useful in interactive mode, so that you can scroll through the shell
+history and simply change the `auniter upload ...` to `auniter monitor ...`
+without having to also remove the `{board}:` part.
 
 The speed of the serial port is usually controlled by the program that is
 running on the Arduino board (through the `Serial.begin(xxxx)` statement.
@@ -276,18 +268,16 @@ Ubuntu Linux, install it using:
 $ sudo apt install picocom
 ```
 
-Then add the following proerty in the `[auniter]` section of your `auniter.conf`
-file:
+With the following definition in the `.auniter.conf` file:
 ```
 [auniter]
   monitor = picocom -b $baud --omap crlf --imap lfcrlf --echo $port
 ```
 
-The `auniter.sh` script will fill in the `$baud` and `$port` and execute the
-command given in the config file. (The exit command for `picoterm` is `Ctrl-a
-Ctrl-q` but if you are in a terminal multiplexer like `screen`, then `Ctrl-a` is
-the escape character for `screen` itself, you have to type `Ctrl-a a Ctrl-q`
-instead.)
+the `auniter.sh` script will fill in the `$baud` and `$port` and execute this
+command. (Note: The exit command for `picocom` is `Ctrl-a Ctrl-q` but if you are
+in a terminal multiplexer like `screen`, then `Ctrl-a` is the escape character
+for `screen` itself, you have to type `Ctrl-a a Ctrl-q` instead.)
 
 ### Upload and Monitor
 
@@ -305,6 +295,19 @@ command was successful.
 into the `auniter.sh` script in the near future.)
 
 ## Advanced Usage
+
+The following features are useful if you are working with multiple board types,
+and/or if you are using `auniter.sh` as the driving script for the
+[Jenkins continuous integration](../jenkins).
+
+### Automatic Directory Expansion
+
+If the `auniter.sh` is given a directory `dir`, it tries to find
+an ino file located at `dir/dir.ino`, since the ino file must have the
+same base name as the parent directory.
+
+Multiple files and directories can be given. The Arduino Commandline will
+be executed on each of the ino files in sequence.
 
 ### Multiple Boards
 
@@ -459,7 +462,7 @@ binary, which then prints out the compilation steps in extreme detail.
 
 I have successfully integrated `auniter.sh` into a locally hosted
 [Jenkins](https://jenkins.io) Continuous Integration platform. The details are
-given in the [Continuous Integration with Jenkins](jenkins) page.
+given in the [Continuous Integration with Jenkins](../jenkins) page.
 
 ## Alternatives Considered
 
