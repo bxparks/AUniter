@@ -187,7 +187,7 @@ function process_board_and_port() {
             | sed -E -e 's/([^:]*):?([^:]*)/\2/')
 
     board=$(get_config "$config_file" 'boards' "$board_alias")
-    port=$(resolve_port $board_port)
+    port=$(resolve_port "$board_port")
 }
 
 # If a port is not fully qualified (i.e. start with /), then append
