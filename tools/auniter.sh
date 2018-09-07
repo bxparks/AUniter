@@ -6,6 +6,7 @@
 # Dependencies:
 #   * run_arduino.sh
 #   * serial_monitor.py
+#   * picocom (optional)
 
 set -eu
 
@@ -27,9 +28,10 @@ function usage_common() {
 Usage: auniter.sh [-h] [auniter_flags] command [command_flags] [args ...]
        auniter.sh ports
        auniter.sh verify {board} files ...
-       auniter.sh upload {board:port} files ...
-       auniter.sh test {board:port} files ...
-       auniter.sh monitor ({port} | {board:port})
+       auniter.sh upload {board}:{port},... files ...
+       auniter.sh test {board}:{port},... files ...
+       auniter.sh monitor [{board}:]{port}
+       auniter.sh upmon {board}:{port}
 END
 }
 
@@ -55,9 +57,9 @@ AUniter Flags
     --verbose       Verbose output from various subcommands.
 
 Command Flags:
-    --boards {{alias}[:{port}]},...
-        (verify, upload, test) Comma-separated list of {alias}:{port} pairs. The
-        {alias} should be listed in the [boards] section of the CONFIG_FILE. The
+    --boards {{board}[:{port}]},...
+        (verify, upload, test) Comma-separated list of {board}:{port} pairs. The
+        {board} should be listed in the [boards] section of the CONFIG_FILE. The
         {port} can be shortened by omitting the '/dev/tty' part (e.g. 'USB0').
     --board {package}:{arch}:{board}[:parameters]]
         (verify, upload, test) Fully qualified board name (fqbn) of the target
@@ -232,7 +234,7 @@ function process_boards() {
         # afterwards, so that the command line options take precedence.
         local config_options=$(get_config "$config_file" 'options' \
             "$board_alias")
-        process_options $config_options $options
+        process_options "$config_options" "$options"
 
         process_files "$@"
     done
@@ -395,14 +397,14 @@ function interrupted() {
 }
 
 # process build (verify, upload, or test) commands
-function build() {
+function handle_build() {
     board=
     boards=
     port=
     prefs=
     port_timeout=
     skip_if_no_port=0
-    options=''
+    options=
     baud=115200
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -445,6 +447,20 @@ function list_ports() {
     $DIRNAME/serial_monitor.py --list
 }
 
+
+# Determine the external terminal program and run it with $port and $baud.
+function run_monitor() {
+    # Lookup the external terminal program in CONFIG file.
+    local monitor_command=$(get_config "$config_file" 'auniter' 'monitor')
+    if [[ "$monitor_command" == '' ]]; then
+        echo "Property 'monitor' must be defined in $config_file"
+        usage
+    fi
+
+    # Execute the monitor command as listed in the CONFIG_FILE.
+    eval "$monitor_command"
+}
+
 # Run the serial monitor on the given port specifier. The port can be
 # given as "{board}:{port}" or just "{port}". The command for the serial monitor
 # comes from the 'monitor' property in section '[auniter]'. An example that
@@ -452,13 +468,7 @@ function list_ports() {
 #
 # [auniter]
 #   monitor = picocom -b $baud --omap crlf --imap lfcrlf --echo $port
-function monitor() {
-    local monitor_command=$(get_config "$config_file" 'auniter' 'monitor')
-    if [[ "$monitor_command" == '' ]]; then
-        echo "Property 'monitor' must be defined in $config_file"
-        usage
-    fi
-
+function handle_monitor() {
     # Process the flags of the 'auniter.sh monitor' command.
     port=
     baud=115200
@@ -496,8 +506,56 @@ function monitor() {
         usage
     fi
 
-    # Execute the monitor command as listed in the CONFIG_FILE.
-    eval "$monitor_command"
+    run_monitor
+}
+
+# Combination of 'upload' then 'monitor' if upload goes ok.
+function handle_upmon() {
+    board=
+    boards=
+    port=
+    baud=115200
+    options=
+    prefs=
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --boards) shift; boards=$1 ;;
+            --board) shift; board=$1 ;;
+            --port) shift; port=$1 ;;
+            --baud) shift; baud=$1 ;;
+            -*) echo "Unknown build option '$1'"; usage ;;
+            *) break ;;
+        esac
+        shift
+    done
+
+    # If the --board or --boards flag was not given, assume that the next
+    # non-flag argument is a --boards value (e.g. "nano", or "uno").
+    if [[ "$board" == '' && "$boards" == '' ]]; then
+        if [[ $# -lt 1 ]]; then
+            echo 'No board specification given'; usage
+        elif [[ $# -lt 2 ]]; then
+            echo "Board assumed to be '$1', but no file given"; usage
+        fi
+        boards=$1
+        shift
+    else
+        if [[ $# -lt 1 ]]; then
+            echo 'No file given'; usage
+        fi
+    fi
+
+    if [[ "$boards" =~ , ]]; then
+        echo "Multiple boards not allowed in 'upmon' command"
+        usage
+    fi
+
+    mode=upload
+    process_sketches "$@"
+    print_summary_file
+
+    mode=monitor
+    run_monitor
 }
 
 # Parse auniter command line flags
@@ -533,10 +591,11 @@ function main() {
     create_temp_files
     case $mode in
         ports) list_ports "$@" ;;
-        verify) mode='verify'; build "$@" ;;
-        upload) mode='upload'; build "$@" ;;
-        test) mode='test'; build "$@" ;;
-        monitor) mode='monitor'; monitor "$@" ;;
+        verify) handle_build "$@" ;;
+        upload) handle_build "$@" ;;
+        test) handle_build "$@" ;;
+        monitor) handle_monitor "$@" ;;
+        upmon) handle_upmon "$@" ;;
         *) echo "Unknown command '$mode'"; usage ;;
     esac
 }

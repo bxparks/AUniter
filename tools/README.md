@@ -121,13 +121,14 @@ $ auniter --help
 Usage: auniter.sh [auniter_flags] command [command_flags] [boards] [files...]
        auniter.sh ports
        auniter.sh verify {board},... files ...
-       auniter.sh upload {board:port},... files ...
-       auniter.sh test {board:port},... files ...
-       auniter.sh monitor ({port} | {board:port})
+       auniter.sh upload {board}:{port},... files ...
+       auniter.sh test {board}:{port},... files ...
+       auniter.sh monitor [{board}:]{port}
+       auniter.sh upmon {board}:{port}
 ```
 
-The 5 subcommands (`ports`, `verify`, `upload`, `test`, `monitor`) are described
-below.
+The 6 subcommands (`ports`, `verify`, `upload`, `test`, `monitor`, `upmon`) are
+described below.
 
 ### Board Aliases
 
@@ -279,20 +280,17 @@ command. (Note: The exit command for `picocom` is `Ctrl-a Ctrl-q` but if you are
 in a terminal multiplexer like `screen`, then `Ctrl-a` is the escape character
 for `screen` itself, you have to type `Ctrl-a a Ctrl-q` instead.)
 
-### Upload and Monitor
+### Subcommand: Upload and Monitor (upmon)
 
 Often we want to upload a program then immediately monitor the serial port, to
 view the serial port output, or to send commands to the board over the serial
-port. You do that using this shell one-liner:
+port. You can do that using the `upmon` command:
 ```
-$ auniter upload uno:USB0 Blink.ino && auniter monitor USB0
+$ auniter upmon uno:USB0 Blink.ino
 ```
 
-The `&&` operator causes the `monitor` program to run only if the `upload`
-command was successful.
-
-(I may create a new subcommand that implements this compound statement directly
-into the `auniter.sh` script in the near future.)
+The argument list is very similar to `upload` except that `upmon` accepts
+only a single `{board}:{port}` pair.
 
 ## Advanced Usage
 
