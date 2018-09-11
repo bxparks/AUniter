@@ -25,7 +25,7 @@ FLOCK_TIMEOUT_CODE=10
 
 function usage_common() {
     cat <<'END'
-Usage: auniter.sh [-h] [auniter_flags] command [command_flags] [args ...]
+Usage: auniter.sh [-h] [flags] command [flags] [args ...]
        auniter.sh ports
        auniter.sh verify {board} files ...
        auniter.sh upload {board}:{port},... files ...
@@ -58,18 +58,8 @@ AUniter Flags
     --verbose       Verbose output from various subcommands.
 
 Command Flags:
-    --boards {{board}[:{port}]},...
-        (verify, upload, test, upmon) Comma-separated list of {board}:{port}
-        pairs. The {board} should be listed in the [boards] section of the
-        CONFIG_FILE. The {port} can be shortened by omitting the '/dev/tty' part
-        (e.g. 'USB0').
-    --board {package}:{arch}:{board}[:parameters]]
-        (verify, upload, test, upmon) Fully qualified board name (fqbn) of the
-        target board.
-    --port /dev/ttyXxx
-        (upload, test, monitor, upmon) Serial port of the board.
     --baud baud
-        (upload, test, monitor,up mon) Speed of the serial port for
+        (upload, test, monitor,upmon) Speed of the serial port for
         serial_montor.py. (Default: 115200. The default value can be changed in
         CONFIG_FILE.)
     --port_timeout N
@@ -402,18 +392,12 @@ function interrupted() {
 
 # process build (verify, upload, or test) commands
 function handle_build() {
-    board=
-    boards=
-    port=
     prefs=
     port_timeout=
     skip_if_no_port=0
     options=
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --boards) shift; boards=$1 ;;
-            --board) shift; board=$1 ;;
-            --port) shift; port=$1 ;;
             --baud) shift; baud=$1 ;;
             --pref) shift; prefs="$prefs --pref $1" ;;
             --port_timeout) shift; port_timeout=$1 ;;
@@ -426,20 +410,15 @@ function handle_build() {
         shift
     done
 
-    # If the --board or --boards flag was not given, assume that the next
-    # non-flag argument is a --boards value (e.g. "nano", or "uno").
-    if [[ "$board" == '' && "$boards" == '' ]]; then
-        if [[ $# -lt 1 ]]; then
-            echo 'No board specification given'; usage
-        elif [[ $# -lt 2 ]]; then
-            echo "Board assumed to be '$1', but no file given"; usage
-        fi
-        boards=$1
-        shift
-    else
-        if [[ $# -lt 1 ]]; then
-            echo 'No file given'; usage
-        fi
+    if [[ $# -lt 1 ]]; then
+        echo 'No board specification given'
+        usage
+    fi
+    boards=$1
+    shift
+    if [[ $# -lt 1 ]]; then
+        echo "No sketch file given"
+        usage
     fi
 
     process_sketches "$@"
@@ -470,11 +449,9 @@ function run_monitor() {
 # [auniter]
 #   monitor = picocom -b $baud --omap crlf --imap lfcrlf --echo $port
 function handle_monitor() {
-    # Process the flags of the 'auniter.sh monitor' command.
-    port=
+    # Process flags.
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --port) shift; port=$1 ;;
             --baud) shift; baud=$1 ;;
             -*) echo "Unknown monitor option '$1'"; usage ;;
             *) break ;;
@@ -482,16 +459,13 @@ function handle_monitor() {
         shift
     done
 
-    # If the --port flag was not given, assume that the next non-flag argument
-    # is a port.
-    if [[ "$port" == '' ]]; then
-        if [[ $# -lt 1 ]]; then
-            echo 'No port given for 'monitor' command'
-            usage
-        fi
-        port=$1
-        shift
+    # Get the port from the next arg.
+    if [[ $# -lt 1 ]]; then
+        echo 'No port given for 'monitor' command'
+        usage
     fi
+    port=$1
+    shift
 
     # If the port_specifier is {board}:{port}, extract the {port}. If there
     # is no ':', then assume that it's just the port.
@@ -511,17 +485,12 @@ function handle_monitor() {
 
 # Combination of 'upload' then 'monitor' if upload goes ok.
 function handle_upmon() {
-    board=
     boards=
-    port=
     options=
     prefs=
     skip_if_no_port=0
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --boards) shift; boards=$1 ;;
-            --board) shift; board=$1 ;;
-            --port) shift; port=$1 ;;
             --baud) shift; baud=$1 ;;
             -*) echo "Unknown build option '$1'"; usage ;;
             *) break ;;
@@ -529,22 +498,16 @@ function handle_upmon() {
         shift
     done
 
-    # If the --board or --boards flag was not given, assume that the next
-    # non-flag argument is a --boards value (e.g. "nano", or "uno").
-    if [[ "$board" == '' && "$boards" == '' ]]; then
-        if [[ $# -lt 1 ]]; then
-            echo 'No board specification given'; usage
-        elif [[ $# -lt 2 ]]; then
-            echo "Board assumed to be '$1', but no file given"; usage
-        fi
-        boards=$1
-        shift
-    else
-        if [[ $# -lt 1 ]]; then
-            echo 'No file given'; usage
-        fi
+    if [[ $# -lt 1 ]]; then
+        echo 'No board specification given'
+        usage
     fi
-
+    boards=$1
+    shift
+    if [[ $# -lt 1 ]]; then
+        echo "No sketch file given"
+        usage
+    fi
     if [[ "$boards" =~ , ]]; then
         echo "Multiple boards not allowed in 'upmon' command"
         usage
