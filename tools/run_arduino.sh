@@ -11,7 +11,7 @@ DIRNAME=$(dirname $0)
 function usage() {
     cat <<'END'
 Usage: run_arduino.sh [--help] [--verbose] [--upload | --test | --monitor]
-                      [--board board] [--port port] [--baud baud[
+                      [--env env] [--board board] [--port port] [--baud baud]
                       [--pref key=value]
                       [--summary_file file]
                       file.ino
@@ -28,7 +28,7 @@ END
     exit 1
 }
 
-function run_arduino_cmd() {
+function verify_or_upload() {
     local file=$1
 
     local board_flag="--board $board"
@@ -45,7 +45,7 @@ $verbose $board_flag $port_flag $prefs $file"
 
     echo "\$ $cmd"
     if ! $cmd; then
-        echo "FAILED $arduino_cmd_mode: $board $port $file" \
+        echo "FAILED $arduino_cmd_mode: $env $port $file" \
             | tee -a $summary_file
         return
     fi
@@ -64,9 +64,9 @@ function validate_test() {
     local cmd="$DIRNAME/serial_monitor.py --test --port $port --baud $baud"
     echo "\$ $cmd"
     if $cmd; then
-        echo "PASSED $mode: $board $port $file" | tee -a $summary_file
+        echo "PASSED $mode: $env $port $file" | tee -a $summary_file
     else
-        echo "FAILED $mode: $board $port $file" | tee -a $summary_file
+        echo "FAILED $mode: $env $port $file" | tee -a $summary_file
     fi
 }
 
@@ -92,6 +92,7 @@ while [[ $# -gt 0 ]]; do
         --test) mode='test' ;;
         --monitor) mode='monitor' ;;
         --verbose) verbose='--verbose' ;;
+        --env) shift; env=$1 ;;
         --board) shift; board=$1 ;;
         --port) shift; port=$1 ;;
         --baud) shift; baud=$1 ;;
@@ -107,7 +108,7 @@ if [[ $# -eq 0 ]]; then
     exit 1
 fi
 
-run_arduino_cmd $1
+verify_or_upload $1
 if [[ "$mode" == 'test' ]]; then
     validate_test $1
 elif [[ "$mode" == 'monitor' ]]; then
