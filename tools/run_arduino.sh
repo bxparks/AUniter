@@ -51,7 +51,7 @@ function verify_or_upload() {
     local cmd="$AUNITER_ARDUINO_BINARY --$arduino_cmd_mode \
         $verbose $board_flag $port_flag $prefs $file"
 
-    echo "\$ $cmd"
+    echo '$' $cmd
     if ! $cmd; then
         echo "FAILED $arduino_cmd_mode: $env $port $file" \
             | tee -a $summary_file

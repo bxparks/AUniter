@@ -238,8 +238,12 @@ function process_envs() {
         # Automatically define a macro named AUNITER_ENV_{NAME} where NAME
         # is the name of the environment in uppercase letters. e.g. "nano"
         # would define "AUNITER_ENV_NANO".
-        local env_macro="AUNITER_ENV_${env^^}" # uppercase $env
-        preprocessor_pref="--pref build.extra_flags=-D$env_macro"
+        if [[ "$generate_env_macro" == 'true' ]]; then
+            local env_macro="AUNITER_ENV_${env^^}" # uppercase $env
+            preprocessor_pref="--pref build.extra_flags=-D$env_macro"
+        else
+            preprocessor_pref=
+        fi
 
         process_files "$@"
     done
@@ -478,12 +482,16 @@ function handle_upmon() {
 function read_default_configs() {
     monitor=$(get_config "$config_file" 'auniter' 'monitor')
 
-    local config_baud=$(get_config "$config_file" 'auniter' 'baud')
-    baud=${config_baud:-$PORT_BAUD}
+    local baud_value=$(get_config "$config_file" 'auniter' 'baud')
+    baud=${baud_value:-$PORT_BAUD}
 
-    local config_port_timeout=$(get_config "$config_file" 'auniter' \
+    local port_timeout_value=$(get_config "$config_file" 'auniter' \
         'port_timeout')
-    port_timeout=${config_port_timeout:-$PORT_TIMEOUT}
+    port_timeout=${port_timeout_value:-$PORT_TIMEOUT}
+
+    local generate_env_macro_value=$(get_config "$config_file" 'auniter' \
+        'generate_env_macro')
+    generate_env_macro=${generate_env_macro_value:-true}
 }
 
 # Parse auniter command line flags
