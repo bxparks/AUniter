@@ -23,9 +23,12 @@ started when changes to the git repository are detected, and unit tests can be
 executed on Arduino boards attached to the serial port of the local machine. The
 Jenkins dashboard can display the status of builds and tests.
 
-The `auniter.sh` script supports user-defined board aliases allow mapping of a
-short alias (e.g. `uno`) to the fully qualified board name (`fqbn`) used by the
-arduino binary (e.g. `arduino:avr:uno`).
+The `auniter.sh` script uses the `$HOME/.auniter.ini` config file to
+define named *environments* that correspond to specific hardware devices.
+The environment `NAME` is used to control the target build flags and options.
+The config file also allow mapping of a short alias (e.g. `uno`) to the fully
+qualified board name (`fqbn`) used by the arduino binary (e.g.
+`arduino:avr:uno`).
 
 The script can monitor the output of the serial port, and parse the output of an
 AUnit unit test to determine if the test passed or failed.
@@ -47,11 +50,14 @@ components and version numbers have been tested:
     * 1.8.6
 * [pyserial](https://pypi.org/project/pyserial/)
     * 3.4-1
-    * install: `sudo apt install python3 python3-pip python3-serial`
-* [picocom](https://linux.die.net/man/8/picocom)
-    * (optional, for `auniter.sh monitor` functionality)
-    * 2.2
-    * install: `sudo apt install picocom`
+    * installation: `sudo apt install python3 python3-pip python3-serial`
+* terminal program (for `auniter monitor` functionality)
+    * [picocom](https://linux.die.net/man/8/picocom)
+        * tested with v2.2
+        * installation: `sudo apt install picocom`
+    * [microcom](http://manpages.ubuntu.com/manpages/bionic/man1/microcom.1.html).
+        * tested with v2016.01.0
+        * installation: `sudo apt install microcom`
 
 Some limited testing on MacOS has been done, but it is currently not supported.
 
@@ -85,9 +91,9 @@ export AUNITER_ARDUINO_BINARY="$HOME/dev/arduino-1.8.5/arduino"
 I recommend creating an alias for the `auniter.sh` script in your `.bashrc`
 file:
 ```
-alias auniter='{path-to-AUniter-directory}/tools/auniter.sh'
+alias auniter='{path-to-auniter-directory}/tools/auniter.sh'
 ```
-Don't add `{path-to-AUniter-directory}/tools` to your `$PATH`. It won't work
+Don't add `{path-to-auniter-directory}/tools` to your `$PATH`. It won't work
 because `auniter.sh` needs to know its own install directory to find helper
 scripts.
 
