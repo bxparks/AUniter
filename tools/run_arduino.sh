@@ -11,9 +11,10 @@ DIRNAME=$(dirname $0)
 function usage() {
     cat <<'END'
 Usage: run_arduino.sh [--help] [--verbose] [--upload | --test]
-                      [--env env] [--board board] [--port port] [--baud baud]
-                      [--pref key=value] [--summary_file file]
-                      file.ino
+                      [--env {env}] [--board {board}] [--port {port}]
+                      [--baud {baud}] [--sketchbook {path}]
+                      [--preprocessor {flags}]
+                      [--summary_file file] file.ino
 
 Helper shell wrapper around the 'arduino' commandline binary and the
 'serial_monitor.py' script. This allows the 'auniter.sh' to wrap a flock(1)
@@ -29,9 +30,8 @@ Flags:
     --baud {baud}   Speed of the serial port.
     --sketchbook {path}
                     Home directory of the sketch, for resolving libraries.
-    --preprocessor {flag}
-                    C-preprocessor flag (e.g. -DAUNITER_ENV_NANO). (Currently
-                    only one flag is allowed.)
+    --preprocessor {flags}
+                    Comma-separated list of CPP macros.
     --summary_file {file}
                     Send error logs to 'file'.
 END
@@ -49,17 +49,32 @@ function verify_or_upload() {
         local arduino_cmd_mode='verify'
     fi
 
+    if [[ "$sketchbook" != '' ]]; then
+        local sketchbook_flag="--pref sketchbook.path=$1"
+    else
+        local sketchbook_flag=
+    fi
+
+    # Convert comma-separated macros into space-separated list
+    # of "-Dmacro -Dmacro=value ...".
+    local cpp_flags=
+    if [[ "$preprocessor" != '' ]]; then
+        cpp_flags=$(echo $preprocessor | sed -e 's/,/ -D/g')
+        cpp_flags="--pref compiler.cpp.extra_flags='-D$cpp_flags'"
+    fi
+
     local cmd="$AUNITER_ARDUINO_BINARY \
         --$arduino_cmd_mode \
         $verbose \
         $board_flag \
         $port_flag \
-        $sketchbook_pref \
-        $preprocessor_pref \
+        $sketchbook_flag \
+        $cpp_flags \
         $file"
 
     echo '$' $cmd
-    if ! $cmd; then
+    # Use 'eval' to interpret the single-quotes in $cpp_flags
+    if ! eval $cmd; then
         echo "FAILED $arduino_cmd_mode: $env $port $file" \
             | tee -a $summary_file
         return
@@ -89,8 +104,8 @@ mode=
 board=
 port=
 verbose=
-sketchbook_pref=
-preprocessor_pref=
+sketchbook=
+preprocessor=
 summary_file=
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -103,9 +118,8 @@ while [[ $# -gt 0 ]]; do
         --board) shift; board=$1 ;;
         --port) shift; port=$1 ;;
         --baud) shift; baud=$1 ;;
-        --sketchbook_pref) shift; sketchbook_pref="--pref sketchbook.path=$1" ;;
-        --preprocessor)
-            shift; preprocessor_pref="--pref compiler.cpp.extra_flags=$1" ;;
+        --sketchbook) shift; sketchbook=$1 ;;
+        --preprocessor) shift; preprocessor=$1 ;;
         --summary_file) shift; summary_file=$1 ;;
         -*) echo "Unknown option '$1'"; usage ;;
         *) break ;;

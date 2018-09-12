@@ -192,6 +192,8 @@ function process_env_and_port() {
 
     exclude=$(get_config "$config_file" "env:$env" exclude)
     exclude=${exclude:-'^$'} # if empty, exclude nothing, not everything
+
+    preprocessor=$(get_config "$config_file" "env:$env" preprocessor)
 }
 
 # If a port is not fully qualified (i.e. start with /), then append
@@ -237,14 +239,8 @@ function process_envs() {
             continue
         fi
 
-        # Automatically define a macro named AUNITER_ENV_{NAME} where NAME
-        # is the name of the environment in uppercase letters. e.g. "nano"
-        # would define "AUNITER_ENV_NANO". See
-        # https://forum.arduino.cc/index.php?topic=537500.0
-        # for explanation of 'compiler.cpp.extra_flags'.
-        if [[ "$generate_env_macro" == 'true' ]]; then
-            local env_macro="AUNITER_ENV_${env^^}" # uppercase $env
-            preprocessor_flag="--preprocessor -D$env_macro"
+        if [[ "$preprocessor" != '' ]]; then
+            preprocessor_flag="--preprocessor $preprocessor"
         else
             preprocessor_flag=
         fi
@@ -286,7 +282,7 @@ function process_file() {
             --env $env \
             --board $board \
             $sketchbook_flag \
-            "$preprocessor_flag" \
+            $preprocessor_flag \
             $verbose \
             --summary_file $summary_file \
             $file
@@ -492,10 +488,6 @@ function read_default_configs() {
     local port_timeout_value=$(get_config "$config_file" 'auniter' \
         'port_timeout')
     port_timeout=${port_timeout_value:-$PORT_TIMEOUT}
-
-    local generate_env_macro_value=$(get_config "$config_file" 'auniter' \
-        'generate_env_macro')
-    generate_env_macro=${generate_env_macro_value:-true}
 }
 
 # Parse auniter command line flags
