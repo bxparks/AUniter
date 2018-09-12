@@ -35,7 +35,7 @@ Usage: auniter.sh [-h] [flags] command [flags] [args ...]
        auniter.sh upload {env}:{port},... files ...
        auniter.sh test {env}:{port},... files ...
        auniter.sh monitor [{env}:]{port}
-       auniter.sh upmon {env}:{port}
+       auniter.sh upmon {env}:{port} file
 END
 }
 
@@ -46,6 +46,7 @@ function usage() {
 
 function usage_long() {
     usage_common
+
     cat <<'END'
 
 Commands:
@@ -64,26 +65,16 @@ AUniter Flags
 
 Command Flags:
     --baud baud
-        (upload, test, monitor,upmon) Speed of the serial port for
+        (monitor, upmon) Speed of the serial port for
         serial_montor.py. (Default: 115200. The default value can be changed in
         CONFIG_FILE.)
-    --port_timeout N
-        (upload, test) Set the timeout for waiting for a serial port to become
-        available to 'N' seconds. (Default: 120)
     --sketchbook {path}
-        (verify, upload, test) Set the Arduino sketchbook directory to {path}.
-    --skip_if_no_port
+        (verify, upload, test, upmon) Set the Arduino sketchbook directory to
+        {path}.
+    --skip_missing_port
         (upload, test) Just perform a 'verify' if --port or {:port} is missing.
         Useful in Continuous Integration on multiple boards where only some
         boards are actually connected to a serial port.
-    --exclude regexp
-        (verify, upload, test, CONFIG) Exclude 'file.ino' whose fullpath matches
-        the given egrep regular expression. This will normally be used in the
-        [options] section of the CONFIG_FILE to exclude files which are not
-        compatible with certain board (e.g. ESP8266 or ESP32). Multiple files
-        can be specified using the 'a|b' pattern supported by egrep. Use 'none'
-        (or some other pattern which matches nothing) to clobber the value from
-        the CONFIG_FILE.
 
 Files:
     Multiple *.ino files and directories may be given. If a directory is given,
@@ -175,6 +166,7 @@ function list_envs() {
 #   - $board
 #   - $port
 #   - $locking
+#   - $exclude
 function process_env_and_port() {
     local env_and_port=$1
 
@@ -190,11 +182,13 @@ function process_env_and_port() {
     fi
 
     board_alias=$(get_config "$config_file" "env:$env" board)
+    board=$(get_config "$config_file" boards "$board_alias")
+    port=$(resolve_port "$port")
+
     locking=$(get_config "$config_file" "env:$env" locking)
     locking=${locking-true} # set to 'true' if empty
 
-    board=$(get_config "$config_file" boards "$board_alias")
-    port=$(resolve_port "$port")
+    exclude=$(get_config "$config_file" "env:$env" exclude)
 }
 
 # If a port is not fully qualified (i.e. start with /), then append
@@ -230,7 +224,7 @@ function process_envs() {
             continue
         fi
         if [[ "$port" == '' && "$mode" != 'verify' ]]; then
-            if [[ "$skip_if_no_port" == 0 ]]; then
+            if [[ "$skip_missing_port" == 0 ]]; then
                 echo "FAILED $mode: Unknown port for $env" \
                     | tee -a $summary_file
             else
@@ -249,11 +243,11 @@ function process_files() {
     local file
     for file in "$@"; do
         local ino_file=$(get_ino_file $file)
-        #if realpath $ino_file | egrep --silent "$exclude"; then
-        #    echo "SKIPPED $mode: excluding $file" \
-        #        | tee -a $summary_file
-        #    continue
-        #fi
+        if realpath $ino_file | egrep --silent "$exclude"; then
+            echo "SKIPPED $mode: excluding $file" \
+                | tee -a $summary_file
+            continue
+        fi
 
         if [[ ! -f $ino_file ]]; then
             echo "FAILED $mode: file not found: $ino_file" \
@@ -376,12 +370,12 @@ function interrupted() {
 function handle_build() {
     local single=0
     prefs=
-    skip_if_no_port=0
+    skip_missing_port=0
     while [[ $# -gt 0 ]]; do
         case $1 in
             --single) single=1 ;;
             --sketchbook) shift; prefs="--pref sketchbook.path=$1" ;;
-            --skip_if_no_port) skip_if_no_port=1 ;;
+            --skip_missing_port) skip_missing_port=1 ;;
             -*) echo "Unknown build option '$1'"; usage ;;
             *) break ;;
         esac
@@ -401,6 +395,10 @@ function handle_build() {
     if [[ "$single" == 1 ]]; then
         if [[ "$envs" =~ , ]]; then
             echo "Multiple environments not allowed in 'upmon' command"
+            usage
+        fi
+        if [[ $# -gt 1 ]]; then
+            echo "Multiple files not allowed in 'upmon' command"
             usage
         fi
     fi
