@@ -70,9 +70,8 @@ Command Flags:
     --port_timeout N
         (upload, test) Set the timeout for waiting for a serial port to become
         available to 'N' seconds. (Default: 120)
-    --pref key=value
-        (verify, upload, test) Set the Arduino commandline preferences. Multiple
-        flags may be given. Useful in continuous integration.
+    --sketchbook {path}
+        (verify, upload, test) Set the Arduino sketchbook directory to {path}.
     --skip_if_no_port
         (upload, test) Just perform a 'verify' if --port or {:port} is missing.
         Useful in Continuous Integration on multiple boards where only some
@@ -381,7 +380,7 @@ function handle_build() {
     while [[ $# -gt 0 ]]; do
         case $1 in
             --single) single=1 ;;
-            --pref) shift; prefs="$prefs --pref $1" ;;
+            --sketchbook) shift; prefs="--pref sketchbook.path=$1" ;;
             --skip_if_no_port) skip_if_no_port=1 ;;
             -*) echo "Unknown build option '$1'"; usage ;;
             *) break ;;
