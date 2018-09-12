@@ -17,7 +17,7 @@ There are 3 components to the **AUniter** package:
    build, so that an indicator badge can be displayed on a source control
    repository like GitHub.
 
-Version: 1.5 (2018-09-03)
+Version: 1.6 (2018-09-11)
 
 ## Installation
 

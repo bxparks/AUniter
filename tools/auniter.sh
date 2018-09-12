@@ -6,6 +6,7 @@
 # Dependencies:
 #   * run_arduino.sh
 #   * serial_monitor.py
+#   * picocom (optional)
 
 set -eu
 
@@ -22,58 +23,78 @@ PORT_TIMEOUT=120
 # Status code returned by flock(1) if it times out.
 FLOCK_TIMEOUT_CODE=10
 
-function usage() {
+function usage_common() {
     cat <<'END'
-Usage: auniter.sh [auniter_flags] command [command_flags] [board] [files...]
+Usage: auniter.sh [-h] [auniter_flags] command [command_flags] [args ...]
+       auniter.sh ports
+       auniter.sh verify {board} files ...
+       auniter.sh upload {board}:{port},... files ...
+       auniter.sh test {board}:{port},... files ...
+       auniter.sh monitor [{board}:]{port}
+       auniter.sh upmon {board}:{port}
+END
+}
 
-    auniter.sh verify {board} files ...
-    auniter.sh upload {board:port} files ...
-    auniter.sh test {board:port} files ...
-    auniter.sh ports
+function usage() {
+    usage_common
+    exit 1
+}
+
+function usage_long() {
+    usage_common
+    cat <<'END'
 
 Commands:
+    ports   List the tty ports and the associated Arduino boards.
     verify  Verify the compile of the sketch file(s).
     upload  Upload the sketch(es) to the given board at port.
     test    Upload the AUnit unit test(s), and verify pass or fail.
-    ports   List the tty ports and the associated Arduino boards.
+    monitor Run the serial terminal defined in aniter.conf on the given port.
+    upmon   Upload the sketch and run the monitor upon success.
 
-AUniter Flags:
+AUniter Flags
     --help          Print this help page.
     --config {file} Read configs from 'file' instead of $HOME/.auniter.conf'.
-    --verbose       Verbose output from the Arduino binary.
+    --verbose       Verbose output from various subcommands.
 
 Command Flags:
-    --boards {alias}[:{port}],...
-        Comma-separated list of {alias}:{port} pairs. The {alias} should be
-        listed in the [boards] section of the CONFIG_FILE. The {port} can be
-        shortened by omitting the '/dev/tty' part (e.g. 'USB0').
+    --boards {{board}[:{port}]},...
+        (verify, upload, test, upmon) Comma-separated list of {board}:{port}
+        pairs. The {board} should be listed in the [boards] section of the
+        CONFIG_FILE. The {port} can be shortened by omitting the '/dev/tty' part
+        (e.g. 'USB0').
     --board {package}:{arch}:{board}[:parameters]]
-        Fully qualified board name (fqbn) of the target board.
+        (verify, upload, test, upmon) Fully qualified board name (fqbn) of the
+        target board.
     --port /dev/ttyXxx
-        Serial port of the board.
+        (upload, test, monitor, upmon) Serial port of the board.
     --baud baud
-        Speed of the serial port for serial_montor.py. (Default: 115200)
+        (upload, test, monitor,up mon) Speed of the serial port for
+        serial_montor.py. (Default: 115200. The default value can be changed in
+        CONFIG_FILE.)
     --port_timeout N
-        Set the timeout for waiting for a serial port to become available to 'N'
-        seconds. (Default: 120)
+        (upload, test) Set the timeout for waiting for a serial port to become
+        available to 'N' seconds. (Default: 120)
     --pref key=value
-        Set the Arduino commandline preferences. Multiple flags may be given.
-        Useful in continuous integration.
+        (verify, upload, test) Set the Arduino commandline preferences. Multiple
+        flags may be given. Useful in continuous integration.
     --skip_if_no_port
-        (test, upload) Just perform a 'verify' if --port or {:port}
-        is missing. Useful in Continuous Integration on multiple boards where
-        only some boards are actually connected to a serial port.
+        (upload, test) Just perform a 'verify' if --port or {:port} is missing.
+        Useful in Continuous Integration on multiple boards where only some
+        boards are actually connected to a serial port.
     --[no]locking
-        (test) Use (or not use) flock(1) to lock the tty for the board.
-        Needed for Arduino Pro Micro, Leonardo or other boards using virtual
-        serial ports. Can be set in the [options] section of the CONFIG_FILE.
+        (upload, test, CONFIG) Use (or not use) flock(1) to lock the tty for the
+        board. Needed for Arduino Pro Micro, Leonardo or other boards using
+        virtual serial ports. Can be set in the [options] section of the
+        CONFIG_FILE.
     --exclude regexp
-        Exclude 'file.ino' whose fullpath matches the given egrep regular
-        expression. This will normally be used in the [options] section of the
-        CONFIG_FILE to exclude files which are not compatible with certain board
-        (e.g. ESP8266 or ESP32). Multiple files can be specified using the 'a|b'
-        pattern supported by egrep. Use 'none' (or some other pattern which
-        matches nothing) to clobber the value from the CONFIG_FILE.
+        (verify, upload, test, CONFIG) Exclude 'file.ino' whose fullpath matches
+        the given egrep regular expression. This will normally be used in the
+        [options] section of the CONFIG_FILE to exclude files which are not
+        compatible with certain board (e.g. ESP8266 or ESP32). Multiple files
+        can be specified using the 'a|b' pattern supported by egrep. Use 'none'
+        (or some other pattern which matches nothing) to clobber the value from
+        the CONFIG_FILE.
 
 Files:
     Multiple *.ino files and directories may be given. If a directory is given,
@@ -157,25 +178,52 @@ function process_sketches() {
     fi
 }
 
+# Parse the {board}:{port} specifier, setting the following global variables:
+#
+#   - $board_alias
+#   - $board_port
+#   - $board
+#   - $port
+function process_board_and_port() {
+    local board_and_port=$1
+    # Split {alias}:{port} into two fields.
+    board_alias=$(echo $board_and_port \
+            | sed -E -e 's/([^:]*):?([^:]*)/\1/')
+    board_port=$(echo $board_and_port \
+            | sed -E -e 's/([^:]*):?([^:]*)/\2/')
+
+    board=$(get_config "$config_file" 'boards' "$board_alias")
+    port=$(resolve_port "$board_port")
+}
+
+# If a port is not fully qualified (i.e. start with /), then append
+# "/dev/tty" to the given port. On Linux, all serial ports seem to start
+# with this prefix, so we can specify "/dev/ttyUSB0" as just "USB0".
+function resolve_port() {
+    local port_alias=$1
+    if [[ $port_alias =~ ^/ ]]; then
+        echo $port_alias
+    elif [[ "$port_alias" == '' ]]; then
+        echo ''
+    else
+        echo "/dev/tty$port_alias"
+    fi
+}
+
 # Requires $boards to define the target environments as a comma-separated list
 # of {board}:{port}.
 function process_boards() {
     local board_and_ports=$(echo "$boards" | sed -e 's/,/ /g')
     for board_and_port in $board_and_ports; do
-        # Split {alias}:{port} into two fields.
-        local board_alias=$(echo $board_and_port \
-                | sed -E -e 's/([^:]*):?([^:]*)/\1/')
-        local board_port=$(echo $board_and_port \
-                | sed -E -e 's/([^:]*):?([^:]*)/\2/')
+        process_board_and_port $board_and_port
 
-        echo "======== Processing board=$board_alias, port=$board_port"
-        local board_value=$(get_config "$config_file" 'boards' "$board_alias")
-        if [[ "$board_value" == '' ]]; then
+        echo "======== Processing $board_and_port"
+        if [[ "$board" == '' ]]; then
             echo "FAILED: Unknown board alias '$board_alias'" \
                 | tee -a $summary_file
             continue
         fi
-        if [[ "$board_port" == '' && "$mode" != 'verify' ]]; then
+        if [[ "$port" == '' && "$mode" != 'verify' ]]; then
             if [[ "$skip_if_no_port" == 0 ]]; then
                 echo "FAILED $mode: Unknown port for $board_alias: $*" \
                     | tee -a $summary_file
@@ -190,18 +238,7 @@ function process_boards() {
         # afterwards, so that the command line options take precedence.
         local config_options=$(get_config "$config_file" 'options' \
             "$board_alias")
-        process_options $config_options $options
-
-        board=$board_value
-
-        # If a port is not fully qualified (i.e. start with /), then append
-        # "/dev/tty" to the given port. On Linux, all serial ports seem to start
-        # with this prefix, so we can specify "/dev/ttyUSB0" as just "USB0".
-        if [[ $board_port =~ ^/ ]]; then
-            port=$board_port
-        else
-            port="/dev/tty$board_port"
-        fi
+        process_options "$config_options" "$options"
 
         process_files "$@"
     done
@@ -245,7 +282,7 @@ function process_files() {
 # Requires $board and $port to define the target environment.
 function process_file() {
     local file=$1
-    echo "==== Processing $file"
+    echo "-------- Processing $file"
 
     if [[ "$board" == '' ]]; then
         echo "FAILED $mode: board not defined: $file" \
@@ -364,15 +401,14 @@ function interrupted() {
 }
 
 # process build (verify, upload, or test) commands
-function build() {
+function handle_build() {
     board=
     boards=
     port=
     prefs=
     port_timeout=
     skip_if_no_port=0
-    options=''
-    baud=115200
+    options=
     while [[ $# -gt 0 ]]; do
         case $1 in
             --boards) shift; boards=$1 ;;
@@ -414,14 +450,130 @@ function list_ports() {
     $DIRNAME/serial_monitor.py --list
 }
 
+
+# Determine the external terminal program and run it with $port and $baud.
+function run_monitor() {
+    if [[ "$monitor" == '' ]]; then
+        echo "Property 'monitor' must be defined in $config_file"
+        usage
+    fi
+
+    # Execute the monitor command as listed in the CONFIG_FILE.
+    eval "$monitor"
+}
+
+# Run the serial monitor on the given port specifier. The port can be
+# given as "{board}:{port}" or just "{port}". The command for the serial monitor
+# comes from the 'monitor' property in section '[auniter]'. An example that
+# works well for me is:
+#
+# [auniter]
+#   monitor = picocom -b $baud --omap crlf --imap lfcrlf --echo $port
+function handle_monitor() {
+    # Process the flags of the 'auniter.sh monitor' command.
+    port=
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --port) shift; port=$1 ;;
+            --baud) shift; baud=$1 ;;
+            -*) echo "Unknown monitor option '$1'"; usage ;;
+            *) break ;;
+        esac
+        shift
+    done
+
+    # If the --port flag was not given, assume that the next non-flag argument
+    # is a port.
+    if [[ "$port" == '' ]]; then
+        if [[ $# -lt 1 ]]; then
+            echo 'No port given for 'monitor' command'
+            usage
+        fi
+        port=$1
+        shift
+    fi
+
+    # If the port_specifier is {board}:{port}, extract the {port}. If there
+    # is no ':', then assume that it's just the port.
+    if [[ "$port" =~ : ]]; then
+        process_board_and_port "$port"
+    else
+        port=$(resolve_port $port)
+    fi
+
+    if [[ "$port" == '' ]]; then
+        echo 'No port given for 'monitor' command'
+        usage
+    fi
+
+    run_monitor
+}
+
+# Combination of 'upload' then 'monitor' if upload goes ok.
+function handle_upmon() {
+    board=
+    boards=
+    port=
+    options=
+    prefs=
+    skip_if_no_port=0
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --boards) shift; boards=$1 ;;
+            --board) shift; board=$1 ;;
+            --port) shift; port=$1 ;;
+            --baud) shift; baud=$1 ;;
+            -*) echo "Unknown build option '$1'"; usage ;;
+            *) break ;;
+        esac
+        shift
+    done
+
+    # If the --board or --boards flag was not given, assume that the next
+    # non-flag argument is a --boards value (e.g. "nano", or "uno").
+    if [[ "$board" == '' && "$boards" == '' ]]; then
+        if [[ $# -lt 1 ]]; then
+            echo 'No board specification given'; usage
+        elif [[ $# -lt 2 ]]; then
+            echo "Board assumed to be '$1', but no file given"; usage
+        fi
+        boards=$1
+        shift
+    else
+        if [[ $# -lt 1 ]]; then
+            echo 'No file given'; usage
+        fi
+    fi
+
+    if [[ "$boards" =~ , ]]; then
+        echo "Multiple boards not allowed in 'upmon' command"
+        usage
+    fi
+
+    mode=upload
+    process_sketches "$@"
+    print_summary_file
+
+    mode=monitor
+    run_monitor
+}
+
+# Read in the default flags in the [auniter] section of the config file.
+function read_default_configs() {
+    monitor=$(get_config "$config_file" 'auniter' 'monitor')
+
+    local config_baud=$(get_config "$config_file" 'auniter' 'baud')
+    baud=${config_baud:-115200} # use config default, otherwise 115200
+}
+
 # Parse auniter command line flags
 function main() {
-    mode=verify
+    mode=
     verbose=
     config=
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --help|-h) usage ;;
+            --help|-h) usage_long ;;
             --config) shift; config=$1 ;;
             --verbose) verbose='--verbose' ;;
             -*) echo "Unknown auniter option '$1'"; usage ;;
@@ -430,7 +582,7 @@ function main() {
         shift
     done
     if [[ $# -lt 1 ]]; then
-        echo 'Must provide a command (verify, upload, test, ports)'
+        echo 'Must provide a command (verify, upload, test, monitor, ports)'
         usage
     fi
     mode=$1
@@ -443,13 +595,16 @@ function main() {
     # interrupts and continues processing.
     trap interrupted INT
 
+    read_default_configs
     check_environment_variables
     create_temp_files
     case $mode in
         ports) list_ports "$@" ;;
-        verify) mode='verify'; build "$@" ;;
-        upload) mode='upload'; build "$@" ;;
-        test) mode='test'; build "$@" ;;
+        verify) handle_build "$@" ;;
+        upload) handle_build "$@" ;;
+        test) handle_build "$@" ;;
+        monitor) handle_monitor "$@" ;;
+        upmon) handle_upmon "$@" ;;
         *) echo "Unknown command '$mode'"; usage ;;
     esac
 }

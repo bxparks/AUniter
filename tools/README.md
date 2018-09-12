@@ -24,8 +24,8 @@ executed on Arduino boards attached to the serial port of the local machine. The
 Jenkins dashboard can display the status of builds and tests.
 
 The `auniter.sh` script supports user-defined board aliases allow mapping of a
-short alias (e.g. `nano`) to the fully qualified board name (`fqbn`) used by the
-arduino binary (e.g. `arduino:avr:nano:cpu=atmega328old`).
+short alias (e.g. `uno`) to the fully qualified board name (`fqbn`) used by the
+arduino binary (e.g. `arduino:avr:uno`).
 
 The script can monitor the output of the serial port, and parse the output of an
 AUnit unit test to determine if the test passed or failed.
@@ -34,33 +34,40 @@ AUnit unit test to determine if the test passed or failed.
 
 ### Requirements
 
-These scripts are meant to be used from a Linux environment. I have tested the
-integration on the following systems:
+These scripts are meant to be used from a Linux environment. The following
+components and version numbers have been tested:
+
+* Ubuntu Linux
     * Ubuntu 16.04
     * Ubuntu 17.10
     * Ubuntu 18.04
     * Xubuntu 18.04
-
-The `auniter.sh` script has been tested with the following versions of
-[Arduino IDE](https://arduino.cc/en/Main/Software):
+* [Arduino IDE](https://arduino.cc/en/Main/Software):
     * 1.8.5
     * 1.8.6
+* [pyserial](https://pypi.org/project/pyserial/)
+    * 3.4-1
+    * install: `sudo apt install python3 python3-pip python3-serial`
+* [picocom](https://linux.die.net/man/8/picocom)
+    * (optional, for `auniter.sh monitor` functionality)
+    * 2.2
+    * install: `sudo apt install picocom`
 
-The `serial_monitor.py` script depends on
-[pyserial](https://pypi.org/project/pyserial/) (tested with 3.4-1).
-On Ubuntu (tested on 17.10 and 18.04), you can type:
-```
-$ sudo apt install python3 python3-pip python3-serial
-```
-to get the python3 dependencies.
+Some limited testing on MacOS has been done, but it is currently not supported.
+
+Windows is definitely not supported because the scripts require the `bash`
+shell. I am not familiar with
+[Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10)
+so I do not know if it would work on that.
 
 ### Obtain the Code
 
 The latest development version can be installed by cloning the
-[GitHub repository](https://github.com/bxparks/AUnit), and checking out the
-`develop` branch. The `master` branch contains the stable release.
+[GitHub repository](https://github.com/bxparks/AUniter), and checking out the
+`develop` branch. The `master` branch contains the stable release. The
+`auniter.sh` script is in the `./tools` directory.
 
-### Setup
+### Environment Variable
 
 There is one environment variable that **must** be defined in your `.bashrc`
 file:
@@ -68,22 +75,10 @@ file:
 * `export AUNITER_ARDUINO_BINARY={path}` - location of the Arduino command line
   binary
 
-I have something like this in my `$HOME/.bashrc` file (which I share across all
-my Linux and Mac computers):
+I have something like this in my `$HOME/.bashrc` file:
 ```
-case $(uname -s) in
-  Linux*)
-    export AUNITER_ARDUINO_BINARY="$HOME/dev/arduino-1.8.5/arduino"
-    ;;
-  Darwin*)
-    export AUNITER_ARDUINO_BINARY="$HOME/dev/Arduino.app/Contents/MacOS/Arduino"
-    ;;
-  *)
-    export AUNITER_ARDUINO_BINARY=
-    ;;
-esac
+export AUNITER_ARDUINO_BINARY="$HOME/dev/arduino-1.8.5/arduino"
 ```
-(The script does not yet work on MacOS.)
 
 ### Shell Alias
 
@@ -96,94 +91,90 @@ Don't add `{path-to-AUniter-directory}/tools` to your `$PATH`. It won't work
 because `auniter.sh` needs to know its own install directory to find helper
 scripts.
 
-*(The rest of the document will assume that you  have created this alias.)*
+**(The rest of the document will assume that you have created this alias.)**
+
+### Config File
+
+The `auniter.sh` script looks for a config file named `$HOME/.auniter.conf` in
+your home directory. The format of the file is the
+[INI file](https://en.wikipedia.org/wiki/INI_file),
+and the meaning of these properties will be explained below. For the purposes of
+this tutorial, create an initial `.auniter.conf` file with the following
+content:
+```
+# Tool settings
+[auniter]
+  monitor = picocom -b $baud --omap crlf --imap lfcrlf --echo $port
+# Board aliases
+[boards]
+  uno = arduino:avr:uno
+```
+
+The examples below will make use of this initial setting.
 
 ## Usage
 
-Type `auniter --help` to get the latest usage:
+Type `auniter --help` to get the latest usage. Here is the summary portion
+of the help message:
 ```
 $ auniter --help
 Usage: auniter.sh [auniter_flags] command [command_flags] [boards] [files...]
-    auniter.sh verify {board} files ...
-    auniter.sh upload {board:port} files ...
-    auniter.sh test {board:port} files ...
-    auniter.sh ports
+       auniter.sh ports
+       auniter.sh verify {board},... files ...
+       auniter.sh upload {board}:{port},... files ...
+       auniter.sh test {board}:{port},... files ...
+       auniter.sh monitor [{board}:]{port}
+       auniter.sh upmon {board}:{port}
 ```
 
-The 4 subcommands (verify, upload, test, ports) are described below.
-Three of the commands need the board and port of the target
-controller. There are 3 ways to specify these:
+The 6 subcommands (`ports`, `verify`, `upload`, `test`, `monitor`, `upmon`) are
+described below.
 
-* explicit flags
-    * `--board board` The identifier for the particular board in the form
-      of `{package}:{arch}:{board}[:parameters]`.
-    * `--port port` The tty port where the Arduino board can be found. This is
-      optional for the `verify` subcommand which does not need to connect to the
-      board.
-    * These flags are passed directly to the Arduino IDE.
-* --boards {alias:port}
-    * The `alias` is searched in the `auniter.conf` file and if found,
-      the actual value of the `--board` flag is passed to the Arduino IDE.
-    * The `port` is passed to the `--port` flag. For convenience, the
-      repetitive `/dev/tty` part can be omitted from the `{port}` spec. In other
-      words, you can write `nano:USB0`, instead of `nano:/dev/ttyUSB0`.
-* {alias:port}
-    * If the `--board` or `--boards` flags are not given, then the `verify`,
-      `upload`, and `test` commands expect the next (non-flag) argument to be
-      the `{alias:port}` parameter of the `--boards` flag, so that explicit flag
-      can be dropped. The examples below will hopefully make these more clear.
+### Board Aliases
 
-### Verify
+The Arduino command line binary wants a fully-qualified board name (`fqbn`)
+specification for the `--board` flag. It can be quite cumbersome to determine
+this value. The easiest way is to set the "Show verbose output during
+compilation and upload" checkboxes in the Arduino IDE, then look for the value
+of the `-fqbn` flag generated in the debug output. Another way is to track down
+the `hardware/.../boards.txt` file (there may be several verisons), open it up,
+and try to reverse engineer the `fqbn` of a particular Arduino board.
 
-The following examples (all equivalent) verify that the `Blink.ino` sketch
-compiles. The `--port` flag is not necessary in this case:
-
+On some boards, the `fqbn` may be quite long. For example, on my ESP32 dev
+board, it is
 ```
-$ auniter verify --board arduino:avr:nano:cpu=atmega328old Blink.ino
-$ auniter verify --boards nano Blink.ino
-$ auniter verify nano Blink.ino
+espressif:esp32:esp32:PartitionScheme=default,FlashMode=qio,FlashFreq=80,FlashSize=4M,UploadSpeed=921600,DebugLevel=none
 ```
 
-### Upload
-
-To upload the sketch to the Arduino board, we need to provide the `--port`
-flag. The following examples are all equivalent:
-
+Instead of using the `fqbn`, the `auniter.sh` script allows the user to define
+aliases for the `fqbn` the `.auniter.conf` file, in the `[boards]` section.
+My config file looks something like this:
 ```
-$ auniter upload --port /dev/ttyUSB0 \
-    --board arduino:avr:nano:cpu=atmega328old Blink.ino
-$ auniter upload --boards nano:USB0 Blink.ino
-$ auniter upload nano:USB0 Blink.ino
-```
-
-### Test
-
-To run the AUnit test and verify pass or fail:
-```
-$ auniter test --port /dev/ttyUSB0 \
-    --board arduino:avr:nano:cpu=atmega328old tests/*Test
-$ auniter test --boards nano:USB0 tests/*Test
-$ auniter test nano:USB0 tests/*Test
+# Board aliases
+[boards]
+  uno = arduino:avr:uno
+  nano = arduino:avr:nano:cpu=atmega328old
+  leonardo = arduino:avr:leonardo
+  esp8266 = esp8266:esp8266:nodemcuv2:CpuFrequency=80,FlashSize=4M1M,LwIPVariant=v2mss536,Debug=Disabled,DebugLevel=None____,FlashErase=none,UploadSpeed=115200
+  esp32 = espressif:esp32:esp32:PartitionScheme=default,FlashMode=qio,FlashFreq=80,FlashSize=4M,UploadSpeed=921600,DebugLevel=none
 ```
 
-A summary of all the test runs are given at the end, like this:
+The format of the board alias name is not precisely defined, but it should
+probably be limited to the usual character set for identifiers (`a-z`, `A-Z`,
+`0-9`, underscore `_`). It definitely cannot contain an equal sign `=` or space
+character.
 
-```
-[...]
-======== Test Run Summary
-PASSED test: arduino:avr:nano:cpu=atmega328old /dev/ttyUSB1 AceSegment/tests/CommonTest/CommonTest.ino
-PASSED test: arduino:avr:nano:cpu=atmega328old /dev/ttyUSB1 AceSegment/tests/DriverTest/DriverTest.ino
-PASSED test: arduino:avr:nano:cpu=atmega328old /dev/ttyUSB1 AceSegment/tests/LedMatrixTest/LedMatrixTest.ino
-PASSED test: arduino:avr:nano:cpu=atmega328old /dev/ttyUSB1 AceSegment/tests/RendererTest/RendererTest.ino
-PASSED test: arduino:avr:nano:cpu=atmega328old /dev/ttyUSB1 AceSegment/tests/WriterTest/WriterTest.ino
-ALL PASSED
-```
+### Port Specifier
 
-The `ALL PASSED` indicates that all unit tests passed.
+Some subcommands (`upload`, `test`, `monitor`) also needs to be given the serial port that the Arduino board is
+connected to. The serial port on a Linux machine has the form `/dev/ttyXXXn`,
+for example `/dev/ttyUSB0`. For convenience, the repetitive `/dev/tty` part can
+be omitted from the `{port}` spec. In other words, you can write `uno:USB0`,
+instead of `uno:/dev/ttyUSB0`.
 
-### List Ports
+### Subcommand: Ports
 
-The `ports` command lists the available serial ports:
+The `ports` command simply lists the available serial ports:
 ```
 $ auniter ports
 /dev/ttyS4 - n/a
@@ -195,6 +186,118 @@ $ auniter ports
 /dev/ttyACM0 - Arduino Leonardo
 ```
 
+### Subcommand: Verify
+
+The following examples (all equivalent) verify that the `Blink.ino` sketch
+compiles. The `{port}` of the board is not necessary because the program
+is not uploaded to the board: All of the following are identical:
+
+```
+$ auniter verify uno Blink.ino
+$ auniter verify --boards uno Blink.ino
+$ auniter verify --board arduino:avr:uno Blink.ino
+```
+
+### Subcommand: Upload
+
+To upload the sketch to the Arduino board, we need to provide the port
+of the board. The following examples are all equivalent:
+
+```
+$ auniter upload uno:USB0 Blink.ino
+$ auniter upload uno:/dev/ttyUSB0 Blink.ino
+$ auniter upload --boards uno:USB0 Blink.ino
+$ auniter upload --board arduino:avr:uno --port /dev/ttyUSB0 Blink.ino
+```
+
+### Subcommand: Test
+
+The `auniter test` command compiles the program, uploads it to the specified
+board, then reads the serial output from the boards, looking for specific
+output from the [AUnit](https://github.com/bxparks/AUnit) test runner.
+```
+$ auniter test uno:USB0 BlinkTest.ino
+$ auniter test --boards uno:USB0 BlinkTest.ino
+$ auniter test --board --port /dev/ttyUSB0 arduino:avr:uno BlinkTest.ino
+```
+
+A summary of all the test runs are given at the end, like this:
+
+```
+[...]
+======== Test Run Summary
+PASSED test: arduino:avr:uno /dev/ttyUSB0 AceSegment/tests/CommonTest/CommonTest.ino
+PASSED test: arduino:avr:uno /dev/ttyUSB0 AceSegment/tests/DriverTest/DriverTest.ino
+PASSED test: arduino:avr:uno /dev/ttyUSB0 AceSegment/tests/LedMatrixTest/LedMatrixTest.ino
+PASSED test: arduino:avr:uno /dev/ttyUSB0 AceSegment/tests/RendererTest/RendererTest.ino
+PASSED test: arduino:avr:uno /dev/ttyUSB0 AceSegment/tests/WriterTest/WriterTest.ino
+ALL PASSED
+```
+
+The `ALL PASSED` indicates that all unit tests passed.
+
+### Subcommand: Monitor
+
+The serial port of the board can be monitored using the `monitor` subcommand. It
+needs to know the tty serial port which can be given in any of the following
+equivalent ways:
+```
+$ auniter monitor USB0
+$ auniter monitor uno:USB0
+$ auniter monitor /dev/ttyUSB0
+$ auniter monitor --port /dev/ttyUSB0
+```
+
+When the port is given as `{board}:{port}`, the `{board}` part is ignored. This
+feature is useful in interactive mode, so that you can scroll through the shell
+history and simply change the `auniter upload ...` to `auniter monitor ...`
+without having to also remove the `{board}:` part.
+
+The speed of the serial port is usually controlled by the program that is
+running on the Arduino board (through the `Serial.begin(xxxx)` statement.
+The port speed value can be given by the `--baud` flag. The default is 115200,
+but you can change it like this:
+```
+$ auniter monitor --baud 9600 USB0
+```
+
+The `monitor` subcommand delegates the serial terminal functionality to a
+user-defined program defined in the `auniter.conf` file. The program that works
+well for me is the [picocom](https://linux.die.net/man/8/picocom) program. On
+Ubuntu Linux, install it using:
+```
+$ sudo apt install picocom
+```
+
+With the following definition in the `.auniter.conf` file:
+```
+[auniter]
+  monitor = picocom -b $baud --omap crlf --imap lfcrlf --echo $port
+```
+
+the `auniter.sh` script will fill in the `$baud` and `$port` and execute this
+command. (Note: The exit command for `picocom` is `Ctrl-a Ctrl-q` but if you are
+in a terminal multiplexer like `screen`, then `Ctrl-a` is the escape character
+for `screen` itself, you have to type `Ctrl-a a Ctrl-q` instead.)
+
+### Subcommand: Upload and Monitor (upmon)
+
+Often we want to upload a program then immediately monitor the serial port, to
+view the serial port output, or to send commands to the board over the serial
+port. You can do that using the `upmon` command:
+```
+$ auniter upmon uno:USB0 Blink.ino
+```
+
+The argument list is very similar to `upload` except that `upmon` accepts
+only a single `{board}:{port}` pair.
+
+## Advanced Usage
+
+The following features are useful if you are working with multiple board types,
+and/or if you are using `auniter.sh` as the driving script for the
+[Jenkins continuous integration](../jenkins).
+
 ### Automatic Directory Expansion
 
 If the `auniter.sh` is given a directory `dir`, it tries to find
@@ -204,76 +307,20 @@ same base name as the parent directory.
 Multiple files and directories can be given. The Arduino Commandline will
 be executed on each of the ino files in sequence.
 
-### Board Aliases
-
-The Arduino command line binary wants a fully-qualified board name (`fqbn`)
-specification for the `--board` flag. It can be quite cumbersome to determine
-this value. One way is to set the "Show verbose output during compilation and
-upload" checkboxes in the Arduino IDE, then look for the value of the `-fqbn`
-flag generated in the debug output. Another way is to track down the
-`hardware/.../boards.txt` file (there may be several verisons), open it up, and
-try to reverse engineer the `fqbn` of a particular Arduino board.
-
-On some boards, the `fqbn` may be quite long. For example, on my ESP32 dev
-board, it is
-```
-espressif:esp32:esp32:PartitionScheme=default,FlashMode=qio,FlashFreq=80,FlashSize=4M,UploadSpeed=921600,DebugLevel=none
-```
-
-It is likely that not all the extra parameters are needed, but it is not
-easy to figure out which ones can be left out.
-
-Instead of using the `fqbn`, the `auniter.sh` script allows the user to define
-aliases for the `fqbn` in a config file. The format of the file is the
-[INI file](https://en.wikipedia.org/wiki/INI_file), and the aliases are
-in the `[boards]` section:
-```
-# Board aliases
-[boards]
-  uno = arduino:avr:uno
-  nano = arduino:avr:nano:cpu=atmega328old
-  leonardo = arduino:avr:leonardo
-  esp8266 = esp8266:esp8266:nodemcuv2:CpuFrequency=80,FlashSize=4M1M,LwIPVariant=v2mss536,Debug=Disabled,DebugLevel=None____,FlashErase=none,UploadSpeed=115200
-  esp32 = espressif:esp32:esp32:PartitionScheme=default,FlashMode=qio,FlashFreq=80,FlashSize=4M,UploadSpeed=921600,DebugLevel=none
-```
-
-The format of the alias name is not precisely defined, but it should probably be
-limited to the usual character set for identifiers (`a-z`, `A-Z`, `0-9`,
-underscore `_`). It definitely cannot contain an equal sign `=` or space
-character.
-
-The board alias can be used with the `--boards` flag (not to be confused with
-the `--board` flag which is passed directly to the Arduino binary). The
-`--boards` flag is described below.
-
-### Config File (--config)
-
-By default, the `auniter.sh` script looks in the
-```
-$HOME/.auniter.conf
-```
-file in your home directory. The script can be told to look elsewhere using the
-`--config` command line flag. (Use `--config /dev/null` to indicate no config
-file.) This may be useful if the config file is checked into source control for
-each Arduino project.
-
-```
-$ auniter --config {path-to-config-file} subcommand {board:port} ...
-```
-
 ### Multiple Boards
 
-The `--boards` flag accepts a comma-separated list of `{alias}[:{port}]` pairs.
+The `verify`, `upload` and `test` commands all support multiple board/port pairs
+by listing them as a comma-separated list of `{board}:{port}`. For example, we
+can compile (verify) a single sketch across multiple boards like this:
 
 ```
-$ auniter verify nano,leonardo,esp8266,esp32 BlinkTest.ino
+$ auniter verify uno,leonardo,esp8266,esp32 BlinkTest.ino
 ```
 
 If you want to run the AUnit tests on multiple boards, you must provide the
 port of each board, like this:
 ```
-$ auniter test \
-    nano:USB0,leonardo:ACM0,esp8266:USB2,esp32:USB1 \
+$ auniter test uno:USB0,leonardo:ACM0,esp8266:USB2,esp32:USB1 \
   CommonTest DriverTest LedMatrixTest RendererTest WriterTest
 ```
 
@@ -282,6 +329,8 @@ There are no provision for creating aliases for the ports in the
 vary depending on the presence of other USB or serial devices.
 
 ### Mutually Exclusive Access (--locking, --nolocking)
+
+(Valid for subcomands: `upload`, `test`)
 
 Multiple instances of the `auniter.sh` script can be executed, which can help
 with the `verify` subcommand if you have multiple CPU cores. However, when the
@@ -319,6 +368,8 @@ file.
 
 ### Excluding Files (--exclude regexp)
 
+(Valid for subcomands: `verify`, `upload`, `test`)
+
 Some programs cannot be compiled under some microcontroller boards.
 The `--exclude regexp` option will skip any `*.ino` files whose fullpath
 matches the regular expression used by
@@ -350,14 +401,77 @@ the value in `CONFIG_FILE`. Therefore, you can explicitly compile a program
 that is excluded from the `CONFIG_FILE` by giving a regexp which matches
 nothing. For example:
 ```
-$ auniter --exclude none --boards esp8266 CapacitiveButton
+$ auniter verify --exclude none esp8266 CapacitiveButton
+```
+
+### Alternative Ways to Specify the Board and Port
+
+For interactive use, the short `{board}:{port}` format is the most convenient.
+However, for backwards compatibility and for scripting purposes, the board and
+port can be specified using explicit flags. For completeness, here is the list
+of the 3 ways:
+
+* `{board}:{port}[,{board}:{port}]`
+    * The `{board}` is assumed to be an alias and resolved by looking it
+      up in the `.auniter.conf` file. The `{port}` is either the full path to
+      the tty device (e.g. `/dev/ttyUSB0`) or just the short version (e.g.
+      `USB0`). Multiple board/port pairs can be specified by using commas
+      (without any whitespace separator).
+* `--boards {board}:{port}[,{board}:{port}]`
+    * Same as just giving the `{board}:{port}`. Sometimes helpful in scripts
+      to be more explicit. If the `--boards` string is omitted, then the
+      `{board},{port}` must be the first non-flag argument, before the `*.ino`
+      files are given.
+* `--board {fqbn} --port {port}`
+    * These flags are passed directly to the Arduino Binary.
+    * The `{fqbn}` is the fully qualified board name, not the alias in
+      `.auniter.conf` file.
+    * The `{port}` is the full path name to the tty device.
+
+### Config File (--config)
+
+(Valid on the `auniter.sh` command)
+
+By default, the `auniter.sh` script looks in the
+```
+$HOME/.auniter.conf
+```
+file in your home directory. The script can be told to look elsewhere using the
+`--config` command line flag. (Use `--config /dev/null` to indicate no config
+file.) This may be useful if the config file is checked into source control for
+each Arduino project.
+
+```
+$ auniter --config {path-to-config-file} subcommand {board:port} ...
+```
+
+(The `--config` flag is an option on the `auniter.sh` command, not the
+subcommand, so it must occur *before* the subcommands.)
+
+### Verbose Mode (--verbose)
+
+(Valid on the `auniter.sh` command)
+
+The `auniter.sh` accepts a `--verbose` flag, which enables verbose mode for
+those subcommands which support it. In particular, it is passed into the Arduino
+binary, which then prints out the compilation steps in extreme detail.
+
+### Default Baud Rate
+
+If the `--baud` flag is not given, then default baud rate for the serial port is
+set to `115200`. You can change this default value in the `.auniter.conf` file
+using the `baud` property in the `[auniter]` section. For example, the following
+sets the default baud rate to 9600 in the absence of an explicit `--baud` flag:
+```
+[auniter]
+  baud = 9600
 ```
 
 ## Integration with Jenkins
 
 I have successfully integrated `auniter.sh` into a locally hosted
 [Jenkins](https://jenkins.io) Continuous Integration platform. The details are
-given in the [Continuous Integration with Jenkins](jenkins) page.
+given in the [Continuous Integration with Jenkins](../jenkins) page.
 
 ## Alternatives Considered
 
@@ -365,9 +479,6 @@ given in the [Continuous Integration with Jenkins](jenkins) page.
 
 The [amake](https://github.com/pavelmc/amake) tool is very similar to
 `auniter.sh`. It is a shell script that calls out to the Arduino commandline.
-Amake does not have the `serial_monitor.py` which allows the AUnit output on the
-serial port to be validated, but since `serial_monitor.py` is a separate
-Python script, `amake` could be extended to support it.
 
 There are a few features of `amake` that I found problemmatic for my purposes.
 * Although `amake` supports the concept of board aliases, the aliases are
@@ -377,7 +488,7 @@ users to define their own board aliases (through the `.auniter.conf` dotfile).
 board type in a cache file named `.amake` in the current directory. This was
 designed to make it easy to compile and verify a single INO file repeatedly.
 However, `auniter.sh` is designed to make it easy to compile, upload, and
-validate multiple INI files, on multiple Arduino boards, on multiple serial
+validate multiple `*.ino` files, on multiple Arduino boards, on multiple serial
 ports.
 
 ### Arduino-Makefile
@@ -443,29 +554,42 @@ describes how to actually to use these programs. Maybe eventually I'll be able
 to reverse-engineer it, but for now, it was easier for me to write my down shell
 script wrapper around the Arduino IDE program.
 
-## System Requirements
+## Tips
 
-I used Arduino IDE 1.8.5 for all my testing, and the `AUniter` scripts
-have been verified to work under:
+### Verify All Programs Under Current Directory
 
-* Ubuntu 16.04
-* Ubuntu 17.10
-* Ubuntu 18.04
-* Xubuntu 18.04
+When I write libraries, I tend create a lot of small sketches for various
+purposes (e.g. demos, examples, unit tests). For example, here's the directory
+structure for my [AceButton](https://github.com/bxparks/AceButton) library:
+```
+AceButton/
+|-- docs
+|   `-- html
+|-- examples
+|   |-- AutoBenchmark
+|   |-- CapacitiveButton
+|   |-- ClickVersusDoubleClickUsingBoth
+|   |-- ClickVersusDoubleClickUsingReleased
+|   |-- ClickVersusDoubleClickUsingSuppression
+|   |-- HelloButton
+|   |-- SingleButton
+|   |-- SingleButtonPullDown
+|   |-- Stopwatch
+|   `-- TunerButtons
+|-- src
+|   `-- ace_button
+`-- tests
+    `-- AceButtonTest
+```
 
-Some limited testing on MacOS has been done, but it is currently not supported.
-
-Windows is definitely not supported because the scripts require the `bash`
-shell. I am not familiar with
-[Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10)
-so I do not know if it would work on that.
+There are 11 `*.ino` program files under `AceButton/`. Here is a one-liner
+that will compile and verify all 11 sketches in one shot:
+```
+$ cd AceButton
+$ auniter verify uno $(find -name '*.ino')
+```
 
 ## Limitations
 
 [Teensyduino](https://pjrc.com/teensy/teensyduino.html) is not
 currently supported because of Issue #4.
-
-On MacOS, the [Teensyduino](https://pjrc.com/teensy/teensyduino.html)
-plugin to support Teensy boards causes the Arduino IDE to display
-[a security warning dialog box](https://forum.pjrc.com/threads/27197-OSX-pop-up-when-starting-Arduino).
-This means that the script is no longer able to run without human-intervention.
