@@ -244,9 +244,9 @@ function process_envs() {
         # for explanation of 'compiler.cpp.extra_flags'.
         if [[ "$generate_env_macro" == 'true' ]]; then
             local env_macro="AUNITER_ENV_${env^^}" # uppercase $env
-            preprocessor_pref="--pref compiler.cpp.extra_flags=-D$env_macro"
+            preprocessor_flag="--preprocessor -D$env_macro"
         else
-            preprocessor_pref=
+            preprocessor_flag=
         fi
 
         process_files "$@"
@@ -285,8 +285,8 @@ function process_file() {
             --verify \
             --env $env \
             --board $board \
-            $sketchbook_pref \
-            $preprocessor_pref \
+            $sketchbook_flag \
+            "$preprocessor_flag" \
             $verbose \
             --summary_file $summary_file \
             $file
@@ -308,8 +308,8 @@ function process_file() {
                 --board $board \
                 --port $port \
                 --baud $baud \
-                $sketchbook_pref \
-                $preprocessor_pref \
+                $sketchbook_flag \
+                $preprocessor_flag \
                 $verbose \
                 --summary_file $summary_file \
                 $file"
@@ -375,12 +375,12 @@ function interrupted() {
 # Process build (verify, upload, or test) commands.
 function handle_build() {
     local single=0
-    sketchbook_pref=
+    sketchbook_flag=
     skip_missing_port=0
     while [[ $# -gt 0 ]]; do
         case $1 in
             --single) single=1 ;;
-            --sketchbook) shift; sketchbook_pref="--pref sketchbook.path=$1" ;;
+            --sketchbook) shift; sketchbook_flag="--sketchbook $1" ;;
             --skip_missing_port) skip_missing_port=1 ;;
             -*) echo "Unknown build option '$1'"; usage ;;
             *) break ;;

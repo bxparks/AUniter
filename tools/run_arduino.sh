@@ -21,18 +21,19 @@ command around the serial port to prevent concurrent access to the arduino
 board. This script is not meant to be used by the end-user.
 
 Flags:
-    --upload    Compile and upload the given program.
-    --test      Verify the AUnit test after uploading the program.
-    --env env   Name of the current build environment, for error messages.
-    --board board
-                Fully qualified board specifier.
-    --port      Serial port device (e.g. /dev/ttyUSB0).
-    --baud      Speed of the serial port.
-    --pref key=value
-                Passed directly to the Arduino IDE binary. Multiple flags
-                allowed.
-    --summary_file file
-                Send error logs to 'file'.
+    --upload        Compile and upload the given program.
+    --test          Verify the AUnit test after uploading the program.
+    --env {env}     Name of the current build environment, for error messages.
+    --board {fqbn} Fully qualified board specifier.
+    --port {port}   Serial port device (e.g. /dev/ttyUSB0).
+    --baud {baud}   Speed of the serial port.
+    --sketchbook {path}
+                    Home directory of the sketch, for resolving libraries.
+    --preprocessor {flag}
+                    C-preprocessor flag (e.g. -DAUNITER_ENV_NANO). (Currently
+                    only one flag is allowed.)
+    --summary_file {file}
+                    Send error logs to 'file'.
 END
     exit 1
 }
@@ -48,8 +49,14 @@ function verify_or_upload() {
         local arduino_cmd_mode='verify'
     fi
 
-    local cmd="$AUNITER_ARDUINO_BINARY --$arduino_cmd_mode \
-        $verbose $board_flag $port_flag $prefs $file"
+    local cmd="$AUNITER_ARDUINO_BINARY \
+        --$arduino_cmd_mode \
+        $verbose \
+        $board_flag \
+        $port_flag \
+        $sketchbook_pref \
+        $preprocessor_pref \
+        $file"
 
     echo '$' $cmd
     if ! $cmd; then
@@ -82,7 +89,8 @@ mode=
 board=
 port=
 verbose=
-prefs=
+sketchbook_pref=
+preprocessor_pref=
 summary_file=
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -95,7 +103,9 @@ while [[ $# -gt 0 ]]; do
         --board) shift; board=$1 ;;
         --port) shift; port=$1 ;;
         --baud) shift; baud=$1 ;;
-        --pref) shift; prefs="$prefs --pref $1" ;;
+        --sketchbook_pref) shift; sketchbook_pref="--pref sketchbook.path=$1" ;;
+        --preprocessor)
+            shift; preprocessor_pref="--pref compiler.cpp.extra_flags=$1" ;;
         --summary_file) shift; summary_file=$1 ;;
         -*) echo "Unknown option '$1'"; usage ;;
         *) break ;;
