@@ -95,22 +95,46 @@ scripts.
 
 ### Config File
 
-The `auniter.sh` script looks for a config file named `$HOME/.auniter.conf` in
+The `auniter.sh` script looks for a config file named `$HOME/.auniter.ini` in
 your home directory. The format of the file is the
 [INI file](https://en.wikipedia.org/wiki/INI_file),
 and the meaning of these properties will be explained below. For the purposes of
-this tutorial, create an initial `.auniter.conf` file with the following
-content:
-```
-# Tool settings
+this tutorial, copy the `sample.auniter.ini` file to `$HOME/.auniter.ini`. For
+reference, here's the condensed version of the sample with comments stripped
+out:
+```ini
 [auniter]
   monitor = picocom -b $baud --omap crlf --imap lfcrlf --echo $port
-# Board aliases
+
 [boards]
   uno = arduino:avr:uno
+  nano = arduino:avr:nano:cpu=atmega328old
+  leonardo = arduino:avr:leonardo
+  mega = arduino:avr:mega:cpu=atmega2560
+  nodemcuv2 = esp8266:esp8266:nodemcuv2:CpuFrequency=80,FlashSize=4M1M,LwIPVariant=v2mss536,Debug=Disabled,DebugLevel=None____,FlashErase=none,UploadSpeed=921600
+  esp32 = espressif:esp32:esp32:PartitionScheme=default,FlashMode=qio,FlashFreq=80,FlashSize=4M,UploadSpeed=921600,DebugLevel=none
+
+[env:uno]
+  board = uno
+
+[env:nano]
+  board = nano
+  preprocessor = ENVIRONMENT_NANO,LEFT_BUTTON=2,RIGHT_BUTTON=3
+
+[env:leonardo]
+  board = leonardo
+  locking = false
+
+[env:esp8266]
+  board = nodemcuv2
+  exclude = AceButton/examples/CapacitiveButton
+
+[env:esp32]
+  board = esp32
+  exclude = AceButton/examples/CapacitiveButton
 ```
 
-The examples below will make use of this initial setting.
+The examples below will use these settings.
 
 ## Usage
 
@@ -118,70 +142,21 @@ Type `auniter --help` to get the latest usage. Here is the summary portion
 of the help message:
 ```
 $ auniter --help
-Usage: auniter.sh [auniter_flags] command [command_flags] [boards] [files...]
+Usage: auniter.sh [-h] [flags] command [flags] [args ...]
+       auniter.sh envs
        auniter.sh ports
-       auniter.sh verify {board},... files ...
-       auniter.sh upload {board}:{port},... files ...
-       auniter.sh test {board}:{port},... files ...
-       auniter.sh monitor [{board}:]{port}
-       auniter.sh upmon {board}:{port}
+       auniter.sh verify {env} files ...
+       auniter.sh upload {env}:{port},... files ...
+       auniter.sh test {env}:{port},... files ...
+       auniter.sh monitor [{env}:]{port}
+       auniter.sh upmon {env}:{port} file
+[...]
 ```
 
-The 6 subcommands (`ports`, `verify`, `upload`, `test`, `monitor`, `upmon`) are
-described below.
+The 7 subcommands (`envs`, `ports`, `verify`, `upload`, `test`, `monitor`,
+`upmon`) are described below.
 
-### Board Aliases {board}
-
-The Arduino IDE binary wants a fully-qualified board name (`fqbn`)
-specification for the `--board` flag. It can be quite cumbersome to determine
-this value. The easiest way is to set the "Show verbose output during
-compilation and upload" checkboxes in the Arduino IDE, then look for the value
-of the `-fqbn` flag generated in the debug output. Another way is to track down
-the `hardware/.../boards.txt` file (there may be several verisons), open it up,
-and try to reverse engineer the `fqbn` of a particular Arduino board.
-
-On some boards, the `fqbn` may be quite long. For example, on my ESP32 dev
-board, it is
-```
-espressif:esp32:esp32:PartitionScheme=default,FlashMode=qio,FlashFreq=80,FlashSize=4M,UploadSpeed=921600,DebugLevel=none
-```
-
-Instead of using the `fqbn`, the `auniter.sh` script uses board
-aliases for the `fqbn` the `.auniter.conf` file, in the `[boards]` section.
-My config file looks something like this:
-```
-# Board aliases
-[boards]
-  uno = arduino:avr:uno
-  nano = arduino:avr:nano:cpu=atmega328old
-  leonardo = arduino:avr:leonardo
-  esp8266 = esp8266:esp8266:nodemcuv2:CpuFrequency=80,FlashSize=4M1M,LwIPVariant=v2mss536,Debug=Disabled,DebugLevel=None____,FlashErase=none,UploadSpeed=115200
-  esp32 = espressif:esp32:esp32:PartitionScheme=default,FlashMode=qio,FlashFreq=80,FlashSize=4M,UploadSpeed=921600,DebugLevel=none
-```
-
-(The allowed characters in the board alias name is not precisely defined, but it
-should probably be limited to the usual character set for identifiers (`a-z`,
-`A-Z`, `0-9`, underscore `_`). It definitely cannot contain an equal sign `=` or
-space character.)
-
-### Port Specifier {port}
-
-Some subcommands (`upload`, `test`, `monitor`) also needs to be given the serial port that the Arduino board is
-connected to. The serial port on a Linux machine has the form `/dev/ttyXXXn`,
-for example `/dev/ttyUSB0`. For convenience, the repetitive `/dev/tty` part can
-be omitted from the `{port}` spec. In other words, you can write `uno:USB0`,
-instead of `uno:/dev/ttyUSB0`.
-
-### Multiple Boards and Ports
-
-Some commands (`upload`, `test`) accept multiple boards and ports
-using `{board}:{port}` pairs separated by commas (without spaces).
-For example:
-```
-nano:USB0,leonardo:ACM0:esp8266:USB1,esp32:USB2
-```
-
-### Subcommand: Ports
+### Subcommand: ports
 
 The `ports` command simply lists the available serial ports:
 ```
@@ -195,27 +170,67 @@ $ auniter ports
 /dev/ttyACM0 - Arduino Leonardo
 ```
 
-### Subcommand: Verify
+### Subcommand: envs
 
-The following examples (all equivalent) verify that the `Blink.ino` sketch
-compiles. The `{port}` of the board is not necessary because the program
-is not uploaded to the board:
+There are 4 environments defined in the `$HOME/.auniter.ini` file.
+The `envs` command prints out the environments:
+```
+$ auniter envs
+uno
+nano
+leonardo
+esp8266
+esp32
+```
+
+### Subcommand: verify
+
+This command runs the Arduino IDE binary and verifies that the given program
+files build successfully for the specified environment `{env}` which is
+defined in the `.auniter.ini` file. The following example verifies that the
+`Blink.ino` sketch compiles under the `nano` environment:
 
 ```
 $ auniter verify uno Blink.ino
 ```
 
-### Subcommand: Upload
+### Environment {env}
+
+The **Environment** in `auniter.sh` represents the target build context. It is
+meant to correspond directly to a specific hardware device, composed of a
+microcontroller board along with additional peripherals (buttons, LEDs, OLEDs,
+sensors). The environment is defined in `$HOME/.auniter.ini` as an INI file
+section whose format is `[env:NAME]` where `NAME` is the identifier of the
+environment. See the **Advanced Usage** section for a description of the various
+parameters of this section.
+
+### Subcommand: upload
 
 To upload the sketch to the Arduino board, we need to provide the port
-of the board. The following examples are equivalent:
+of the device. The syntax is:
+```
+auniter.sh upload {env}:{port},... files ...
+```
+The syntax of the `{port}` is described in detail below. Multiple `{env}:{port}`
+pairs can be given as a comman-separated list. Multiple sketch files can be
+given as a space-separated list (uploading multiple sketch files will not be
+normally useful, but it is allowed to support the `test` subcommand below).
+
+Here are some examples:
 
 ```
 $ auniter upload uno:USB0 Blink.ino
-$ auniter upload uno:/dev/ttyUSB0 Blink.ino
+$ auniter upload leonardo:/dev/ttyACM0 Blink.ino Clock.ino
 ```
 
-### Subcommand: Test
+### Port Specifier {port}
+
+The serial port on a Linux machine is a file that has the form `/dev/ttyXXXn`,
+for example `/dev/ttyUSB0`. For convenience, the repetitive `/dev/tty` part can
+be omitted from the `{port}` specifier. In other words, you can type
+`uno:USB0`, instead of `uno:/dev/ttyUSB0`.
+
+### Subcommand: test
 
 The `auniter test` command compiles the program, uploads it to the specified
 board, then reads the serial output from the boards, looking for specific
@@ -239,7 +254,7 @@ ALL PASSED
 
 The `ALL PASSED` indicates that all unit tests passed.
 
-### Subcommand: Monitor
+### Subcommand: monitor
 
 The serial port of the board can be monitored using the `monitor` subcommand. It
 needs to know the tty serial port which can be given in any of the following
@@ -250,10 +265,10 @@ $ auniter monitor uno:USB0
 $ auniter monitor /dev/ttyUSB0
 ```
 
-When the port is given as `{board}:{port}`, the `{board}` part is ignored. This
+When the port is given as `{env}:{port}`, the `{env}` part is ignored. This
 feature is useful in interactive mode, so that you can scroll through the shell
 history and simply change the `auniter upload ...` to `auniter monitor ...`
-without having to also remove the `{board}:` part.
+without having to also remove the `{env}:` part.
 
 The speed of the serial port is usually controlled by the program that is
 running on the Arduino board (through the `Serial.begin(xxxx)` statement.
@@ -264,25 +279,29 @@ $ auniter monitor --baud 9600 USB0
 ```
 
 The `monitor` subcommand delegates the serial terminal functionality to a
-user-defined program defined in the `auniter.conf` file. The program that works
+user-defined program defined in the `auniter.ini` file. The program that works
 well for me is the [picocom](https://linux.die.net/man/8/picocom) program. On
 Ubuntu Linux, install it using:
 ```
 $ sudo apt install picocom
 ```
+Another program that seems to work fairly well is
+[microcom](http://manpages.ubuntu.com/manpages/bionic/man1/microcom.1.html).
 
-With the following definition in the `.auniter.conf` file:
+You can choose which terminal program to use by adding one of the following
+`monitor` definition in the `[auniter]` section of the `.auniter.ini` file:
 ```
 [auniter]
   monitor = picocom -b $baud --omap crlf --imap lfcrlf --echo $port
+  monitor = microcom -s $baud -p $port
 ```
 
-the `auniter.sh` script will fill in the `$baud` and `$port` and execute this
+The `auniter.sh` script will fill in the `$baud` and `$port` and execute this
 command. (Note: The exit command for `picocom` is `Ctrl-a Ctrl-q` but if you are
 in a terminal multiplexer like `screen`, then `Ctrl-a` is the escape character
 for `screen` itself, you have to type `Ctrl-a a Ctrl-q` instead.)
 
-### Subcommand: Upload and Monitor (upmon)
+### Subcommand: upmon (Upload and Monitor)
 
 Often we want to upload a program then immediately monitor the serial port, to
 view the serial port output, or to send commands to the board over the serial
@@ -292,13 +311,51 @@ $ auniter upmon uno:USB0 Blink.ino
 ```
 
 The argument list is very similar to `upload` except that `upmon` accepts
-only a single `{board}:{port}` pair.
+only a single `{env}:{port}` pair.
 
 ## Advanced Usage
 
 The following features are useful if you are working with multiple board types,
 and/or if you are using `auniter.sh` as the driving script for the
 [Jenkins continuous integration](../jenkins).
+
+### Environment Parameters
+
+There are 4 parameters currently supported in an environment section:
+```
+[env:NAME]
+  board = {alias}
+  locking = (true | false)
+  exclude = egrep regular expression
+  preprocessor = Comma-separated list of preprocessor symbols.
+```
+
+The `NAME` of the environment does *not* need to be the same as the board
+`{alias}`, but if you have only one device of particular board, then it's
+convenient to make them the same.
+
+* `board`: The `board` parameter specifies a board alias which is defined in the
+  `[boards]` section of the `.auniter.ini` config file. The board alias is a
+  short form of the full specification of the target microcontroller. The full
+  form is called the fully-qualified board name (`fqbn`).
+
+  It can be quite cumbersome to determine this value. The easiest way is to set
+  the "Show verbose output during compilation and upload" checkboxes in the
+  Arduino IDE, then look for the value of the `-fqbn` flag generated in the
+  debug output. Another way is to track down the `hardware/.../boards.txt` file
+  (there may be several verisons), open it up, and try to reverse engineer the
+  `fqbn` of a particular Arduino board.
+* `locking`: The `locking` parameter defaults to `true` which should work
+  for most boards. Some boards (e.g. Leonardo or the Pro Micro) uses
+  a virtual serial port instead of a hardware USB-to-Serial converter chip.
+  When a virtual serial port is used, the `auniter.sh` script is not able
+  to lock the serial port properly to gain exclusive access. For these boards,
+  the locking must be turned off.
+* `exclude`: Files matching this regular expression are excluded from
+  the build. This is intended to be used in continous integration scripts.
+* `preprocessor`: This is a comma-separated list of C preprocessor macros.
+  When a given sketch file is targeted to multiple environments, it is often
+  helpful to have different code be activated on different target environments.
 
 ### Automatic Directory Expansion
 
@@ -309,10 +366,10 @@ same base name as the parent directory.
 Multiple files and directories can be given. The Arduino Commandline will
 be executed on each of the ino files in sequence.
 
-### Multiple Boards
+### Multiple Environments
 
 The `verify`, `upload` and `test` commands all support multiple board/port pairs
-by listing them as a comma-separated list of `{board}:{port}`. For example, we
+by listing them as a comma-separated list of `{env}:{port}`. For example, we
 can compile (verify) a single sketch across multiple boards like this:
 
 ```
@@ -327,12 +384,12 @@ $ auniter test uno:USB0,leonardo:ACM0,esp8266:USB2,esp32:USB1 \
 ```
 
 There are no provision for creating aliases for the ports in the
-`$HOME/.auniter.conf` file because the serial port is assigned by the OS and can
+`$HOME/.auniter.ini` file because the serial port is assigned by the OS and can
 vary depending on the presence of other USB or serial devices.
 
-### Mutually Exclusive Access (--locking, --nolocking)
+### Mutually Exclusive Access (locking)
 
-(Valid for subcomands: `upload`, `test`)
+(Valid for subcommands: `upload`, `test`)
 
 Multiple instances of the `auniter.sh` script can be executed, which can help
 with the `verify` subcommand if you have multiple CPU cores. However, when the
@@ -347,74 +404,40 @@ to prevent multiple uploads to and monitoring of the same Arduino board
 at the same time. Unfortunately, the locking does not work for the Pro Micro or
 Leonardo boards (using ATmega32U4) which use virtual serial ports.
 
-By default, the locking is performed. There are 2 ways to disable the locking:
-
-1) Use the `--[no]locking` flag on the `auniter.sh` script.
+By default, the locking is enabled. To disable locking for a specific
+environment, set the `locking` parameter to `false`, like this:
 ```
-$ auniter test --nolocking leonardo:USB0 tests/*Test
-```
-
-2) Add an entry for a specific board alias under the `[options]` section in the
-  `CONFIG_FILE`. The format looks like this:
-```
-[boards]
-  leonardo = arduino:avr:leonardo
-
-[options]
-  leonardo = --nolocking
+[env:leonardo]
+  board = leonardo
+  locking = false
 ```
 
-If the flag is given in both places, then the the command line flag takes
-precedence over the `CONFIG_FILE` to allow overriding of the value in the config
-file.
+### Excluding Files (exclude)
 
-### Excluding Files (--exclude regexp)
-
-(Valid for subcomands: `verify`, `upload`, `test`)
+(Valid for subcommands: `verify`, `upload`, `test`.)
 
 Some programs cannot be compiled under some microcontroller boards.
-The `--exclude regexp` option will skip any `*.ino` files whose fullpath
-matches the regular expression used by
-[egrep](https://linux.die.net/man/1/egrep).
-
-This flag is intended to be used in the `[options]` section of the
-`CONFIG_FILE` for a given board target, like this:
-```
-[boards]
-  esp8266 = ...
-  esp32 = ...
-
-[options]
-  esp8266 = --exclude AceButton/examples/CapacitiveButton
-  esp32 = --exclude AceButton/examples/CapacitiveButton
-```
+The `exclude` parameter causes any `*.ino` files whose fullpath matches this
+[egrep](https://linux.die.net/man/1/egrep) regular expression to be skipped.
 
 The `CapacitiveButton` program does not compile for ESP8266 or ESP32 boards.
 This entry in the `CONFIG_FILE` will cause `auniter.sh` to skip this file for
 all modes (verify, upload, test, monitor).
 
-Multiple files can be specified using the `a|b` regular expression:
+Multiple files can be specified using the `a|b` regular expression. For example:
 ```
-  esp8266 = --exclude AceButton/examples/CapacitiveButton|AceButton/examples/StopWatch
+[env:esp8266]
+  board = esp8266
+  exclude = AceButton/examples/CapacitiveButton|AceButton/examples/StopWatch
 ```
-
-If the flag is given to the `auniter.sh` script explicitly, it will override
-the value in `CONFIG_FILE`. Therefore, you can explicitly compile a program
-that is excluded from the `CONFIG_FILE` by giving a regexp which matches
-nothing. For example:
-```
-$ auniter verify --exclude none esp8266 CapacitiveButton
-```
-
-### Alternative Ways to Specify the Board and Port
 
 ### Config File (--config)
 
-(Valid on the `auniter.sh` command)
+(Valid on the `auniter.sh` command.)
 
 By default, the `auniter.sh` script looks in the
 ```
-$HOME/.auniter.conf
+$HOME/.auniter.ini
 ```
 file in your home directory. The script can be told to look elsewhere using the
 `--config` command line flag. (Use `--config /dev/null` to indicate no config
@@ -422,7 +445,7 @@ file.) This may be useful if the config file is checked into source control for
 each Arduino project.
 
 ```
-$ auniter --config {path-to-config-file} subcommand {board:port} ...
+$ auniter --config {path-to-config-file} subcommand {env}:{port} ...
 ```
 
 (The `--config` flag is an option on the `auniter.sh` command, not the
@@ -436,16 +459,34 @@ The `auniter.sh` accepts a `--verbose` flag, which enables verbose mode for
 those subcommands which support it. In particular, it is passed into the Arduino
 binary, which then prints out the compilation steps in extreme detail.
 
-### Default Baud Rate
+### Default Baud Rate (baud, --baud)
 
-If the `--baud` flag is not given, then default baud rate for the serial port is
-set to `115200`. You can change this default value in the `.auniter.conf` file
-using the `baud` property in the `[auniter]` section. For example, the following
-sets the default baud rate to 9600 in the absence of an explicit `--baud` flag:
+(Valid for subcommands: `monitor` and `upmon`)
+
+If the `--baud` flag is not given for the `monitor` or `upmon` commands,
+then the default baud rate for the serial port is set to `115200`. You can
+change this default value in the `.auniter.ini` file using the `baud` property
+in the `[auniter]` section. For example, the following sets the default baud
+rate to 9600:
 ```
 [auniter]
   baud = 9600
 ```
+
+### Skip Missing Port (--skip_missing_port)
+
+(Valid for subcommands: `upload` and `test`)
+
+Normally the `verify`, `upload` and `test` commands will fail with an error
+message if the `{port}` specifier is not given. However, in continuous
+integration scripts, it is useful to simply skip the operation if the port is
+missing. This flag turns on that feature.
+
+### Sketchbook Path (--sketchbook)
+
+In continuous integration scripts, the root path of the sketchbook needs to be
+changed to a directory where the various libaries have been checked out. This
+flag changes the sketchbook directory of the Arduino IDE.
 
 ## Integration with Jenkins
 
@@ -463,7 +504,7 @@ The [amake](https://github.com/pavelmc/amake) tool is very similar to
 There are a few features of `amake` that I found problemmatic for my purposes.
 * Although `amake` supports the concept of board aliases, the aliases are
 hardwared into the `amake` script itself. I felt that it was important to allow
-users to define their own board aliases (through the `.auniter.conf` dotfile).
+users to define their own board aliases (through the `.auniter.ini` dotfile).
 * `amake` saves the information about the most recent `*.ino` file and
 board type in a cache file named `.amake` in the current directory. This was
 designed to make it easy to compile and verify a single INO file repeatedly.
@@ -522,8 +563,7 @@ too much overhead when a project has numerous AUnit unit test files, each of
 them being a separate `*.ino` file.
 
 The `platformio.ini` files provide better isolation between `*.ino` files, but
-the overhead seem too much for me and I think most people. I may revisit
-PlatformIO at a later time.
+the overhead seem too much for me. I may revisit PlatformIO at a later time.
 
 ### Arduino Builder
 
