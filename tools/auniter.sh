@@ -268,7 +268,7 @@ function process_files() {
 # Requires $board and $port to define the target environment.
 function process_file() {
     local file=$1
-    echo "-------- Processing '$file'"
+    echo "-------- Processing file '$file'"
 
     if [[ "$mode" == 'verify' ]]; then
         # Allow multiple verify commands to run at the same time.
