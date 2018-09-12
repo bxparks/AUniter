@@ -80,8 +80,9 @@ function verify_or_upload() {
         return
     fi
 
-    # The verbose mode sometimes leaves a dangling line w/o a newline
-    if [[ "$verbose" != '' ]]; then
+    # The verbose mode or upload (on some boards) sometimes leave a dangling
+    # line w/o a newline.
+    if [[ "$verbose" != '' || "$arduino_cmd_mode" == 'upload' ]]; then
         echo # blank line
     fi
 }
