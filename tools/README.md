@@ -162,6 +162,19 @@ Usage: auniter.sh [-h] [flags] command [flags] [args ...]
 The 7 subcommands (`envs`, `ports`, `verify`, `upload`, `test`, `monitor`,
 `upmon`) are described below.
 
+### Subcommand: envs
+
+There are 5 environments defined in the `$HOME/.auniter.ini` file.
+The `envs` command prints out the environments:
+```
+$ auniter envs
+uno
+nano
+leonardo
+esp8266
+esp32
+```
+
 ### Subcommand: ports
 
 The `ports` command simply lists the available serial ports:
@@ -174,19 +187,6 @@ $ auniter ports
 /dev/ttyUSB0 - USB2.0-Serial
 /dev/ttyACM1 - USB Serial
 /dev/ttyACM0 - Arduino Leonardo
-```
-
-### Subcommand: envs
-
-There are 4 environments defined in the `$HOME/.auniter.ini` file.
-The `envs` command prints out the environments:
-```
-$ auniter envs
-uno
-nano
-leonardo
-esp8266
-esp32
 ```
 
 ### Subcommand: verify
