@@ -29,6 +29,7 @@ FLOCK_TIMEOUT_CODE=10
 function usage_common() {
     cat <<'END'
 Usage: auniter.sh [-h] [flags] command [flags] [args ...]
+       auniter.sh envs
        auniter.sh ports
        auniter.sh verify {env} files ...
        auniter.sh upload {env}:{port},... files ...
@@ -48,6 +49,7 @@ function usage_long() {
     cat <<'END'
 
 Commands:
+    envs    List the environments defined in the CONFIG_FILE.
     ports   List the tty ports and the associated Arduino boards.
     verify  Verify the compile of the sketch file(s).
     upload  Upload the sketch(es) to the given board at port.
@@ -125,7 +127,6 @@ function get_ino_file() {
 #       ...
 #   [...]
 #       ...
-#
 function get_config() {
     local config_file=$1
     local section=$2
@@ -158,8 +159,20 @@ function get_config() {
         "$config_file"
 }
 
+# List the environments defined in the CONFIG FILE. Environment names
+# have the format '[env:{name}]' in the ini file.
+# Usage: list_envs config_file
+function list_envs() {
+    local config_file=$1
+    if [[ ! -f "$config_file" ]]; then
+        return
+    fi
+    sed -n -e 's/^\[env:\(.*\)\]/\1/p' "$config_file"
+}
+
 # Parse the {env}:{port} specifier, setting the following global variables:
 #   - $env
+#   - $env_search - indicate whether the env is defined
 #   - $board
 #   - $port
 #   - $locking
@@ -171,6 +184,11 @@ function process_env_and_port() {
             | sed -E -e 's/([^:]*):?([^:]*)/\1/')
     port=$(echo $env_and_port \
             | sed -E -e 's/([^:]*):?([^:]*)/\2/')
+
+    env_search=$(list_envs $config_file | grep $env || true)
+    if [[ "$env_search" == '' ]]; then
+        return
+    fi
 
     board_alias=$(get_config "$config_file" "env:$env" board)
     locking=$(get_config "$config_file" "env:$env" locking)
@@ -202,7 +220,7 @@ function process_envs() {
         process_env_and_port $env_and_port
 
         echo "======== Processing environment '$env_and_port'"
-        if [[ "$env" == '' ]]; then
+        if [[ "$env_search" == '' ]]; then
             echo "FAILED $mode: Unknown environment '$env'" \
                 | tee -a $summary_file
             continue
@@ -214,10 +232,10 @@ function process_envs() {
         fi
         if [[ "$port" == '' && "$mode" != 'verify' ]]; then
             if [[ "$skip_if_no_port" == 0 ]]; then
-                echo "FAILED $mode: Unknown port for $env: $*" \
+                echo "FAILED $mode: Unknown port for $env" \
                     | tee -a $summary_file
             else
-                echo "SKIPPED $mode: Unknown port for $env: $*" \
+                echo "SKIPPED $mode: Unknown port for $env" \
                     | tee -a $summary_file
             fi
             continue
@@ -468,7 +486,8 @@ function read_default_configs() {
     local config_baud=$(get_config "$config_file" 'auniter' 'baud')
     baud=${config_baud:-$PORT_BAUD}
 
-    local config_port_timeout=$(get_config "$config_file" 'auniter' 'port_timeout')
+    local config_port_timeout=$(get_config "$config_file" 'auniter' \
+        'port_timeout')
     port_timeout=${config_port_timeout:-$PORT_TIMEOUT}
 }
 
@@ -505,7 +524,8 @@ function main() {
     check_environment_variables
     create_temp_files
     case $mode in
-        ports) list_ports "$@" ;;
+        envs) list_envs $config_file;;
+        ports) list_ports ;;
         verify) handle_build "$@" ;;
         upload) handle_build "$@" ;;
         test) handle_build "$@" ;;
