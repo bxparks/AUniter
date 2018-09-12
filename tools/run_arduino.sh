@@ -50,7 +50,7 @@ function verify_or_upload() {
     fi
 
     if [[ "$sketchbook" != '' ]]; then
-        local sketchbook_flag="--pref sketchbook.path=$1"
+        local sketchbook_flag="--pref sketchbook.path=$sketchbook"
     else
         local sketchbook_flag=
     fi
