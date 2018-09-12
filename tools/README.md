@@ -130,9 +130,9 @@ Usage: auniter.sh [auniter_flags] command [command_flags] [boards] [files...]
 The 6 subcommands (`ports`, `verify`, `upload`, `test`, `monitor`, `upmon`) are
 described below.
 
-### Board Aliases
+### Board Aliases {board}
 
-The Arduino command line binary wants a fully-qualified board name (`fqbn`)
+The Arduino IDE binary wants a fully-qualified board name (`fqbn`)
 specification for the `--board` flag. It can be quite cumbersome to determine
 this value. The easiest way is to set the "Show verbose output during
 compilation and upload" checkboxes in the Arduino IDE, then look for the value
@@ -146,7 +146,7 @@ board, it is
 espressif:esp32:esp32:PartitionScheme=default,FlashMode=qio,FlashFreq=80,FlashSize=4M,UploadSpeed=921600,DebugLevel=none
 ```
 
-Instead of using the `fqbn`, the `auniter.sh` script allows the user to define
+Instead of using the `fqbn`, the `auniter.sh` script uses board
 aliases for the `fqbn` the `.auniter.conf` file, in the `[boards]` section.
 My config file looks something like this:
 ```
@@ -159,18 +159,27 @@ My config file looks something like this:
   esp32 = espressif:esp32:esp32:PartitionScheme=default,FlashMode=qio,FlashFreq=80,FlashSize=4M,UploadSpeed=921600,DebugLevel=none
 ```
 
-The format of the board alias name is not precisely defined, but it should
-probably be limited to the usual character set for identifiers (`a-z`, `A-Z`,
-`0-9`, underscore `_`). It definitely cannot contain an equal sign `=` or space
-character.
+(The allowed characters in the board alias name is not precisely defined, but it
+should probably be limited to the usual character set for identifiers (`a-z`,
+`A-Z`, `0-9`, underscore `_`). It definitely cannot contain an equal sign `=` or
+space character.)
 
-### Port Specifier
+### Port Specifier {port}
 
 Some subcommands (`upload`, `test`, `monitor`) also needs to be given the serial port that the Arduino board is
 connected to. The serial port on a Linux machine has the form `/dev/ttyXXXn`,
 for example `/dev/ttyUSB0`. For convenience, the repetitive `/dev/tty` part can
 be omitted from the `{port}` spec. In other words, you can write `uno:USB0`,
 instead of `uno:/dev/ttyUSB0`.
+
+### Multiple Boards and Ports
+
+Some commands (`upload`, `test`) accept multiple boards and ports
+using `{board}:{port}` pairs separated by commas (without spaces).
+For example:
+```
+nano:USB0,leonardo:ACM0:esp8266:USB1,esp32:USB2
+```
 
 ### Subcommand: Ports
 
@@ -190,24 +199,20 @@ $ auniter ports
 
 The following examples (all equivalent) verify that the `Blink.ino` sketch
 compiles. The `{port}` of the board is not necessary because the program
-is not uploaded to the board: All of the following are identical:
+is not uploaded to the board:
 
 ```
 $ auniter verify uno Blink.ino
-$ auniter verify --boards uno Blink.ino
-$ auniter verify --board arduino:avr:uno Blink.ino
 ```
 
 ### Subcommand: Upload
 
 To upload the sketch to the Arduino board, we need to provide the port
-of the board. The following examples are all equivalent:
+of the board. The following examples are equivalent:
 
 ```
 $ auniter upload uno:USB0 Blink.ino
 $ auniter upload uno:/dev/ttyUSB0 Blink.ino
-$ auniter upload --boards uno:USB0 Blink.ino
-$ auniter upload --board arduino:avr:uno --port /dev/ttyUSB0 Blink.ino
 ```
 
 ### Subcommand: Test
@@ -217,8 +222,6 @@ board, then reads the serial output from the boards, looking for specific
 output from the [AUnit](https://github.com/bxparks/AUnit) test runner.
 ```
 $ auniter test uno:USB0 BlinkTest.ino
-$ auniter test --boards uno:USB0 BlinkTest.ino
-$ auniter test --board --port /dev/ttyUSB0 arduino:avr:uno BlinkTest.ino
 ```
 
 A summary of all the test runs are given at the end, like this:
@@ -245,7 +248,6 @@ equivalent ways:
 $ auniter monitor USB0
 $ auniter monitor uno:USB0
 $ auniter monitor /dev/ttyUSB0
-$ auniter monitor --port /dev/ttyUSB0
 ```
 
 When the port is given as `{board}:{port}`, the `{board}` part is ignored. This
@@ -405,28 +407,6 @@ $ auniter verify --exclude none esp8266 CapacitiveButton
 ```
 
 ### Alternative Ways to Specify the Board and Port
-
-For interactive use, the short `{board}:{port}` format is the most convenient.
-However, for backwards compatibility and for scripting purposes, the board and
-port can be specified using explicit flags. For completeness, here is the list
-of the 3 ways:
-
-* `{board}:{port}[,{board}:{port}]`
-    * The `{board}` is assumed to be an alias and resolved by looking it
-      up in the `.auniter.conf` file. The `{port}` is either the full path to
-      the tty device (e.g. `/dev/ttyUSB0`) or just the short version (e.g.
-      `USB0`). Multiple board/port pairs can be specified by using commas
-      (without any whitespace separator).
-* `--boards {board}:{port}[,{board}:{port}]`
-    * Same as just giving the `{board}:{port}`. Sometimes helpful in scripts
-      to be more explicit. If the `--boards` string is omitted, then the
-      `{board},{port}` must be the first non-flag argument, before the `*.ino`
-      files are given.
-* `--board {fqbn} --port {port}`
-    * These flags are passed directly to the Arduino Binary.
-    * The `{fqbn}` is the fully qualified board name, not the alias in
-      `.auniter.conf` file.
-    * The `{port}` is the full path name to the tty device.
 
 ### Config File (--config)
 

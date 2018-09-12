@@ -10,10 +10,9 @@ DIRNAME=$(dirname $0)
 
 function usage() {
     cat <<'END'
-Usage: run_arduino.sh [--help] [--verbose] [--upload | --test | --monitor]
-                      [--board board] [--port port] [--baud baud[
-                      [--pref key=value]
-                      [--summary_file file]
+Usage: run_arduino.sh [--help] [--verbose] [--upload | --test]
+                      [--env env] [--board board] [--port port] [--baud baud]
+                      [--pref key=value] [--summary_file file]
                       file.ino
 
 Helper shell wrapper around the 'arduino' commandline binary and the
@@ -22,19 +21,28 @@ command around the serial port to prevent concurrent access to the arduino
 board. This script is not meant to be used by the end-user.
 
 Flags:
-    --summary_file file     Send error logs to 'file'
-    {all other flags are identical to 'auniter.sh'}
+    --upload    Compile and upload the given program.
+    --test      Verify the AUnit test after uploading the program.
+    --env env   Name of the current build environment, for error messages.
+    --board board
+                Fully qualified board specifier.
+    --port      Serial port device (e.g. /dev/ttyUSB0).
+    --baud      Speed of the serial port.
+    --pref key=value
+                Passed directly to the Arduino IDE binary. Multiple flags
+                allowed.
+    --summary_file file
+                Send error logs to 'file'.
 END
     exit 1
 }
 
-function run_arduino_cmd() {
+function verify_or_upload() {
     local file=$1
 
     local board_flag="--board $board"
     local port_flag=${port:+"--port $port"}
-    if [[ "$mode" == 'upload' || "$mode" == 'monitor' \
-            || "$mode" == 'test' ]]; then
+    if [[ "$mode" == 'upload' || "$mode" == 'test' ]]; then
         local arduino_cmd_mode='upload'
     else
         local arduino_cmd_mode='verify'
@@ -45,7 +53,7 @@ $verbose $board_flag $port_flag $prefs $file"
 
     echo "\$ $cmd"
     if ! $cmd; then
-        echo "FAILED $arduino_cmd_mode: $board $port $file" \
+        echo "FAILED $arduino_cmd_mode: $env $port $file" \
             | tee -a $summary_file
         return
     fi
@@ -64,18 +72,10 @@ function validate_test() {
     local cmd="$DIRNAME/serial_monitor.py --test --port $port --baud $baud"
     echo "\$ $cmd"
     if $cmd; then
-        echo "PASSED $mode: $board $port $file" | tee -a $summary_file
+        echo "PASSED $mode: $env $port $file" | tee -a $summary_file
     else
-        echo "FAILED $mode: $board $port $file" | tee -a $summary_file
+        echo "FAILED $mode: $env $port $file" | tee -a $summary_file
     fi
-}
-
-# Run the serial monitor in echo mode.
-function monitor_port() {
-    echo # blank line
-    local cmd="$DIRNAME/serial_monitor.py --monitor --port $port --baud $baud"
-    echo "\$ $cmd"
-    $cmd || true # prevent failure from exiting the entire script
 }
 
 mode=
@@ -90,8 +90,8 @@ while [[ $# -gt 0 ]]; do
         --verify) mode='verify' ;;
         --upload) mode='upload' ;;
         --test) mode='test' ;;
-        --monitor) mode='monitor' ;;
         --verbose) verbose='--verbose' ;;
+        --env) shift; env=$1 ;;
         --board) shift; board=$1 ;;
         --port) shift; port=$1 ;;
         --baud) shift; baud=$1 ;;
@@ -107,9 +107,7 @@ if [[ $# -eq 0 ]]; then
     exit 1
 fi
 
-run_arduino_cmd $1
+verify_or_upload $1
 if [[ "$mode" == 'test' ]]; then
     validate_test $1
-elif [[ "$mode" == 'monitor' ]]; then
-    monitor_port
 fi
