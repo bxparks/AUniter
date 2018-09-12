@@ -65,12 +65,12 @@ AUniter Flags
 
 Command Flags:
     --baud baud
-        (monitor, upmon) Speed of the serial port for
-        serial_montor.py. (Default: 115200. The default value can be changed in
-        CONFIG_FILE.)
+        (monitor, upmon) Speed of the serial port for serial_montor.py.
+        (Default: 115200. The default value can be changed in CONFIG_FILE.)
     --sketchbook {path}
         (verify, upload, test, upmon) Set the Arduino sketchbook directory to
-        {path}.
+        {path}. Useful in Jenkinsfile to tell the Arduino IDE binary to use a
+        different directory as the sketchbook home.
     --skip_missing_port
         (upload, test) Just perform a 'verify' if --port or {:port} is missing.
         Useful in Continuous Integration on multiple boards where only some
@@ -186,9 +186,10 @@ function process_env_and_port() {
     port=$(resolve_port "$port")
 
     locking=$(get_config "$config_file" "env:$env" locking)
-    locking=${locking-true} # set to 'true' if empty
+    locking=${locking:-true} # set to 'true' if empty
 
     exclude=$(get_config "$config_file" "env:$env" exclude)
+    exclude=${exclude:-'^$'} # if empty, exclude nothing, not everything
 }
 
 # If a port is not fully qualified (i.e. start with /), then append
@@ -234,6 +235,12 @@ function process_envs() {
             continue
         fi
 
+        # Automatically define a macro named AUNITER_ENV_{NAME} where NAME
+        # is the name of the environment in uppercase letters. e.g. "nano"
+        # would define "AUNITER_ENV_NANO".
+        local env_macro="AUNITER_ENV_${env^^}" # uppercase $env
+        preprocessor_pref="--pref build.extra_flags=-D$env_macro"
+
         process_files "$@"
     done
 }
@@ -270,7 +277,8 @@ function process_file() {
             --verify \
             --env $env \
             --board $board \
-            $prefs \
+            $sketchbook_pref \
+            $preprocessor_pref \
             $verbose \
             --summary_file $summary_file \
             $file
@@ -286,32 +294,22 @@ function process_file() {
         # Use flock(1) to prevent multiple uploads to the same board at the same
         # time.
         local timeout=${port_timeout:-$PORT_TIMEOUT}
+        local command="$DIRNAME/run_arduino.sh \
+                --$mode \
+                --env $env \
+                --board $board \
+                --port $port \
+                --baud $baud \
+                $sketchbook_pref \
+                $preprocessor_pref \
+                $verbose \
+                --summary_file $summary_file \
+                $file"
         if [[ "$locking" == 'true' ]]; then
-            local status=0; flock --timeout $timeout \
-                --conflict-exit-code $FLOCK_TIMEOUT_CODE \
-                $port \
-                $DIRNAME/run_arduino.sh \
-                --$mode \
-                --env $env \
-                --board $board \
-                --port $port \
-                --baud $baud \
-                $prefs \
-                $verbose \
-                --summary_file $summary_file \
-                $file || status=$?
+            local status=0; flock --timeout $timeout --conflict-exit-code \
+                $FLOCK_TIMEOUT_CODE $port $command || status=$?
         else
-            local status=0; \
-                $DIRNAME/run_arduino.sh \
-                --$mode \
-                --env $env \
-                --board $board \
-                --port $port \
-                --baud $baud \
-                $prefs \
-                $verbose \
-                --summary_file $summary_file \
-                $file || status=$?
+            local status=0; $command || status=$?
         fi
 
         if [[ "$status" == $FLOCK_TIMEOUT_CODE ]]; then
@@ -369,12 +367,12 @@ function interrupted() {
 # Process build (verify, upload, or test) commands.
 function handle_build() {
     local single=0
-    prefs=
+    sketchbook_pref=
     skip_missing_port=0
     while [[ $# -gt 0 ]]; do
         case $1 in
             --single) single=1 ;;
-            --sketchbook) shift; prefs="--pref sketchbook.path=$1" ;;
+            --sketchbook) shift; sketchbook_pref="--pref sketchbook.path=$1" ;;
             --skip_missing_port) skip_missing_port=1 ;;
             -*) echo "Unknown build option '$1'"; usage ;;
             *) break ;;

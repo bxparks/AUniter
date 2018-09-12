@@ -49,7 +49,7 @@ function verify_or_upload() {
     fi
 
     local cmd="$AUNITER_ARDUINO_BINARY --$arduino_cmd_mode \
-$verbose $board_flag $port_flag $prefs $file"
+        $verbose $board_flag $port_flag $prefs $file"
 
     echo "\$ $cmd"
     if ! $cmd; then
