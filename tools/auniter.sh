@@ -161,12 +161,13 @@ function list_envs() {
 }
 
 # Parse the {env}:{port} specifier, setting the following global variables:
-#   - $env
-#   - $env_search - indicate whether the env is defined
-#   - $board
-#   - $port
-#   - $locking
-#   - $exclude
+#   - $env - name of the environment
+#   - $env_search - non-empty indicates the env was found in auniter.ini
+#   - $board_alias - board alias in auniter.ini
+#   - $board - fully qualified board spec
+#   - $port - /dev/ttyXXX
+#   - $locking - (true|false) whether flock(1) should lock the /dev/ttyXXX
+#   - $exclude - egrep pattern of files to skip
 function process_env_and_port() {
     local env_and_port=$1
 
@@ -183,6 +184,7 @@ function process_env_and_port() {
 
     board_alias=$(get_config "$config_file" "env:$env" board)
     board=$(get_config "$config_file" boards "$board_alias")
+
     port=$(resolve_port "$port")
 
     locking=$(get_config "$config_file" "env:$env" locking)
@@ -220,7 +222,7 @@ function process_envs() {
             continue
         fi
         if [[ "$board" == '' ]]; then
-            echo "FAILED $mode: board not defined" \
+            echo "FAILED $mode: board '$board_alias' not found" \
                 | tee -a $summary_file
             continue
         fi
@@ -237,10 +239,12 @@ function process_envs() {
 
         # Automatically define a macro named AUNITER_ENV_{NAME} where NAME
         # is the name of the environment in uppercase letters. e.g. "nano"
-        # would define "AUNITER_ENV_NANO".
+        # would define "AUNITER_ENV_NANO". See
+        # https://forum.arduino.cc/index.php?topic=537500.0
+        # for explanation of 'compiler.cpp.extra_flags'.
         if [[ "$generate_env_macro" == 'true' ]]; then
             local env_macro="AUNITER_ENV_${env^^}" # uppercase $env
-            preprocessor_pref="--pref build.extra_flags=-D$env_macro"
+            preprocessor_pref="--pref compiler.cpp.extra_flags=-D$env_macro"
         else
             preprocessor_pref=
         fi
