@@ -208,9 +208,9 @@ dispatching.
 
 I have also assumed that you have an Arduino UNO (or an equivalent clone)
 attached to the serial port, and that the OS has assigned it to the serial port
-`/dev/ttyACM0`. The argument to the `--boards` flag will be set to
-`uno:/dev/ttyACM0`. If you are using another Arduino board, for example an old
-Nano, then the `--boards` flag could be something like `nano:/dev/ttyUSB0`.
+`/dev/ttyACM0`. The value of `$BOARDS` will be set to `uno:/dev/ttyACM0`. If you
+are using another Arduino board, for example an old Nano, then the value of
+`$BOARDS` will be something like `nano:/dev/ttyUSB0`.
 
 ### 1. Clone the AceButton Project
 
@@ -251,7 +251,7 @@ purposes of this tutorial, I will assume that you have an Arduino UNO.
     * In the "Name" parameter, enter "BOARDS".
     * In the "Default Value", enter "uno:/dev/ttyACM0".
 
-This is the value that is passed into the `--boards {alias}[:{port}],...` flag
+This is the value that is passed into the `$BOARDS` argument
 of the `auniter.sh` script. Use the `auniter.sh ports` command if you
 need to.
 
@@ -357,31 +357,31 @@ pipeline {
         stage('Verify Examples') {
             steps {
                 sh "AUniter/auniter.sh \
-                    --config libraries/AceButton/tests/auniter.conf \
+                    --config libraries/AceButton/tests/auniter.ini \
                     verify \
-                    --pref sketchbook.path=$WORKSPACE \
-                    --boards $BOARDS \
+                    --sketchbook $WORKSPACE \
+                    $BOARDS \
                     libraries/AceButton/examples/*"
             }
         }
         stage('Verify Tests') {
             steps {
                 sh "AUniter/auniter.sh \
-                    --config libraries/AceButton/tests/auniter.conf \
+                    --config libraries/AceButton/tests/auniter.ini \
                     verify \
-                    --pref sketchbook.path=$WORKSPACE \
-                    --boards $BOARDS \
+                    --sketchbook $WORKSPACE \
+                    $BOARDS \
                     libraries/AceButton/tests/AceButtonTest"
             }
         }
         stage('Test') {
             steps {
                 sh "AUniter/auniter.sh \
-                    --config libraries/AceButton/tests/auniter.conf \
+                    --config libraries/AceButton/tests/auniter.ini \
                     test \
-                    --skip_if_no_port \
-                    --pref sketchbook.path=$WORKSPACE \
-                    --boards $BOARDS \
+                    --skip_missing_port \
+                    --sketchbook $WORKSPACE \
+                    $BOARDS \
                     libraries/AceButton/tests/AceButtonTest"
             }
         }
@@ -408,8 +408,8 @@ with the "This project is parameterized" checkbox option.
 
 Sometimes you may want to verify compiliation against multiple boards but you
 don't have all of them connected to your serial ports. If you use the
-`--skip_if_no_port` flag with the `test` command, the absence of a port in the
-`{alias}:{port}` pair of the `$BOARDS` parameter means that the test (hence, the
+`--skip_missing_port` flag with the `test` command, the absence of a port in the
+`{env}:{port}` pair of the `$BOARDS` parameter means that the test (hence, the
 upload) should be skipped for that particular board. For example, if `$BOARDS`
 is set to `nano:/dev/ttyUSB0,leonardo,esp8266,esp32`, that means that only an
 Arduino Nano board is connected and the upload and test should be run only on
@@ -474,7 +474,7 @@ is:
         `-- tests
 ```
 
-We then pass along the `--pref sketchbook.path=$WORKSPACE` flag to the Arduino
+We then pass along the `--sketchbook $WORKSPACE` flag to the Arduino
 command line binary. This tells the Arduino binary that the sketchbook folder is
 `/var/lib/jenkins/workspace/AceButtonPipeline`, which has the exact folder
 layout expected by the Arduino binary. In particular the `libraries/` folder
@@ -495,6 +495,59 @@ structure would look like this:
 ```
 But this structure does not leave any room to hold the external libraries
 dependencies and it is not the layout expected by the Arduino IDE.
+
+## AUniter Config File
+
+Jenkins should *not* use the `$HOME/.auniter.ini` config file that you use
+interactively because we don't want the continuous build system to depend on
+ad-hoc changes. Instead, each project should create a minimal `auniter.ini` file
+that is customized for the environments that the Jenkins server will use to
+perform its validation. The location of the custom config file is passed to the
+`auniter.sh` script using the `--config` flag.
+
+Here is the `auniter.ini` file used by `AceButton/tests`. It contains only 5
+environments (and 5 board aliases) because I am interested in validating only
+those for boards at this time.
+
+```ini
+[boards]
+  uno = arduino:avr:uno
+  nano = arduino:avr:nano:cpu=atmega328old
+  leonardo = arduino:avr:leonardo
+  nodemcuv2 = esp8266:esp8266:nodemcuv2:CpuFrequency=80,FlashSize=4M1M,LwIPVariant=v2mss536,Debug=Disabled,DebugLevel=None____,FlashErase=none,UploadSpeed=921600
+  esp32 = espressif:esp32:esp32:PartitionScheme=default,FlashMode=qio,FlashFreq=80,FlashSize=4M,UploadSpeed=921600,DebugLevel=none
+
+[env:uno]
+  board = uno
+
+[env:nano]
+  board = nano
+
+[env:leonardo]
+  board = leonardo
+  locking = false
+
+[env:esp8266]
+  board = nodemcuv2
+  exclude = CapacitiveButton
+
+[env:esp32]
+  board = esp32
+  exclude = CapacitiveButton
+```
+
+In the Jenkins web UI, I set the `BOARDS` parameter to contain only 4 of the
+boards because the `uno` board is essentially identical to the `nano`, and I
+don't have the UNO connected to the computer most of the time:
+```
+nano:/dev/ttyUSB0,leonardo,esp8266,esp32
+```
+
+The `{port}` specification is given only on the `nano` board which causes the
+AUnit tests to run only on the Nano, while the other boards perform only a
+`verify` step to check if the program compiles on that target. Ideally we would
+run the unit tests on all boards, but it takes too much time to run the test
+suites across all the boards.
 
 ## Arduino IDE Maintenance
 
