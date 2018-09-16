@@ -125,7 +125,7 @@ out:
 
 [env:nano]
   board = nano
-  preprocessor = AUNITER_NANO,AUNITER_LEFT_BUTTON=2,AUNITER_RIGHT_BUTTON=3
+  preprocessor = -DAUNITER_NANO -DAUNITER_LEFT_BUTTON=2 -DAUNITER_RIGHT_BUTTON=3
 
 [env:leonardo]
   board = leonardo
@@ -134,7 +134,7 @@ out:
 [env:esp8266]
   board = nodemcuv2
   exclude = AceButton/examples/CapacitiveButton
-  preprocessor = AUNITER_ESP8266,AUNITER_SSID="MyWiFi",AUNITER_PASSWORD="mypassword"
+  preprocessor = -DAUNITER_ESP8266 -DAUNITER_SSID="MyWiFi" -DAUNITER_PASSWORD="mypassword"
 
 [env:esp32]
   board = esp32
@@ -334,7 +334,7 @@ There are 4 parameters currently supported in an environment section:
   board = {alias}
   locking = (true | false)
   exclude = egrep regular expression
-  preprocessor = Comma-separated list of preprocessor symbols.
+  preprocessor = space-separated list of preprocessor symbols
 ```
 
 The `NAME` of the environment does *not* need to be the same as the board
@@ -360,10 +360,10 @@ convenient to make them the same.
   the locking must be turned off.
 * `exclude`: Files matching this regular expression are excluded from
   the build. This is intended to be used in continous integration scripts.
-* `preprocessor`: This is a comma-separated list of C preprocessor macros
-  in the form of `MACRO` or `MACRO=value`. The `value` can be a number or
-  it can be a string in double-quotes. (However, the string *cannot* contain
-  a comma character due to the limitations of the primitive parser.
+* `preprocessor`: This is a space-separated list of C preprocessor macros
+  in the form of `MACRO`, `MACRO=value` or `MACRO="string value"`. The script
+  automatically defines the macro `AUNITER` so that you can detect if the build
+  was started by the `auniter.sh` script (as opposed to using the Arduino IDE.)
 
   There are 2 main use-cases for the `preprocessor` parameter. One, a given
   sketch file can be compiled on multiple environments with the unique macro for

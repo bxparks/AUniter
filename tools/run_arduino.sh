@@ -31,7 +31,8 @@ Flags:
     --sketchbook {path}
                     Home directory of the sketch, for resolving libraries.
     --preprocessor {flags}
-                    Comma-separated list of CPP macros.
+                    Build flags of the form '-DMACRO -DMACRO=value' as a single
+                    argument (must be quoted if multiple macros).
     --summary_file {file}
                     Send error logs to 'file'.
 END
@@ -55,26 +56,26 @@ function verify_or_upload() {
         local sketchbook_flag=
     fi
 
-    # Convert comma-separated macros into space-separated list
-    # of "-Dmacro -Dmacro=value ...".
-    local cpp_flags=
-    if [[ "$preprocessor" != '' ]]; then
-        cpp_flags=$(echo $preprocessor | sed -e 's/,/ -D/g')
-        cpp_flags="--pref compiler.cpp.extra_flags='-D$cpp_flags'"
-    fi
-
-    local cmd="$AUNITER_ARDUINO_BINARY \
+    # Don't use 'eval' to avoid problems with single-quote embedded within
+    # the $preprocessor variable. This unfortunately means that we duplicate the
+    # Arduino IDE command twice, once to echo to the user, and another to
+    # actually execute the command.
+    echo '$' $AUNITER_ARDUINO_BINARY \
         --$arduino_cmd_mode \
         $verbose \
         $board_flag \
         $port_flag \
         $sketchbook_flag \
-        $cpp_flags \
-        $file"
-
-    echo '$' $cmd
-    # Use 'eval' to interpret the single-quotes in $cpp_flags
-    if ! eval $cmd; then
+        --pref "'compiler.cpp.extra_flags=-DAUNITER $preprocessor'" \
+        $file
+    if ! $AUNITER_ARDUINO_BINARY \
+            --$arduino_cmd_mode \
+            $verbose \
+            $board_flag \
+            $port_flag \
+            $sketchbook_flag \
+            --pref "compiler.cpp.extra_flags=-DAUNITER $preprocessor" \
+            $file; then
         echo "FAILED $arduino_cmd_mode: $env $port $file" \
             | tee -a $summary_file
         return
@@ -120,7 +121,7 @@ while [[ $# -gt 0 ]]; do
         --port) shift; port=$1 ;;
         --baud) shift; baud=$1 ;;
         --sketchbook) shift; sketchbook=$1 ;;
-        --preprocessor) shift; preprocessor=$1 ;;
+        --preprocessor) shift; preprocessor="$1" ;;
         --summary_file) shift; summary_file=$1 ;;
         -*) echo "Unknown option '$1'"; usage ;;
         *) break ;;

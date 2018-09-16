@@ -239,12 +239,6 @@ function process_envs() {
             continue
         fi
 
-        if [[ "$preprocessor" != '' ]]; then
-            preprocessor_flag="--preprocessor $preprocessor"
-        else
-            preprocessor_flag=
-        fi
-
         process_files "$@"
     done
 }
@@ -281,8 +275,8 @@ function process_file() {
             --verify \
             --env $env \
             --board $board \
+            --preprocessor "$preprocessor" \
             $sketchbook_flag \
-            $preprocessor_flag \
             $verbose \
             --summary_file $summary_file \
             $file
@@ -298,23 +292,25 @@ function process_file() {
         # Use flock(1) to prevent multiple uploads to the same board at the same
         # time.
         local timeout=${port_timeout:-$PORT_TIMEOUT}
-        local command="$DIRNAME/run_arduino.sh \
-                --$mode \
-                --env $env \
-                --board $board \
-                --port $port \
-                --baud $baud \
-                $sketchbook_flag \
-                $preprocessor_flag \
-                $verbose \
-                --summary_file $summary_file \
-                $file"
         if [[ "$locking" == 'true' ]]; then
-            local status=0; flock --timeout $timeout --conflict-exit-code \
-                $FLOCK_TIMEOUT_CODE $port $command || status=$?
+            echo "Enabling flock on serial port $port"
+            local flock="flock --timeout $timeout --conflict-exit-code \
+                $FLOCK_TIMEOUT_CODE $port"
         else
-            local status=0; $command || status=$?
+            echo "Disabling flock on serial port $port"
+            local flock=''
         fi
+        local status=0; $flock $DIRNAME/run_arduino.sh \
+            --$mode \
+            --env $env \
+            --board $board \
+            --port $port \
+            --baud $baud \
+            $sketchbook_flag \
+            --preprocessor "$preprocessor" \
+            $verbose \
+            --summary_file $summary_file \
+            "$file" || status=$?
 
         if [[ "$status" == $FLOCK_TIMEOUT_CODE ]]; then
             echo "FAILED $mode: could not obtain lock on $port for $file" \
