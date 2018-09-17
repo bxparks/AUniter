@@ -4,8 +4,8 @@
     * Remove --board, --boards, and --ports flags to simplify the auniter.sh
       script.
     * Change name of `auniter.conf` to `auniter.ini` because tools (e.g. vim)
-	  are able to recoginize INI file format and handle them better
-	  (e.g. syntax highlighting).
+      are able to recoginize INI file format and handle them better
+      (e.g. syntax highlighting).
     * Change the compile target from "board aliases" to "environments", where
       the "environment" is defined by a section of auniter.ini file whose name
       has the form `[env:NAME]`.
@@ -16,14 +16,14 @@
       form of `MACRO MACRO=value MACRO="string value"`.
     * Remove overly flexible --pref flag, replace with semantically specific
       flags (e.g. --sketchbook, --preprocessor).
-	* Remove --monitor flag from `run_arduino.sh`. Was already replaced with
-	  shell exec to a user-definable terminal program. Add example
-	  configurations for 'picocom` and `microcom` terminal programs.
+    * Remove --monitor flag from `run_arduino.sh`. Was already replaced with
+      shell exec to a user-definable terminal program. Add example
+      configurations for 'picocom` and `microcom` terminal programs.
     * Add `auniter envs` subcommand which lists the environments defined in the
       auniter ini file.
     * Changed name of `--skip_if_no_port` flag to `--skip_missing_port`.
-	* Add documentation of the recommended structure of `config.h` file to
-	  support multiple environments using both Arduino IDE and AUniter tools.
+    * Add documentation of the recommended structure of `config.h` file to
+      support multiple environments using both Arduino IDE and AUniter tools.
 * 1.6 (2018-09-11)
     * Support 'monitor' subcommand using an external serial port terminal
       (e.g. picocom).
