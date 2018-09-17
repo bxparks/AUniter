@@ -104,10 +104,16 @@ scripts.
 The `auniter.sh` script looks for a config file named `$HOME/.auniter.ini` in
 your home directory. The format of the file is the
 [INI file](https://en.wikipedia.org/wiki/INI_file),
-and the meaning of these properties will be explained below. For the purposes of
-this tutorial, copy the `sample.auniter.ini` file to `$HOME/.auniter.ini`. For
-reference, here's the condensed version of the sample with comments stripped
-out:
+and the meaning of these properties will be explained below. This INI file has
+evolved to be similar to the one used by [PlatformIO](https://platformio.org/)
+with some major differences:
+1. `auniter.ini` is far simpler and easier to use (but less flexible)
+1. there is only one `auniter.ini` per user (shared among many projects and
+  libraries), instead of one INI file per project as used by PlatformIO
+
+For the purposes of this tutorial, copy the `sample.auniter.ini` file to
+`$HOME/.auniter.ini`. For reference, here's the condensed version of the sample
+with comments stripped out:
 ```ini
 [auniter]
   monitor = picocom -b $baud --omap crlf --imap lfcrlf --echo $port
@@ -122,6 +128,7 @@ out:
 
 [env:uno]
   board = uno
+  preprocessor = -DAUNITER_UNO
 
 [env:nano]
   board = nano
@@ -130,6 +137,7 @@ out:
 [env:leonardo]
   board = leonardo
   locking = false
+  preprocessor = -DAUNITER_LEONARDO
 
 [env:esp8266]
   board = nodemcuv2
@@ -139,6 +147,7 @@ out:
 [env:esp32]
   board = esp32
   exclude = AceButton/examples/CapacitiveButton
+  preprocessor = -DAUNITER_ESP32 -DAUNITER_SSID="MyWiFi" -DAUNITER_PASSWORD="mypassword"
 ```
 
 The examples below will use these settings.
@@ -628,6 +637,74 @@ that will compile and verify all 11 sketches in one shot:
 $ cd AceButton
 $ auniter verify uno $(find -name '*.ino')
 ```
+
+### Using Both Arduino IDE and the AUniter Script
+
+If you compile a program using the `auniter.sh` script, you can use the
+`preprocessor` parameter in the given `[env:NAME]` section to define a
+C-preprocessor symbol that will let you customize the sketch for a specific
+target environment. For example in the
+[sample.auniter.ini](sample.auniter.ini) file, the `nano` environment
+defines the `AUNITER_NANO` preprocessor macro, so that you can do
+something like:
+```c++
+#if defined(AUNITER_NANO)
+  ...
+#elif defined(AUNITER_ESP8266)
+  ...
+#else
+  #error Unsupported AUNITER environment
+#endif
+```
+
+There are 2 problems with the above code:
+1. If your program is composed of multiple files (one `*.ino`, and
+several `*.cpp` and `*.h` files), then you need to replicate those
+lines for each file where you need to do different things for different
+target enviroments.
+1. If you compile your program with the Arduino IDE, none of these `AUNITER_*`
+macros are defined, so you will hit the `#error` message.
+
+The recommended solution is to create a `config.h` file that centrallizes
+the dependencies on a particular AUniter target environment, and use `#include`
+to include that file in other `*.h` and `*.cpp` files. The macro `AUNITER` is
+the one macro that is automatically defined when the `auniter.sh` script is used
+to compile the program. This can be used to determine whether or not you are
+compiling using the Arduino IDE, instead of using `auniter.sh`. (All other
+macros must be explicitly defined in the `preprocessor` parameters of the
+`[env:NAME]` section of the ini file.)
+
+Putting all this together, the `config.h` would look like this:
+
+```c++
+#ifndef MY_PROJECT_CONFIG_H
+#define MY_PROJECT_CONFIG_H
+
+#if !defined(AUNITER)
+  // Compiling under Arduino IDE directly, so define a default environment.
+  #define AUNITER_MICRO
+  #warning Defaulting to AUNITER_MICRO
+#endif
+
+#if defined(AUNITER_MICRO)
+  #define FEATURE_ONE ...
+  #define FEATURE_TWO ...
+#elif defined(AUNITER_NANO)
+  #define FEATURE_ONE ...
+  #define FEATURE_TWO ...
+...
+#else
+  #error Unsupported AUNITER environment
+#endif
+
+#endif
+```
+
+In all the other `*.cpp` and `*.h` files, you would just do:
+```c++
+#include "config.h"
+```
+
 
 ## Limitations
 
