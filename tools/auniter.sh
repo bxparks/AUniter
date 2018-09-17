@@ -14,24 +14,28 @@ set -eu
 DIRNAME=$(dirname $0)
 
 # Default config file in the absence of --config flag.
-CONFIG_FILE=$HOME/.auniter.conf
+CONFIG_FILE=$HOME/.auniter.ini
 
 # Number of seconds that flock(1) will wait on a serial port.
-# Can be overridden by --port_timeout.
+# Can be overridden by "[auniter] port_timeout" parameter.
 PORT_TIMEOUT=120
+
+# Default baud rate of the serial port.
+PORT_BAUD=115200
 
 # Status code returned by flock(1) if it times out.
 FLOCK_TIMEOUT_CODE=10
 
 function usage_common() {
     cat <<'END'
-Usage: auniter.sh [-h] [auniter_flags] command [command_flags] [args ...]
+Usage: auniter.sh [-h] [flags] command [flags] [args ...]
+       auniter.sh envs
        auniter.sh ports
-       auniter.sh verify {board} files ...
-       auniter.sh upload {board}:{port},... files ...
-       auniter.sh test {board}:{port},... files ...
-       auniter.sh monitor [{board}:]{port}
-       auniter.sh upmon {board}:{port}
+       auniter.sh verify {env} files ...
+       auniter.sh upload {env}:{port},... files ...
+       auniter.sh test {env}:{port},... files ...
+       auniter.sh monitor [{env}:]{port}
+       auniter.sh upmon {env}:{port} file
 END
 }
 
@@ -42,9 +46,11 @@ function usage() {
 
 function usage_long() {
     usage_common
+
     cat <<'END'
 
 Commands:
+    envs    List the environments defined in the CONFIG_FILE.
     ports   List the tty ports and the associated Arduino boards.
     verify  Verify the compile of the sketch file(s).
     upload  Upload the sketch(es) to the given board at port.
@@ -58,43 +64,17 @@ AUniter Flags
     --verbose       Verbose output from various subcommands.
 
 Command Flags:
-    --boards {{board}[:{port}]},...
-        (verify, upload, test, upmon) Comma-separated list of {board}:{port}
-        pairs. The {board} should be listed in the [boards] section of the
-        CONFIG_FILE. The {port} can be shortened by omitting the '/dev/tty' part
-        (e.g. 'USB0').
-    --board {package}:{arch}:{board}[:parameters]]
-        (verify, upload, test, upmon) Fully qualified board name (fqbn) of the
-        target board.
-    --port /dev/ttyXxx
-        (upload, test, monitor, upmon) Serial port of the board.
     --baud baud
-        (upload, test, monitor,up mon) Speed of the serial port for
-        serial_montor.py. (Default: 115200. The default value can be changed in
-        CONFIG_FILE.)
-    --port_timeout N
-        (upload, test) Set the timeout for waiting for a serial port to become
-        available to 'N' seconds. (Default: 120)
-    --pref key=value
-        (verify, upload, test) Set the Arduino commandline preferences. Multiple
-        flags may be given. Useful in continuous integration.
-    --skip_if_no_port
+        (monitor, upmon) Speed of the serial port for serial_montor.py.
+        (Default: 115200. The default value can be changed in CONFIG_FILE.)
+    --sketchbook {path}
+        (verify, upload, test, upmon) Set the Arduino sketchbook directory to
+        {path}. Useful in Jenkinsfile to tell the Arduino IDE binary to use a
+        different directory as the sketchbook home.
+    --skip_missing_port
         (upload, test) Just perform a 'verify' if --port or {:port} is missing.
         Useful in Continuous Integration on multiple boards where only some
         boards are actually connected to a serial port.
-    --[no]locking
-        (upload, test, CONFIG) Use (or not use) flock(1) to lock the tty for the
-        board. Needed for Arduino Pro Micro, Leonardo or other boards using
-        virtual serial ports. Can be set in the [options] section of the
-        CONFIG_FILE.
-    --exclude regexp
-        (verify, upload, test, CONFIG) Exclude 'file.ino' whose fullpath matches
-        the given egrep regular expression. This will normally be used in the
-        [options] section of the CONFIG_FILE to exclude files which are not
-        compatible with certain board (e.g. ESP8266 or ESP32). Multiple files
-        can be specified using the 'a|b' pattern supported by egrep. Use 'none'
-        (or some other pattern which matches nothing) to clobber the value from
-        the CONFIG_FILE.
 
 Files:
     Multiple *.ino files and directories may be given. If a directory is given,
@@ -137,7 +117,6 @@ function get_ino_file() {
 #       ...
 #   [...]
 #       ...
-#
 function get_config() {
     local config_file=$1
     local section=$2
@@ -170,30 +149,51 @@ function get_config() {
         "$config_file"
 }
 
-function process_sketches() {
-    if [[ "$boards" != '' ]]; then
-        process_boards "$@"
-    else
-        process_files "$@"
+# List the environments defined in the CONFIG FILE. Environment names
+# have the format '[env:{name}]' in the ini file.
+# Usage: list_envs config_file
+function list_envs() {
+    local config_file=$1
+    if [[ ! -f "$config_file" ]]; then
+        return
     fi
+    sed -n -e 's/^\[env:\(.*\)\]/\1/p' "$config_file"
 }
 
-# Parse the {board}:{port} specifier, setting the following global variables:
-#
-#   - $board_alias
-#   - $board_port
-#   - $board
-#   - $port
-function process_board_and_port() {
-    local board_and_port=$1
-    # Split {alias}:{port} into two fields.
-    board_alias=$(echo $board_and_port \
+# Parse the {env}:{port} specifier, setting the following global variables:
+#   - $env - name of the environment
+#   - $env_search - non-empty indicates the env was found in auniter.ini
+#   - $board_alias - board alias in auniter.ini
+#   - $board - fully qualified board spec
+#   - $port - /dev/ttyXXX
+#   - $locking - (true|false) whether flock(1) should lock the /dev/ttyXXX
+#   - $exclude - egrep pattern of files to skip
+function process_env_and_port() {
+    local env_and_port=$1
+
+    # Split {env}:{port} into two fields.
+    env=$(echo $env_and_port \
             | sed -E -e 's/([^:]*):?([^:]*)/\1/')
-    board_port=$(echo $board_and_port \
+    port=$(echo $env_and_port \
             | sed -E -e 's/([^:]*):?([^:]*)/\2/')
 
-    board=$(get_config "$config_file" 'boards' "$board_alias")
-    port=$(resolve_port "$board_port")
+    env_search=$(list_envs $config_file | grep $env || true)
+    if [[ "$env_search" == '' ]]; then
+        return
+    fi
+
+    board_alias=$(get_config "$config_file" "env:$env" board)
+    board=$(get_config "$config_file" boards "$board_alias")
+
+    port=$(resolve_port "$port")
+
+    locking=$(get_config "$config_file" "env:$env" locking)
+    locking=${locking:-true} # set to 'true' if empty
+
+    exclude=$(get_config "$config_file" "env:$env" exclude)
+    exclude=${exclude:-'^$'} # if empty, exclude nothing, not everything
+
+    preprocessor=$(get_config "$config_file" "env:$env" preprocessor)
 }
 
 # If a port is not fully qualified (i.e. start with /), then append
@@ -210,51 +210,36 @@ function resolve_port() {
     fi
 }
 
-# Requires $boards to define the target environments as a comma-separated list
-# of {board}:{port}.
-function process_boards() {
-    local board_and_ports=$(echo "$boards" | sed -e 's/,/ /g')
-    for board_and_port in $board_and_ports; do
-        process_board_and_port $board_and_port
+# Requires $envs to define the target environments as a comma-separated list
+# of {env}:{port}.
+function process_envs() {
+    local env_and_ports=$(echo "$envs" | sed -e 's/,/ /g')
+    for env_and_port in $env_and_ports; do
+        process_env_and_port $env_and_port
 
-        echo "======== Processing $board_and_port"
+        echo "======== Processing environment '$env_and_port'"
+        if [[ "$env_search" == '' ]]; then
+            echo "FAILED $mode: Unknown environment '$env'" \
+                | tee -a $summary_file
+            continue
+        fi
         if [[ "$board" == '' ]]; then
-            echo "FAILED: Unknown board alias '$board_alias'" \
+            echo "FAILED $mode: board '$board_alias' not found" \
                 | tee -a $summary_file
             continue
         fi
         if [[ "$port" == '' && "$mode" != 'verify' ]]; then
-            if [[ "$skip_if_no_port" == 0 ]]; then
-                echo "FAILED $mode: Unknown port for $board_alias: $*" \
+            if [[ "$skip_missing_port" == 0 ]]; then
+                echo "FAILED $mode: Unknown port for $env" \
                     | tee -a $summary_file
             else
-                echo "SKIPPED $mode: Unknown port for $board_alias: $*" \
+                echo "SKIPPED $mode: Unknown port for $env" \
                     | tee -a $summary_file
             fi
             continue
         fi
 
-        # Get the config file options, then add the command line options
-        # afterwards, so that the command line options take precedence.
-        local config_options=$(get_config "$config_file" 'options' \
-            "$board_alias")
-        process_options "$config_options" "$options"
-
         process_files "$@"
-    done
-}
-
-function process_options() {
-    echo "Process options: $*"
-    locking=1 # lock serial port using flock(1) by default
-    exclude='^$' # exclude files by default
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --locking) locking=1 ;;
-            --nolocking) locking=0 ;;
-            --exclude) shift; exclude=$1 ;;
-        esac
-        shift
     done
 }
 
@@ -282,31 +267,16 @@ function process_files() {
 # Requires $board and $port to define the target environment.
 function process_file() {
     local file=$1
-    echo "-------- Processing $file"
-
-    if [[ "$board" == '' ]]; then
-        echo "FAILED $mode: board not defined: $file" \
-            | tee -a $summary_file
-        return
-    fi
-
-    if [[ "$port" == '' && "$mode" != 'verify' ]]; then
-        if [[ "$skip_if_no_port" == 0 ]]; then
-            echo "FAILED $mode: undefined port for $board: $file" \
-                | tee -a $summary_file
-        else
-            echo "SKIPPED $mode: undefined port for $board: $file" \
-                | tee -a $summary_file
-        fi
-        return
-    fi
+    echo "-------- Processing file '$file'"
 
     if [[ "$mode" == 'verify' ]]; then
         # Allow multiple verify commands to run at the same time.
         $DIRNAME/run_arduino.sh \
             --verify \
+            --env $env \
             --board $board \
-            $prefs \
+            --preprocessor "$preprocessor" \
+            $sketchbook_flag \
             $verbose \
             --summary_file $summary_file \
             $file
@@ -322,31 +292,25 @@ function process_file() {
         # Use flock(1) to prevent multiple uploads to the same board at the same
         # time.
         local timeout=${port_timeout:-$PORT_TIMEOUT}
-        if [[ "$locking" == 1 ]]; then
-            local status=0; flock --timeout $timeout \
-                --conflict-exit-code $FLOCK_TIMEOUT_CODE \
-                $port \
-                $DIRNAME/run_arduino.sh \
-                --$mode \
-                --board $board \
-                --port $port \
-                --baud $baud \
-                $prefs \
-                $verbose \
-                --summary_file $summary_file \
-                $file || status=$?
+        if [[ "$locking" == 'true' ]]; then
+            echo "Enabling flock on serial port $port"
+            local flock="flock --timeout $timeout --conflict-exit-code \
+                $FLOCK_TIMEOUT_CODE $port"
         else
-            local status=0; \
-                $DIRNAME/run_arduino.sh \
-                --$mode \
-                --board $board \
-                --port $port \
-                --baud $baud \
-                $prefs \
-                $verbose \
-                --summary_file $summary_file \
-                $file || status=$?
+            echo "Disabling flock on serial port $port"
+            local flock=''
         fi
+        local status=0; $flock $DIRNAME/run_arduino.sh \
+            --$mode \
+            --env $env \
+            --board $board \
+            --port $port \
+            --baud $baud \
+            $sketchbook_flag \
+            --preprocessor "$preprocessor" \
+            $verbose \
+            --summary_file $summary_file \
+            "$file" || status=$?
 
         if [[ "$status" == $FLOCK_TIMEOUT_CODE ]]; then
             echo "FAILED $mode: could not obtain lock on $port for $file" \
@@ -400,49 +364,44 @@ function interrupted() {
     exit 1
 }
 
-# process build (verify, upload, or test) commands
+# Process build (verify, upload, or test) commands.
 function handle_build() {
-    board=
-    boards=
-    port=
-    prefs=
-    port_timeout=
-    skip_if_no_port=0
-    options=
+    local single=0
+    sketchbook_flag=
+    skip_missing_port=0
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --boards) shift; boards=$1 ;;
-            --board) shift; board=$1 ;;
-            --port) shift; port=$1 ;;
-            --baud) shift; baud=$1 ;;
-            --pref) shift; prefs="$prefs --pref $1" ;;
-            --port_timeout) shift; port_timeout=$1 ;;
-            --skip_if_no_port) skip_if_no_port=1 ;;
-            --locking|--nolocking) options="$options $1" ;;
-            --exclude) shift; options="$options --exclude $1" ;;
+            --single) single=1 ;;
+            --sketchbook) shift; sketchbook_flag="--sketchbook $1" ;;
+            --skip_missing_port) skip_missing_port=1 ;;
             -*) echo "Unknown build option '$1'"; usage ;;
             *) break ;;
         esac
         shift
     done
 
-    # If the --board or --boards flag was not given, assume that the next
-    # non-flag argument is a --boards value (e.g. "nano", or "uno").
-    if [[ "$board" == '' && "$boards" == '' ]]; then
-        if [[ $# -lt 1 ]]; then
-            echo 'No board specification given'; usage
-        elif [[ $# -lt 2 ]]; then
-            echo "Board assumed to be '$1', but no file given"; usage
+    if [[ $# -lt 1 ]]; then
+        echo 'No environment given'
+        usage
+    fi
+    envs=$1
+    shift
+    if [[ $# -lt 1 ]]; then
+        echo "No sketch file given"
+        usage
+    fi
+    if [[ "$single" == 1 ]]; then
+        if [[ "$envs" =~ , ]]; then
+            echo "Multiple environments not allowed in 'upmon' command"
+            usage
         fi
-        boards=$1
-        shift
-    else
-        if [[ $# -lt 1 ]]; then
-            echo 'No file given'; usage
+        if [[ $# -gt 1 ]]; then
+            echo "Multiple files not allowed in 'upmon' command"
+            usage
         fi
     fi
 
-    process_sketches "$@"
+    process_envs "$@"
     print_summary_file
 }
 
@@ -450,9 +409,12 @@ function list_ports() {
     $DIRNAME/serial_monitor.py --list
 }
 
-
+# Usage: run_monitor $port $buad $monitor
 # Determine the external terminal program and run it with $port and $baud.
 function run_monitor() {
+    local port=$1
+    local baud=$2
+    local monitor=$3
     if [[ "$monitor" == '' ]]; then
         echo "Property 'monitor' must be defined in $config_file"
         usage
@@ -463,18 +425,15 @@ function run_monitor() {
 }
 
 # Run the serial monitor on the given port specifier. The port can be
-# given as "{board}:{port}" or just "{port}". The command for the serial monitor
+# given as "{env}:{port}" or just "{port}". The command for the serial monitor
 # comes from the 'monitor' property in section '[auniter]'. An example that
 # works well for me is:
-#
 # [auniter]
 #   monitor = picocom -b $baud --omap crlf --imap lfcrlf --echo $port
 function handle_monitor() {
-    # Process the flags of the 'auniter.sh monitor' command.
-    port=
+    # Process flags.
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --port) shift; port=$1 ;;
             --baud) shift; baud=$1 ;;
             -*) echo "Unknown monitor option '$1'"; usage ;;
             *) break ;;
@@ -482,21 +441,18 @@ function handle_monitor() {
         shift
     done
 
-    # If the --port flag was not given, assume that the next non-flag argument
-    # is a port.
-    if [[ "$port" == '' ]]; then
-        if [[ $# -lt 1 ]]; then
-            echo 'No port given for 'monitor' command'
-            usage
-        fi
-        port=$1
-        shift
+    # Get the port from the next arg.
+    if [[ $# -lt 1 ]]; then
+        echo 'No port given for 'monitor' command'
+        usage
     fi
+    port=$1
+    shift
 
-    # If the port_specifier is {board}:{port}, extract the {port}. If there
+    # If the port_specifier is {env}:{port}, extract the {port}. If there
     # is no ':', then assume that it's just the port.
     if [[ "$port" =~ : ]]; then
-        process_board_and_port "$port"
+        process_env_and_port "$port"
     else
         port=$(resolve_port $port)
     fi
@@ -506,64 +462,28 @@ function handle_monitor() {
         usage
     fi
 
-    run_monitor
+    run_monitor $port $baud "$monitor"
 }
 
 # Combination of 'upload' then 'monitor' if upload goes ok.
 function handle_upmon() {
-    board=
-    boards=
-    port=
-    options=
-    prefs=
-    skip_if_no_port=0
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --boards) shift; boards=$1 ;;
-            --board) shift; board=$1 ;;
-            --port) shift; port=$1 ;;
-            --baud) shift; baud=$1 ;;
-            -*) echo "Unknown build option '$1'"; usage ;;
-            *) break ;;
-        esac
-        shift
-    done
-
-    # If the --board or --boards flag was not given, assume that the next
-    # non-flag argument is a --boards value (e.g. "nano", or "uno").
-    if [[ "$board" == '' && "$boards" == '' ]]; then
-        if [[ $# -lt 1 ]]; then
-            echo 'No board specification given'; usage
-        elif [[ $# -lt 2 ]]; then
-            echo "Board assumed to be '$1', but no file given"; usage
-        fi
-        boards=$1
-        shift
-    else
-        if [[ $# -lt 1 ]]; then
-            echo 'No file given'; usage
-        fi
-    fi
-
-    if [[ "$boards" =~ , ]]; then
-        echo "Multiple boards not allowed in 'upmon' command"
-        usage
-    fi
-
     mode=upload
-    process_sketches "$@"
-    print_summary_file
+    handle_build --single "$@"
 
     mode=monitor
-    run_monitor
+    run_monitor $port $baud "$monitor"
 }
 
 # Read in the default flags in the [auniter] section of the config file.
 function read_default_configs() {
     monitor=$(get_config "$config_file" 'auniter' 'monitor')
 
-    local config_baud=$(get_config "$config_file" 'auniter' 'baud')
-    baud=${config_baud:-115200} # use config default, otherwise 115200
+    local baud_value=$(get_config "$config_file" 'auniter' 'baud')
+    baud=${baud_value:-$PORT_BAUD}
+
+    local port_timeout_value=$(get_config "$config_file" 'auniter' \
+        'port_timeout')
+    port_timeout=${port_timeout_value:-$PORT_TIMEOUT}
 }
 
 # Parse auniter command line flags
@@ -599,7 +519,8 @@ function main() {
     check_environment_variables
     create_temp_files
     case $mode in
-        ports) list_ports "$@" ;;
+        envs) list_envs $config_file;;
+        ports) list_ports ;;
         verify) handle_build "$@" ;;
         upload) handle_build "$@" ;;
         test) handle_build "$@" ;;

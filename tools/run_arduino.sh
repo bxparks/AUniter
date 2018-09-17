@@ -10,11 +10,11 @@ DIRNAME=$(dirname $0)
 
 function usage() {
     cat <<'END'
-Usage: run_arduino.sh [--help] [--verbose] [--upload | --test | --monitor]
-                      [--board board] [--port port] [--baud baud[
-                      [--pref key=value]
-                      [--summary_file file]
-                      file.ino
+Usage: run_arduino.sh [--help] [--verbose] [--upload | --test]
+                      [--env {env}] [--board {board}] [--port {port}]
+                      [--baud {baud}] [--sketchbook {path}]
+                      [--preprocessor {flags}]
+                      [--summary_file file] file.ino
 
 Helper shell wrapper around the 'arduino' commandline binary and the
 'serial_monitor.py' script. This allows the 'auniter.sh' to wrap a flock(1)
@@ -22,36 +22,68 @@ command around the serial port to prevent concurrent access to the arduino
 board. This script is not meant to be used by the end-user.
 
 Flags:
-    --summary_file file     Send error logs to 'file'
-    {all other flags are identical to 'auniter.sh'}
+    --upload        Compile and upload the given program.
+    --test          Verify the AUnit test after uploading the program.
+    --env {env}     Name of the current build environment, for error messages.
+    --board {fqbn} Fully qualified board specifier.
+    --port {port}   Serial port device (e.g. /dev/ttyUSB0).
+    --baud {baud}   Speed of the serial port.
+    --sketchbook {path}
+                    Home directory of the sketch, for resolving libraries.
+    --preprocessor {flags}
+                    Build flags of the form '-DMACRO -DMACRO=value' as a single
+                    argument (must be quoted if multiple macros).
+    --summary_file {file}
+                    Send error logs to 'file'.
 END
     exit 1
 }
 
-function run_arduino_cmd() {
+function verify_or_upload() {
     local file=$1
 
     local board_flag="--board $board"
     local port_flag=${port:+"--port $port"}
-    if [[ "$mode" == 'upload' || "$mode" == 'monitor' \
-            || "$mode" == 'test' ]]; then
+    if [[ "$mode" == 'upload' || "$mode" == 'test' ]]; then
         local arduino_cmd_mode='upload'
     else
         local arduino_cmd_mode='verify'
     fi
 
-    local cmd="$AUNITER_ARDUINO_BINARY --$arduino_cmd_mode \
-$verbose $board_flag $port_flag $prefs $file"
+    if [[ "$sketchbook" != '' ]]; then
+        local sketchbook_flag="--pref sketchbook.path=$sketchbook"
+    else
+        local sketchbook_flag=
+    fi
 
-    echo "\$ $cmd"
-    if ! $cmd; then
-        echo "FAILED $arduino_cmd_mode: $board $port $file" \
+    # Don't use 'eval' to avoid problems with single-quote embedded within
+    # the $preprocessor variable. This unfortunately means that we duplicate the
+    # Arduino IDE command twice, once to echo to the user, and another to
+    # actually execute the command.
+    echo '$' $AUNITER_ARDUINO_BINARY \
+        --$arduino_cmd_mode \
+        $verbose \
+        $board_flag \
+        $port_flag \
+        $sketchbook_flag \
+        --pref "'compiler.cpp.extra_flags=-DAUNITER $preprocessor'" \
+        $file
+    if ! $AUNITER_ARDUINO_BINARY \
+            --$arduino_cmd_mode \
+            $verbose \
+            $board_flag \
+            $port_flag \
+            $sketchbook_flag \
+            --pref "compiler.cpp.extra_flags=-DAUNITER $preprocessor" \
+            $file; then
+        echo "FAILED $arduino_cmd_mode: $env $port $file" \
             | tee -a $summary_file
         return
     fi
 
-    # The verbose mode sometimes leaves a dangling line w/o a newline
-    if [[ "$verbose" != '' ]]; then
+    # The verbose mode or upload (on some boards) sometimes leave a dangling
+    # line w/o a newline.
+    if [[ "$verbose" != '' || "$arduino_cmd_mode" == 'upload' ]]; then
         echo # blank line
     fi
 }
@@ -64,25 +96,18 @@ function validate_test() {
     local cmd="$DIRNAME/serial_monitor.py --test --port $port --baud $baud"
     echo "\$ $cmd"
     if $cmd; then
-        echo "PASSED $mode: $board $port $file" | tee -a $summary_file
+        echo "PASSED $mode: $env $port $file" | tee -a $summary_file
     else
-        echo "FAILED $mode: $board $port $file" | tee -a $summary_file
+        echo "FAILED $mode: $env $port $file" | tee -a $summary_file
     fi
-}
-
-# Run the serial monitor in echo mode.
-function monitor_port() {
-    echo # blank line
-    local cmd="$DIRNAME/serial_monitor.py --monitor --port $port --baud $baud"
-    echo "\$ $cmd"
-    $cmd || true # prevent failure from exiting the entire script
 }
 
 mode=
 board=
 port=
 verbose=
-prefs=
+sketchbook=
+preprocessor=
 summary_file=
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -90,12 +115,13 @@ while [[ $# -gt 0 ]]; do
         --verify) mode='verify' ;;
         --upload) mode='upload' ;;
         --test) mode='test' ;;
-        --monitor) mode='monitor' ;;
         --verbose) verbose='--verbose' ;;
+        --env) shift; env=$1 ;;
         --board) shift; board=$1 ;;
         --port) shift; port=$1 ;;
         --baud) shift; baud=$1 ;;
-        --pref) shift; prefs="$prefs --pref $1" ;;
+        --sketchbook) shift; sketchbook=$1 ;;
+        --preprocessor) shift; preprocessor="$1" ;;
         --summary_file) shift; summary_file=$1 ;;
         -*) echo "Unknown option '$1'"; usage ;;
         *) break ;;
@@ -107,9 +133,7 @@ if [[ $# -eq 0 ]]; then
     exit 1
 fi
 
-run_arduino_cmd $1
+verify_or_upload $1
 if [[ "$mode" == 'test' ]]; then
     validate_test $1
-elif [[ "$mode" == 'monitor' ]]; then
-    monitor_port
 fi

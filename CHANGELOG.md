@@ -1,10 +1,37 @@
 # Changelog
 
+* 1.7 (2018-09-16)
+    * Remove --board, --boards, and --ports flags to simplify the auniter.sh
+      script.
+    * Change name of `auniter.conf` to `auniter.ini` because tools (e.g. vim)
+      are able to recoginize INI file format and handle them better
+      (e.g. syntax highlighting).
+    * Change the compile target from "board aliases" to "environments", where
+      the "environment" is defined by a section of auniter.ini file whose name
+      has the form `[env:NAME]`.
+    * Add `port_timeout` parameters to the `[auniter]` section.
+    * Add `locking` and 'board' parameters to the `[env:NAME]` section.
+    * Add support for 'preprocessor' parameter in '[env:NAME]' section
+      which defines a space-separated list of C-preprocessor macros in the
+      form of `MACRO MACRO=value MACRO="string value"`.
+    * Remove overly flexible --pref flag, replace with semantically specific
+      flags (e.g. --sketchbook, --preprocessor).
+    * Remove --monitor flag from `run_arduino.sh`. Was already replaced with
+      shell exec to a user-definable terminal program. Add example
+      configurations for 'picocom` and `microcom` terminal programs.
+    * Add `auniter envs` subcommand which lists the environments defined in the
+      auniter ini file.
+    * Changed name of `--skip_if_no_port` flag to `--skip_missing_port`.
+    * Add documentation of the recommended structure of `config.h` file to
+      support multiple environments using both Arduino IDE and AUniter tools.
 * 1.6 (2018-09-11)
     * Support 'monitor' subcommand using an external serial port terminal
       (e.g. picocom).
     * Add 'upmon' subcommand, a combination of 'upload' and 'monitor'.
     * Add '[auniter] baud' parameter to control default baud rate of port.
+* 1.5 (2018-09-03)
+    * Use subcommands instead of flags in auniter.sh to simplify the
+      common interactive use cases.
 * 1.4.1 (2018-09-03)
     * Fix bug which disabled --locking by default.
     * Allow serial port specifier in --boards flag to omit "/dev/tty" prefix.
