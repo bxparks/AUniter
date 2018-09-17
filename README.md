@@ -39,7 +39,7 @@ Here are some examples that you can perform on the command line:
   serial port using a user-configurable terminal program (e.g. `picocom`) on
   `/dev/ttyUSB0`
 
-Version: 1.6 (2018-09-11)
+Version: 1.7 (2018-09-16)
 
 ## Installation
 
