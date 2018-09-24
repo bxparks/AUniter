@@ -78,7 +78,7 @@ function verify_or_upload() {
             $file; then
         echo "FAILED $arduino_cmd_mode: $env $port $file" \
             | tee -a $summary_file
-        return
+        return 1
     fi
 
     # The verbose mode or upload (on some boards) sometimes leave a dangling
