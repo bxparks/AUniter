@@ -248,14 +248,14 @@ function process_files() {
     local file
     for file in "$@"; do
         local ino_file=$(get_ino_file $file)
-        if realpath $ino_file | egrep --silent "$exclude"; then
-            echo "SKIPPED $mode: excluding $file" \
+        if [[ ! -f $ino_file ]]; then
+            echo "FAILED $mode: $env: file not found: $ino_file" \
                 | tee -a $summary_file
             continue
         fi
 
-        if [[ ! -f $ino_file ]]; then
-            echo "FAILED $mode: file not found: $ino_file" \
+        if realpath $ino_file | egrep --silent "$exclude"; then
+            echo "SKIPPED $mode: $env: excluding $file" \
                 | tee -a $summary_file
             continue
         fi
@@ -284,7 +284,7 @@ function process_file() {
         # flock(1) returns status 1 if the lock file doesn't exist, which
         # prevents distinguishing that from failure of run_arduino.sh.
         if [[ ! -e $port ]]; then
-            echo "FAILED $mode: cannot find port $port for $board: $file" \
+            echo "FAILED $mode: $env: cannot find port $port: $file" \
                 | tee -a $summary_file
             return
         fi
@@ -313,10 +313,10 @@ function process_file() {
             "$file" || status=$?
 
         if [[ "$status" == $FLOCK_TIMEOUT_CODE ]]; then
-            echo "FAILED $mode: could not obtain lock on $port for $file" \
+            echo "FAILED $mode: $env: could not obtain lock on $port: $file" \
                 | tee -a $summary_file
         elif [[ "$status" != 0 ]]; then
-            echo "FAILED $mode: run_arduino.sh failed on $file" \
+            echo "FAILED $mode: $env: run_arduino.sh failed on $file" \
                 | tee -a $summary_file
         fi
     fi
