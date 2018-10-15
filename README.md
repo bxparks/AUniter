@@ -56,7 +56,6 @@ The `auniter.sh` script uses an
 [INI file](https://en.wikipedia.org/wiki/INI_file) configuration file
 normally located at `$HOME/.auniter.ini`. It contains various user-defined
 configurations and aliases which look like this:
-```
 ```ini
 [auniter]
   monitor = picocom -b $baud --omap crlf --imap lfcrlf --echo $port
