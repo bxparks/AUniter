@@ -97,9 +97,10 @@ we will install it as a
 [Portable IDE](https://www.arduino.cc/en/Guide/PortableIDE) into
 the home directory of the user `jenkins`:
 
-1. Download the latest 64-bit version of the tar.xz file (currently version
-1.8.5). Take note of the location of the download file, it will be something
-like `/home/{yourusername}/Downloads/arduino-1.8.5-linux64.tar.xz`.
+1. Download the latest 64-bit version of the tar.xz file. (When this README ifle
+was written, it was 1.8.5.) Take note of the location of the download file, it
+will be something like
+`/home/{yourusername}/Downloads/arduino-1.8.5-linux64.tar.xz`.
 
 2. Become user `jenkins` and install (i.e. un-tar) the IDE in its home directory
 (`/var/lib/jenkins`):
@@ -121,33 +122,37 @@ These extra files will be stored under the `arduino-1.8.5/portable/` directory,
 not in the `/var/lib/jenkins/.arduino15/` folder because of the existence
 of the `portable/` directory.
 
-4. (Optional) Install any other boards that you use. For example, to install the
-[ESP8266 boards](https://github.com/esp8266/Arduino/blob/master/doc/installing.rst):
-```
-jenkins$ echo 'boardsmanager.additional.urls=http://arduino.esp8266.com/stable/package_esp8266com_index.json' \
->> portable/preferences.txt
-jenkins$ ./arduino --install-boards esp8266:esp8266
-```
-
-5. (Optional) If you use the ESP32 board, install it using a modified form of
-the [ESP32 install instructions](https://github.com/espressif/arduino-esp32):
+4. (Optional) Install any other boards that you use, such as the
+[ESP8266](https://github.com/esp8266/Arduino/blob/master/doc/installing.rst)
+boards or the
+[ESP32](https://github.com/espressif/arduino-esp32/blob/master/docs/arduino-ide/boards_manager.md)
+boards. The easiest way seems to be through the IDE itself, but it's a bit
+tricky because you need to run the IDE as the user `jenkins`, not as yourself.
+You must first give access for the user `jenkins` to display its window
+on your own X Windows screen using the `xhost` command:
 
 ```
-$ sudo apt install git python python-pip python-serial
+$ xhost +si:localuser:jenkins
 $ sudo -i -u jenkins
-jenkins$ mkdir -p arduino-1.8.5/hardware/espressif
-jenkins$ cd arduino-1.8.5/hardware/espressif
-jenkins$ git clone https://github.com/espressif/arduino-esp32.git esp32
-jenkins$ cd esp32
-jenkins$ git submodule update --init --recursive
-jenkins$ cd tools
-jenkins$ python2 get.py
+jenkins$ cd arduino-1.8.5
+jenkins$ ./arduino
 ```
 
-6. Instructions for installing Teensyduino. This is not currently supported
+Then add the following URLS (as documented in the above links) to the
+`Additional Boards Manager URLs`:
+```
+http://arduino.esp8266.com/stable/package_esp8266com_index.json
+https://dl.espressif.com/dl/package_esp32_dev_index.json
+```
+Click `OK`.
+
+Then go to the `Tools > Board > Boards Manager...` and install the desired
+boards.
+
+5. Instructions for installing Teensyduino. This is not currently supported
 because of [Issue #4](https://github.com/bxparks/AUniter/issues/4).
 
-7. You might be able to verify a correct install by dumping the prefs:
+6. You might be able to verify a correct install by dumping the prefs:
 ```
 jenkins$ cd
 jenkins$ arduino-1.8.5/arduino --get-pref
@@ -155,7 +160,7 @@ jenkins$ arduino-1.8.5/arduino --get-pref
 An incorrect install of board files will show up as an error near the top of
 this print out.
 
-8. The set up is finished. Log out of the user `jenkins` from the shell.
+7. The set up is finished. Log out of the user `jenkins` from the shell.
 
 ## Configure Jenkins
 
@@ -579,6 +584,11 @@ Then `sudo` as user `jenkins` and start the Arduino IDE:
 ```
 $ sudo -i -u jenkins
 jenkins$ ./arduino-1.8.5/arduino
+```
+
+To remove the `xhost` permission, use:
+```
+$ xhost -si:localuser:jenkins
 ```
 
 ### Update the Libraries
