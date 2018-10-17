@@ -122,14 +122,11 @@ These extra files will be stored under the `arduino-1.8.5/portable/` directory,
 not in the `/var/lib/jenkins/.arduino15/` folder because of the existence
 of the `portable/` directory.
 
-4. (Optional) Install any other boards that you use, such as the
-[ESP8266](https://github.com/esp8266/Arduino/blob/master/doc/installing.rst)
-boards or the
-[ESP32](https://github.com/espressif/arduino-esp32/blob/master/docs/arduino-ide/boards_manager.md)
-boards. The easiest way seems to be through the IDE itself, but it's a bit
-tricky because you need to run the IDE as the user `jenkins`, not as yourself.
-You must first give access for the user `jenkins` to display its window
-on your own X Windows screen using the `xhost` command:
+4. (Optional) Install any other boards that you use. The easiest way seems to be
+through the IDE itself, but it's a bit tricky because you need to run the IDE as
+the user `jenkins`, not as yourself. You must first give access for the user
+`jenkins` to display its window on your own X Windows screen using the `xhost`
+command:
 
 ```
 $ xhost +si:localuser:jenkins
@@ -138,12 +135,19 @@ jenkins$ cd arduino-1.8.5
 jenkins$ ./arduino
 ```
 
-Then add the following URLS (as documented in the above links) to the
-`Additional Boards Manager URLs`:
-```
-http://arduino.esp8266.com/stable/package_esp8266com_index.json
-https://dl.espressif.com/dl/package_esp32_dev_index.json
-```
+Then add the appropriate board manager URLs in the `Additional Boards Manager
+URLs` dialog box. For example:
+
+* [ESP8266 boards](https://github.com/esp8266/Arduino/blob/master/doc/installing.rst)
+    * `http://arduino.esp8266.com/stable/package_esp8266com_index.json`
+* [ESP32 boards](https://github.com/espressif/arduino-esp32/blob/master/docs/arduino-ide/boards_manager.md)
+    * `https://dl.espressif.com/dl/package_esp32_dev_index.json`
+      (dev release)
+    * `https://dl.espressif.com/dl/package_esp32_index.json`
+      (stable release)
+* [SparkFun boards](https://github.com/sparkfun/Arduino_Boards)
+    * `https://raw.githubusercontent.com/sparkfun/Arduino_Boards/master/IDE_Board_Manager/package_sparkfun_index.json`
+
 Click `OK`.
 
 Then go to the `Tools > Board > Boards Manager...` and install the desired
