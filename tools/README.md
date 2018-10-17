@@ -206,7 +206,7 @@ $ auniter ports
 /dev/ttyUSB1 - EzSBC ESP32
 /dev/ttyUSB0 - USB2.0-Serial
 /dev/ttyACM1 - USB Serial
-/dev/ttyACM0 - Arduino Leonardo
+/dev/ttyACM0 - SparkFun Pro Micro
 ```
 
 ### Subcommand: verify
