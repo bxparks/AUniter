@@ -9,8 +9,8 @@ continuous integration system.
 This tool was created to provide command line automation and scripting abilities
 in an Arduino environment, without converting to a vastly different build
 environment such as [PlatformIO](https://platformio.org).
-The underlying tool is a shell wrapper around the command line abilities right
-built into the
+The underlying tool is a shell wrapper around the command line abilities built
+right into the
 [Arduino IDE](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc)
 itself.
 
