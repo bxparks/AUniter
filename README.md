@@ -14,6 +14,14 @@ built into the
 [Arduino IDE](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc)
 itself.
 
+The tool is designed to handle multiple programs (sketches) and multiple
+microcontroller boards easily. Using a single command, it can compile and
+execute a program across multiple target boards. Or it can compile and execute
+multiple programs on a single target board. It can even compile and execute
+multiple programs on multiple boards, all with a single command. This automation
+capability is fully utilized when running unit tests across multiple target
+boards.
+
 There are 3 components to the **AUniter** package:
 
 1. A command line tool (`tools/auniter.sh`) that can compile and upload Arduino
