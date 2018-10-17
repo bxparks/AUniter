@@ -184,7 +184,7 @@ The 7 subcommands (`envs`, `ports`, `verify`, `upload`, `test`, `monitor`,
 
 ### Subcommand: envs
 
-There are 5 environments defined in the `$HOME/.auniter.ini` file.
+There are 6 environments defined in the `$HOME/.auniter.ini` file.
 The `envs` command prints out the environments:
 ```
 $ auniter envs
