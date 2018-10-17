@@ -107,7 +107,7 @@ configurations and aliases which look like this:
   preprocessor = -DAUNITER_MICRO -DAUNITER_BUTTON=3
 ```
 
-Version: 1.7 (2018-09-16)
+Version: 1.7.1 (2018-10-17)
 
 ## Installation
 

@@ -1,5 +1,11 @@
 # Changelog
 
+* 1.7.1 (2018-10-17)
+    * Add SparkFun boards.
+    * Fix incorrect handling of run-arduino.sh errors, now stops after an error.
+    * Update instructions for installing 3rd party boards into the IDE used
+      by Jenkins.
+    * Write better summary section of README.md.
 * 1.7 (2018-09-16)
     * Remove --board, --boards, and --ports flags to simplify the auniter.sh
       script.
