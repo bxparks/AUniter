@@ -6,6 +6,14 @@ microcontroller boards, and validating unit tests written in
 The tools can be integrated with a locally hosted [Jenkins](https://jenkins.io)
 continuous integration system.
 
+This tool was created to provide command line automation and scripting abilities
+in an Arduino environment, without converting to a vastly different build
+environment such as [PlatformIO](https://platformio.org).
+The underlying tool is a shell wrapper around the command line abilities right
+built into the
+[Arduino IDE](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc)
+itself.
+
 There are 3 components to the **AUniter** package:
 
 1. A command line tool (`tools/auniter.sh`) that can compile and upload Arduino
@@ -20,6 +28,9 @@ There are 3 components to the **AUniter** package:
    that allows the locally hosted Jenkins system to update the status of the
    build, so that an indicator badge can be displayed on a source control
    repository like GitHub.
+
+(These components are organized as onion rings. In other words, each component
+in this list requires the previous component to function.)
 
 The `auniter.sh` script uses the command line mode of the
 [Arduino IDE binary](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc).
@@ -64,6 +75,7 @@ configurations and aliases which look like this:
   uno = arduino:avr:uno
   nano = arduino:avr:nano:cpu=atmega328old
   leonardo = arduino:avr:leonardo
+  promicro16 = SparkFun:avr:promicro:cpu=16MHzatmega32U4
   mega = arduino:avr:mega:cpu=atmega2560
   nodemcuv2 = esp8266:esp8266:nodemcuv2:CpuFrequency=80,FlashSize=4M1M,LwIPVariant=v2mss536,Debug=Disabled,DebugLevel=None____,FlashErase=none,UploadSpeed=921600
   esp32 = esp32:esp32:esp32:PartitionScheme=default,FlashMode=qio,FlashFreq=80,FlashSize=4M,UploadSpeed=921600,DebugLevel=none
@@ -100,7 +112,7 @@ Version: 1.7 (2018-09-16)
     * AUniter Integration with Jenkins
     * [Google Functions](https://cloud.google.com/functions/)
 
-Some limited testing on MacOS has been done, but it is currently not supported.
+Some exploration on MacOS has been done, but it is currently not supported.
 
 Windows is definitely not supported because the scripts require the `bash`
 shell. I am not familiar with
@@ -184,13 +196,19 @@ and the process for upgrading been
 [stuck for years](https://github.com/arduino/Arduino/pull/2703).
 
 It is possible to configure Arduino-Makefile to use the latest Arduino IDE
-however.
+(but I have not looked into how easy or hard that would be).
 
 The problem with `Arduino-Makefile` is that it seems to allow only a single
 board type target in the Makefile. Changing the target board would mean editting
 the `Makefile`. Since I wanted to be able to easily compile, upload and validate
 against multiple boards, the `Makefile` solution did not seem to be flexible
 enough.
+
+The second problem with `Arduino-Makefile` is that I prefer to avoid
+`Makefile`s. I have used them in the past and find them difficult to debug and
+maintain. The appeal of the Arduino development is that it is simple to use,
+with few or no extraneous configuration files. I wanted to preserve that feature
+as much as possible.
 
 ### PlatformIO
 
