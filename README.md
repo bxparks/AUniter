@@ -1,26 +1,30 @@
 # AUniter Command Line Tools and Continuous Integration for Arduino
 
-Command line tools to easily build and upload multiple Arduino programs for
-multiple microcontroller boards, validate unit tests written in
+These are command line tools to easily build and upload multiple Arduino
+programs for multiple microcontroller boards, validate unit tests written in
 [AUnit](https://github.com/bxparks/AUnit),
 and integrate with a locally hosted
 [Jenkins](https://jenkins.io) continuous integration (CI) system.
+A single command can compile and upload multiple programs for multiple boards.
+This automation capability is fully utilized when running unit tests across
+multiple target boards. A configuration file in
+[INI file](https://en.wikipedia.org/wiki/INI_file)
+format allows users to define short board aliases for the fully qualified board
+names (`fqbn`) which can be awkwardly long for some boards (e.g. ESP8266 or
+ESP32). Users can define target Environments in the configuration file
+corresponding to specific hardware configurations described by its board alias
+and other parameters such as optional C preprocessor macros.
 
-This package was created to provide command line scripting abilities without
-converting to a vastly different build environment such as
+This package provides command line scripting abilities without converting to a
+vastly different build environment such as
 [PlatformIO](https://platformio.org).
 The underlying tool is a shell wrapper around the command line abilities built
 right into the
 [Arduino IDE](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc)
-itself.
-
-The tools are designed to handle multiple programs (sketches) and multiple
-microcontroller boards easily. Using a single command, it can compile and upload
-one program across multiple target boards. Or it can compile and upload multiple
-programs for a single target board. It can even compile and upload multiple
-programs for multiple boards, all with a single command. This automation
-capability is fully utilized when running unit tests across multiple target
-boards.
+itself. Therefore, the AUniter package is able to support all boards, libraries,
+and build configurations which are supported by the Arduino IDE. There is no
+duplicate installs of boards and libraries because the build and upload steps go
+through the Arduino IDE binary in command line mode.
 
 There are 3 components to the **AUniter** package:
 
@@ -72,7 +76,8 @@ Here are some tasks that you can perform on the command line using the
       user-configurable terminal program (e.g. `picocom`) on `/dev/ttyUSB0`
 
 The `auniter.sh` script uses an
-[INI file](https://en.wikipedia.org/wiki/INI_file) configuration file
+[INI file](https://en.wikipedia.org/wiki/INI_file)
+configuration file
 normally located at `$HOME/.auniter.ini`. It contains various user-defined
 configurations and aliases which look like this:
 ```ini
@@ -95,6 +100,11 @@ configurations and aliases which look like this:
 [env:nano]
   board = nano
   preprocessor = -DAUNITER_NANO -DAUNITER_LEFT_BUTTON=2 -DAUNITER_RIGHT_BUTTON=3
+
+[env:micro]
+  board = promicro16
+  locking = false
+  preprocessor = -DAUNITER_MICRO -DAUNITER_BUTTON=3
 ```
 
 Version: 1.7 (2018-09-16)
