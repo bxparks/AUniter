@@ -48,6 +48,7 @@ components and version numbers have been tested:
 * [Arduino IDE](https://arduino.cc/en/Main/Software):
     * 1.8.5
     * 1.8.6
+    * 1.8.7
 * [pyserial](https://pypi.org/project/pyserial/)
     * 3.4-1
     * installation: `sudo apt install python3 python3-pip python3-serial`
