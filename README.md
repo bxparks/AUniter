@@ -1,14 +1,14 @@
 # AUniter Command Line Tools and Continuous Integration for Arduino
 
-Tools for implementing continuous integration (CI) for Arduino
-microcontroller boards, and validating unit tests written in
+Tools to easily build and upload multiple Arduino programs on multiple
+microcontroller boards using the command line, validate unit tests written in
 [AUnit](https://github.com/bxparks/AUnit).
 The tools can be integrated with a locally hosted [Jenkins](https://jenkins.io)
 continuous integration system.
 
-This tool was created to provide command line automation and scripting abilities
-in an Arduino environment, without converting to a vastly different build
-environment such as [PlatformIO](https://platformio.org).
+This tool was created to provide command line scripting abilities without
+converting to a vastly different build environment such as
+[PlatformIO](https://platformio.org).
 The underlying tool is a shell wrapper around the command line abilities built
 right into the
 [Arduino IDE](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc)
@@ -16,11 +16,11 @@ itself.
 
 The tool is designed to handle multiple programs (sketches) and multiple
 microcontroller boards easily. Using a single command, it can compile and
-execute a program across multiple target boards. Or it can compile and execute
-multiple programs on a single target board. It can even compile and execute
-multiple programs on multiple boards, all with a single command. This automation
-capability is fully utilized when running unit tests across multiple target
-boards.
+execute one program across multiple target boards. Or it can compile and execute
+multiple programs for a single target board. It can even compile and execute
+multiple programs for multiple boards, all with a single command. This
+automation capability is fully utilized when running unit tests across multiple
+target boards.
 
 There are 3 components to the **AUniter** package:
 
