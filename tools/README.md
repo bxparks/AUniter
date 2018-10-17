@@ -89,15 +89,17 @@ export AUNITER_ARDUINO_BINARY="$HOME/dev/arduino-1.8.5/arduino"
 ### Shell Alias
 
 I recommend creating an alias for the `auniter.sh` script in your `.bashrc`
-file:
+file. I use the following 2 aliases:
 ```
 alias auniter='{path-to-auniter-directory}/tools/auniter.sh'
+alias au='{path-to-auniter-directory}/tools/auniter.sh'
 ```
 Don't add `{path-to-auniter-directory}/tools` to your `$PATH`. It won't work
 because `auniter.sh` needs to know its own install directory to find helper
 scripts.
 
-**(The rest of the document will assume that you have created this alias.)**
+**(The rest of the document will assume that you have created the `auniter`
+alias.)**
 
 ### Config File
 
