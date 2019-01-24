@@ -13,7 +13,7 @@ function usage() {
 Usage: run_arduino.sh [--help] [--verbose] [--upload | --test]
                       [--env {env}] [--board {board}] [--port {port}]
                       [--baud {baud}] [--sketchbook {path}]
-                      [--preprocessor {flags}]
+                      [--preprocessor {flags}] [--preserve]
                       [--summary_file file] file.ino
 
 Helper shell wrapper around the 'arduino' commandline binary and the
@@ -33,6 +33,7 @@ Flags:
     --preprocessor {flags}
                     Build flags of the form '-DMACRO -DMACRO=value' as a single
                     argument (must be quoted if multiple macros).
+    --preserve      Preserve /tmp/arduino* temp files for further analysis.
     --summary_file {file}
                     Send error logs to 'file'.
 END
@@ -66,6 +67,7 @@ function verify_or_upload() {
         $board_flag \
         $port_flag \
         $sketchbook_flag \
+        $preserve \
         --pref "'compiler.cpp.extra_flags=-DAUNITER $preprocessor'" \
         $file
     if ! $AUNITER_ARDUINO_BINARY \
@@ -74,6 +76,7 @@ function verify_or_upload() {
             $board_flag \
             $port_flag \
             $sketchbook_flag \
+            $preserve \
             --pref "compiler.cpp.extra_flags=-DAUNITER $preprocessor" \
             $file; then
         echo "FAILED $arduino_cmd_mode: $env $port $file" \
@@ -109,6 +112,7 @@ verbose=
 sketchbook=
 preprocessor=
 summary_file=
+preserve=
 while [[ $# -gt 0 ]]; do
     case $1 in
         --help|-h) usage ;;
@@ -122,6 +126,7 @@ while [[ $# -gt 0 ]]; do
         --baud) shift; baud=$1 ;;
         --sketchbook) shift; sketchbook=$1 ;;
         --preprocessor) shift; preprocessor="$1" ;;
+        --preserve-temp-files) preserve='--preserve-temp-files' ;;
         --summary_file) shift; summary_file=$1 ;;
         -*) echo "Unknown option '$1'"; usage ;;
         *) break ;;
