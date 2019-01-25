@@ -390,10 +390,6 @@ function handle_build() {
     fi
     envs=$1
     shift
-    if [[ $# -lt 1 ]]; then
-        echo "No sketch file given"
-        usage
-    fi
     if [[ "$single" == 1 ]]; then
         if [[ "$envs" =~ , ]]; then
             echo "Multiple environments not allowed in 'upmon' command"
@@ -404,8 +400,20 @@ function handle_build() {
             usage
         fi
     fi
+    local files
+    if [[ $# -lt 1 ]]; then
+        # Check for a sketch file named *.ino in the current directory.
+        local current_dir=$(basename $PWD)
+        files=${current_dir}.ino
+        if [[ ! -e "$files" ]]; then
+            echo "No sketch file given and *.ino not found in current directory"
+            usage
+        fi
+    else
+        files="$@"
+    fi
 
-    process_envs "$@"
+    process_envs $files
     print_summary_file
 }
 
