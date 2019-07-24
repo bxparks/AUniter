@@ -99,12 +99,13 @@ def validate_test(port, baud):
                     continue
                 match = TEST_END_RE.match(line)
                 if match:
-                    logging.error('Found TestRunner result without start')
+                    logging.error("Found 'TestRunner summary' " +
+                        "without 'TestRunner started'")
                     break
             elif test_mode == TEST_MODE_START_FOUND:
                 match = TEST_START_RE.match(line)
                 if match:
-                    logging.error('Unexpected TestRunner start')
+                    logging.error("Unexpected 'TestRunner started'")
                     break
                 match = TEST_END_RE.match(line)
                 if match:
