@@ -119,8 +119,8 @@ Version: 1.7.1 (2018-10-17)
 ## System Requirements
 
 * AUniter Tools require the following:
-    * Linux system (tested on Ubuntu 16.04, 17.10, 18.04)
-    * Arduino IDE (tested on 1.8.5, 1.8.6, 1.8.7)
+    * Linux system (tested on Ubuntu 16.04, 17.10, 18.04, 20.04)
+    * Arduino IDE (tested on 1.8.5, 1.8.6, 1.8.7, 1.8.9, 1.8.13)
 * AUniter Integration with Jenkins requires the following:
     * AUniter Tools
     * [AUnit](https://github.com/bxparks/AUnit) (optional)
