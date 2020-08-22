@@ -1,5 +1,11 @@
 # Changelog
 
+* Unreleased
+* 1.7.2 (2020-08-21)
+    * Look for a `*.ino` file in the current directory if no sketch file is
+      specified for auniter.sh.
+    * Add --preserve flag to auniter.sh to preserve compiler files, to allow
+      dissembly by avr-objdump.
 * 1.7.1 (2018-10-17)
     * Add SparkFun boards.
     * Fix incorrect handling of run-arduino.sh errors, now stops after an error.

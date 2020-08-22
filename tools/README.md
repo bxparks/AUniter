@@ -48,6 +48,7 @@ components and version numbers have been tested:
 * [Arduino IDE](https://arduino.cc/en/Main/Software):
     * 1.8.5
     * 1.8.6
+    * 1.8.7
 * [pyserial](https://pypi.org/project/pyserial/)
     * 3.4-1
     * installation: `sudo apt install python3 python3-pip python3-serial`
@@ -183,7 +184,7 @@ The 7 subcommands (`envs`, `ports`, `verify`, `upload`, `test`, `monitor`,
 
 ### Subcommand: envs
 
-There are 5 environments defined in the `$HOME/.auniter.ini` file.
+There are 6 environments defined in the `$HOME/.auniter.ini` file.
 The `envs` command prints out the environments:
 ```
 $ auniter envs
@@ -392,14 +393,29 @@ convenient to make them the same.
   into the source code repository. (In GitHub, once a secret has been checked
   in, it is there forever).
 
-### Automatic Directory Expansion
+### Automatic Directory Expansion and File Detection
 
 If the `auniter.sh` is given a directory `dir`, it tries to find
 an ino file located at `dir/dir.ino`, since the ino file must have the
-same base name as the parent directory.
+same base name as the parent directory. For example:
+```
+$ auniter verify nano Blink/
+```
+is the same as
+```
+$ auniter verify nano Blink/Blink.ino
+```
 
-Multiple files and directories can be given. The Arduino Commandline will
+Multiple files and directories can be given. The Arduino compiler will
 be executed on each of the ino files in sequence.
+
+If the directory or file is not given at all, then the tool looks for the
+sketch file ending in `.ino` in the current directory. For example,
+```
+$ cd Blink
+$ auniter verify nano
+```
+will look for the `Blink.ino` file in the current directory.
 
 ### Compiling to Multiple Environments
 

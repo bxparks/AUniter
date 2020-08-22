@@ -62,6 +62,8 @@ AUniter Flags
     --help          Print this help page.
     --config {file} Read configs from 'file' instead of $HOME/.auniter.conf'.
     --verbose       Verbose output from various subcommands.
+    --preserve-temp-files
+                    Preserve /tmp/arduino* files for further analysis.
 
 Command Flags:
     --baud baud
@@ -278,6 +280,7 @@ function process_file() {
             --preprocessor "$preprocessor" \
             $sketchbook_flag \
             $verbose \
+            $preserve \
             --summary_file $summary_file \
             $file
     else
@@ -309,6 +312,7 @@ function process_file() {
             $sketchbook_flag \
             --preprocessor "$preprocessor" \
             $verbose \
+            $preserve \
             --summary_file $summary_file \
             "$file" || status=$?
 
@@ -386,10 +390,6 @@ function handle_build() {
     fi
     envs=$1
     shift
-    if [[ $# -lt 1 ]]; then
-        echo "No sketch file given"
-        usage
-    fi
     if [[ "$single" == 1 ]]; then
         if [[ "$envs" =~ , ]]; then
             echo "Multiple environments not allowed in 'upmon' command"
@@ -400,8 +400,20 @@ function handle_build() {
             usage
         fi
     fi
+    local files
+    if [[ $# -lt 1 ]]; then
+        # Check for a sketch file named *.ino in the current directory.
+        local current_dir=$(basename $PWD)
+        files=${current_dir}.ino
+        if [[ ! -e "$files" ]]; then
+            echo "No sketch file given and *.ino not found in current directory"
+            usage
+        fi
+    else
+        files="$@"
+    fi
 
-    process_envs "$@"
+    process_envs $files
     print_summary_file
 }
 
@@ -491,11 +503,13 @@ function main() {
     mode=
     verbose=
     config=
+    preserve=
     while [[ $# -gt 0 ]]; do
         case $1 in
             --help|-h) usage_long ;;
             --config) shift; config=$1 ;;
             --verbose) verbose='--verbose' ;;
+            --preserve) preserve='--preserve-temp-files' ;;
             -*) echo "Unknown auniter option '$1'"; usage ;;
             *) break ;;
         esac
