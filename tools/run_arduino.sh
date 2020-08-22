@@ -25,7 +25,7 @@ Flags:
     --upload        Compile and upload the given program.
     --test          Verify the AUnit test after uploading the program.
     --env {env}     Name of the current build environment, for error messages.
-    --board {fqbn} Fully qualified board specifier.
+    --board {fqbn}  Fully qualified board name (fqbn).
     --port {port}   Serial port device (e.g. /dev/ttyUSB0).
     --baud {baud}   Speed of the serial port.
     --sketchbook {path}

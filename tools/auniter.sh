@@ -29,6 +29,7 @@ FLOCK_TIMEOUT_CODE=10
 function usage_common() {
     cat <<'END'
 Usage: auniter.sh [-h] [flags] command [flags] [args ...]
+       auniter.sh config
        auniter.sh envs
        auniter.sh ports
        auniter.sh verify {env} files ...
@@ -50,6 +51,7 @@ function usage_long() {
     cat <<'END'
 
 Commands:
+    config  Print location of the auto-detected config file.
     envs    List the environments defined in the CONFIG_FILE.
     ports   List the tty ports and the associated Arduino boards.
     verify  Verify the compile of the sketch file(s).
@@ -554,6 +556,12 @@ function read_default_configs() {
     port_timeout=${port_timeout_value:-$PORT_TIMEOUT}
 }
 
+# Print the current config file
+function print_config() {
+    local config_file="$1"
+    echo "$config_file"
+}
+
 # Parse auniter command line flags
 function main() {
     mode=
@@ -594,6 +602,7 @@ function main() {
     check_environment_variables
     create_temp_files
     case $mode in
+        config) print_config $config_file;;
         envs) list_envs $config_file;;
         ports) list_ports ;;
         verify) handle_build "$@" ;;
