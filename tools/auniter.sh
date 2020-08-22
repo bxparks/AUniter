@@ -110,6 +110,62 @@ function get_ino_file() {
     echo "${dir}/${file}.ino"
 }
 
+function find_config_recursively() {
+    local cur_dir=$(realpath $PWD)
+
+}
+
+# Find the auniter.ini file.
+# 1) Return the value of --config flag given as an argument, else
+# 2) Look for 'auniter.ini' in the current directoyr, else
+# 3) Look for 'auniter.ini' in parent directories, else
+# 4) Look for 'auniter.ini' in the $HOME directory, else
+# 5) Look for '.auniter.ini' in the $HOME directory.
+function find_config_file() {
+    # Check if the --config flag was given
+    local config=$1
+    if [[ "$config" != '' ]]; then
+        echo "$config"
+        return
+    fi
+
+    # Look for 'auniter.ini' in the current directory or any parent directory
+    local save_dir=$PWD
+    local found=0
+    while true; do
+        if [[ -e auniter.ini ]]; then
+            echo "$PWD/auniter.ini"
+            found=1
+            break
+        fi
+
+        if [[ "$PWD" == '/' ]]; then
+            break
+        fi
+
+        cd ..
+    done
+    cd $save_dir
+    if [[ $found == '1' ]]; then
+        return
+    fi
+
+    # Check for $HOME/auniter.ini
+    if [[ -e "$HOME/auniter.ini" ]]; then
+        echo "$HOME/auniter.ini"
+        return
+    fi
+
+    # Finally check for $HOME/.auniter.ini, mostly for backwards compatibility.
+    if [[ -e "$HOME/.auniter.ini" ]]; then
+        echo "$HOME/.auniter.ini"
+        return
+    fi
+
+    echo ''
+}
+
+
 # Find the given $key in a $section from the $config file.
 # Usage: get_config config section key
 #
@@ -502,8 +558,8 @@ function read_default_configs() {
 function main() {
     mode=
     verbose=
-    config=
     preserve=
+    local config=
     while [[ $# -gt 0 ]]; do
         case $1 in
             --help|-h) usage_long ;;
@@ -523,7 +579,12 @@ function main() {
     shift
 
     # Determine the location of the config file.
-    config_file=${config:-$CONFIG_FILE}
+    config_file=$(find_config_file "$config")
+    if [[ "$config_file" == '' ]]; then
+        echo 'Cannot find auniter.ini in any directory'
+        usage
+        exit 1
+    fi
 
     # Must install a trap for Control-C because the script ignores almost all
     # interrupts and continues processing.

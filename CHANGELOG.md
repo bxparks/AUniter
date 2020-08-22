@@ -1,6 +1,9 @@
 # Changelog
 
 * Unreleased
+    * Auto-detect the location of 'auniter.ini' in the following order:
+      `--config` flag, the current directory, any parent directory,
+      `$HOME/auniter.ini`, and finally `$HOME/.auniter.ini`.
 * 1.7.2 (2020-08-21)
     * Look for a `*.ino` file in the current directory if no sketch file is
       specified for auniter.sh.
