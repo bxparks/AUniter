@@ -342,7 +342,7 @@ function process_file() {
             $preserve \
             --summary_file $summary_file \
             $file
-    else
+    else # $mode == 'test' | 'upload'
         # flock(1) returns status 1 if the lock file doesn't exist, which
         # prevents distinguishing that from failure of run_arduino.sh.
         if [[ ! -e $port ]]; then

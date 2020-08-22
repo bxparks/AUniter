@@ -10,7 +10,7 @@ DIRNAME=$(dirname $0)
 
 function usage() {
     cat <<'END'
-Usage: run_arduino.sh [--help] [--verbose] [--upload | --test]
+Usage: run_arduino.sh [--help] [--verbose] [--verify | --upload | --test]
                       [--env {env}] [--board {board}] [--port {port}]
                       [--baud {baud}] [--sketchbook {path}]
                       [--preprocessor {flags}] [--preserve]
@@ -40,8 +40,10 @@ END
     exit 1
 }
 
+# The Arduino IDE 'upload' command does both a 'compile' and 'upload'.
 function verify_or_upload_using_ide() {
-    local file=$1
+    local mode=$1
+    local file=$2
 
     local board_flag="--board $board"
     local port_flag=${port:+"--port $port"}
@@ -91,8 +93,11 @@ function verify_or_upload_using_ide() {
     fi
 }
 
+# The Arduino-CLI 'upload' command only does the 'upload', not the 'compile'.
+# Usage: verify_or_upload_using_cli (upload|test|verify) file
 function verify_or_upload_using_cli() {
-    local file=$1
+    local mode=$1
+    local file=$2
 
     local board_flag="--fqbn $board"
     local port_flag=${port:+"--port $port"}
@@ -105,14 +110,22 @@ function verify_or_upload_using_cli() {
 'compiler.cpp.extra_flags=-DAUNITER $preprocessor'"
     fi
 
+    # Arduino-CLI (as of v0.12.0-rc3) 'upload' command does not accept a
+    # relative path to the program (??), so append $PWD if necessary.
+    if [[ ! $file =~ ^/ ]]; then
+        local full_path="$file"
+    else
+        local full_path="$PWD/$file"
+    fi
+
     local cmd="$AUNITER_ARDUINO_BINARY \
-        $verbose \
-        $arduino_cmd_mode \
-        $board_flag \
-        $port_flag \
-        $build_properties_flag \
-        $file"
-    echo '$ ' "$cmd"
+$verbose \
+$arduino_cmd_mode \
+$board_flag \
+$port_flag \
+$build_properties_flag \
+$full_path"
+    echo "\$ $cmd"
     if ! eval $cmd; then
         echo "FAILED $arduino_cmd_mode: $env $port $file" \
             | tee -a $summary_file
@@ -169,9 +182,14 @@ fi
 
 # Determine whether to use the Arduino IDE or the Arduino-CLI.
 if [[ "$AUNITER_ARDUINO_BINARY" =~ arduino-cli ]]; then
-    verify_or_upload_using_cli $1
+    # Arduino-CLI 'upload' must do a manual 'compile', unlike the Arduino IDE
+    # which does it automatically.
+    verify_or_upload_using_cli verify $1
+    if [[ $mode == 'upload' || $mode == 'test' ]]; then
+        verify_or_upload_using_cli upload $1
+    fi
 elif [[ "$AUNITER_ARDUINO_BINARY" =~ arduino ]]; then
-    verify_or_upload_using_ide $1
+    verify_or_upload_using_ide $mode $1
 else
     echo "Unsupported \$AUNITER_ARDUINO_BINARY: $AUNITER_ARDUINO_BINARY"
     usage
