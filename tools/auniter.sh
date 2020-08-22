@@ -32,7 +32,7 @@ Usage: auniter.sh [-h] [flags] command [flags] [args ...]
        auniter.sh config
        auniter.sh envs
        auniter.sh ports
-       auniter.sh verify {env} files ...
+       auniter.sh verify|compile {env} files ...
        auniter.sh upload {env}:{port},... files ...
        auniter.sh test {env}:{port},... files ...
        auniter.sh monitor [{env}:]{port}
@@ -55,6 +55,7 @@ Commands:
     envs    List the environments defined in the CONFIG_FILE.
     ports   List the tty ports and the associated Arduino boards.
     verify  Verify the compile of the sketch file(s).
+    compile Alias for 'verify'.
     upload  Upload the sketch(es) to the given board at port.
     test    Upload the AUnit unit test(s), and verify pass or fail.
     monitor Run the serial terminal defined in aniter.conf on the given port.
@@ -329,7 +330,7 @@ function process_file() {
     local file=$1
     echo "-------- Processing file '$file'"
 
-    if [[ "$mode" == 'verify' ]]; then
+    if [[ "$mode" == 'verify' || "$mode" == 'compile' ]]; then
         # Allow multiple verify commands to run at the same time.
         $DIRNAME/run_arduino.sh \
             --verify \
@@ -605,7 +606,7 @@ function main() {
         config) print_config $config_file;;
         envs) list_envs $config_file;;
         ports) list_ports ;;
-        verify) handle_build "$@" ;;
+        verify|compile) handle_build "$@" ;;
         upload) handle_build "$@" ;;
         test) handle_build "$@" ;;
         monitor) handle_monitor "$@" ;;

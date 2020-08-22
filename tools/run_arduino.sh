@@ -40,7 +40,7 @@ END
     exit 1
 }
 
-function verify_or_upload() {
+function verify_or_upload_using_ide() {
     local file=$1
 
     local board_flag="--board $board"
@@ -91,6 +91,35 @@ function verify_or_upload() {
     fi
 }
 
+function verify_or_upload_using_cli() {
+    local file=$1
+
+    local board_flag="--fqbn $board"
+    local port_flag=${port:+"--port $port"}
+    if [[ "$mode" == 'upload' || "$mode" == 'test' ]]; then
+        local arduino_cmd_mode='upload'
+        local build_properties_flag=''
+    else
+        local arduino_cmd_mode='compile'
+        local build_properties_flag="--build-properties \
+'compiler.cpp.extra_flags=-DAUNITER $preprocessor'"
+    fi
+
+    local cmd="$AUNITER_ARDUINO_BINARY \
+        $verbose \
+        $arduino_cmd_mode \
+        $board_flag \
+        $port_flag \
+        $build_properties_flag \
+        $file"
+    echo '$ ' "$cmd"
+    if ! eval $cmd; then
+        echo "FAILED $arduino_cmd_mode: $env $port $file" \
+            | tee -a $summary_file
+        return 1
+    fi
+}
+
 # Run the serial monitor in AUnit test validation mode.
 function validate_test() {
     local file=$1
@@ -138,7 +167,16 @@ if [[ $# -eq 0 ]]; then
     exit 1
 fi
 
-verify_or_upload $1
+# Determine whether to use the Arduino IDE or the Arduino-CLI.
+if [[ "$AUNITER_ARDUINO_BINARY" =~ arduino-cli ]]; then
+    verify_or_upload_using_cli $1
+elif [[ "$AUNITER_ARDUINO_BINARY" =~ arduino ]]; then
+    verify_or_upload_using_ide $1
+else
+    echo "Unsupported \$AUNITER_ARDUINO_BINARY: $AUNITER_ARDUINO_BINARY"
+    usage
+fi
+
 if [[ "$mode" == 'test' ]]; then
     validate_test $1
 fi
