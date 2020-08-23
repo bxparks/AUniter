@@ -188,7 +188,7 @@ if [[ "$AUNITER_ARDUINO_BINARY" =~ arduino-cli ]]; then
     if [[ $mode == 'upload' || $mode == 'test' ]]; then
         verify_or_upload_using_cli upload $1
     fi
-elif [[ "$AUNITER_ARDUINO_BINARY" =~ arduino ]]; then
+elif [[ "$AUNITER_ARDUINO_BINARY" =~ [aA]rduino ]]; then
     verify_or_upload_using_ide $mode $1
 else
     echo "Unsupported \$AUNITER_ARDUINO_BINARY: $AUNITER_ARDUINO_BINARY"

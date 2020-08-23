@@ -4,11 +4,29 @@
 # MIT License
 #
 # Dependencies:
-#   * run_arduino.sh
-#   * serial_monitor.py
-#   * picocom (optional)
+#   * ./run_arduino.sh
+#   * ./serial_monitor.py
+#   * picocom
+#       * apt install picocom (Linux)
+#       * brew install picocom (MacOS)
 
 set -eu
+
+# Find the GNU version of various binaries on MacOS.
+case $(uname -s) in
+    Darwin*)
+        SED=gsed
+        REALPATH=grealpath
+        ;;
+    Linux*)
+        SED=sed
+        REALPATH=realpath
+        ;;
+    *)
+        echo 'Unsupported Unix-like OS'
+        ;;
+esac
+
 
 # Can't use $(realpath $(dirname $0)) because realpath doesn't exist on MacOS
 DIRNAME=$(dirname $0)
@@ -108,22 +126,17 @@ function get_ino_file() {
     fi
 
     # Strip off any trailing '/'
-    local dir=$(echo $file | sed -e 's/\/*$//')
+    local dir=$(echo $file | $SED -e 's/\/*$//')
     local file=$(basename $dir)
     echo "${dir}/${file}.ino"
 }
 
-function find_config_recursively() {
-    local cur_dir=$(realpath $PWD)
-
-}
-
-# Find the auniter.ini file.
+# Find the auniter.ini file, in the following order:
 # 1) Return the value of --config flag given as an argument, else
 # 2) Look for 'auniter.ini' in the current directoyr, else
 # 3) Look for 'auniter.ini' in parent directories, else
-# 4) Look for 'auniter.ini' in the $HOME directory, else
-# 5) Look for '.auniter.ini' in the $HOME directory.
+# 4) Look for '$HOME/auniter.ini', else
+# 5) Look for '$HOME/.auniter.ini'.
 function find_config_file() {
     # Check if the --config flag was given
     local config=$1
@@ -195,7 +208,7 @@ function get_config() {
     # 2) Support multiple sections of the same name. Entries of duplicate
     # sections are merged together.
     # 3) Works on MacOS sed as well as GNU sed.
-    sed -n -E -e \
+    $SED -n -E -e \
         ":label_s;
         /^\[$section\]/ {
             n;
@@ -218,7 +231,7 @@ function list_envs() {
     if [[ ! -f "$config_file" ]]; then
         return
     fi
-    sed -n -e 's/^\[env:\(.*\)\]/\1/p' "$config_file"
+    $SED -n -e 's/^\[env:\(.*\)\]/\1/p' "$config_file"
 }
 
 # Parse the {env}:{port} specifier, setting the following global variables:
@@ -234,9 +247,9 @@ function process_env_and_port() {
 
     # Split {env}:{port} into two fields.
     env=$(echo $env_and_port \
-            | sed -E -e 's/([^:]*):?([^:]*)/\1/')
+            | $SED -E -e 's/([^:]*):?([^:]*)/\1/')
     port=$(echo $env_and_port \
-            | sed -E -e 's/([^:]*):?([^:]*)/\2/')
+            | $SED -E -e 's/([^:]*):?([^:]*)/\2/')
 
     env_search=$(list_envs $config_file | grep $env || true)
     if [[ "$env_search" == '' ]]; then
@@ -248,8 +261,13 @@ function process_env_and_port() {
 
     port=$(resolve_port "$port")
 
-    locking=$(get_config "$config_file" "env:$env" locking)
-    locking=${locking:-true} # set to 'true' if empty
+    # No flock(1) on MacOS.
+    if [[ $(uname -s) =~ Darwin.* ]]; then
+        locking=false
+    else
+        locking=$(get_config "$config_file" "env:$env" locking)
+        locking=${locking:-true} # set to 'true' if empty
+    fi
 
     exclude=$(get_config "$config_file" "env:$env" exclude)
     exclude=${exclude:-'^$'} # if empty, exclude nothing, not everything
@@ -274,7 +292,7 @@ function resolve_port() {
 # Requires $envs to define the target environments as a comma-separated list
 # of {env}:{port}.
 function process_envs() {
-    local env_and_ports=$(echo "$envs" | sed -e 's/,/ /g')
+    local env_and_ports=$(echo "$envs" | $SED -e 's/,/ /g')
     for env_and_port in $env_and_ports; do
         process_env_and_port $env_and_port
 
@@ -315,7 +333,7 @@ function process_files() {
             continue
         fi
 
-        if realpath $ino_file | egrep --silent "$exclude"; then
+        if $REALPATH $ino_file | egrep --silent "$exclude"; then
             echo "SKIPPED $mode: $env: excluding $file" \
                 | tee -a $summary_file
             continue

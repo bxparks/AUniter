@@ -1,14 +1,13 @@
 # AUniter Command Line Tools
 
-These are the command line tools for compiling Arduino sketches, uploading them
-to microcontroller boards, and validating unit tests written in
-[AUnit](https://github.com/bxparks/AUnit).
+The `auniter.sh` shell is a wrapper around the Arduino IDE using the [Arduino
+Commandline
+Interface](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc).
+It has been extensively tested on Ubuntu Linux. It works on my MacOS laptop but
+testing is not as extensive.
 
-## Summary
-
-The `auniter.sh` shell is a wrapper around the
-[Arduino Commandline Interface](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc)
-that supports the following functionality:
+The `auniter.sh` script takes advantage of the command line interface to provide
+some useful extended functionality:
 
 1) Verifying (compile) multiple `*.ino` files across multiple boards.
 2) Uploading multiple `*.ino` files across multiple boards.
@@ -23,11 +22,11 @@ started when changes to the git repository are detected, and unit tests can be
 executed on Arduino boards attached to the serial port of the local machine. The
 Jenkins dashboard can display the status of builds and tests.
 
-The `auniter.sh` script uses the `$HOME/.auniter.ini` config file to
-define named *environments* that correspond to specific hardware devices.
-The environment `NAME` is used to control the target build flags and options.
-The config file also allow mapping of a short alias (e.g. `uno`) to the fully
-qualified board name (`fqbn`) used by the arduino binary (e.g.
+The `auniter.sh` script uses the a config file (often located at
+`$HOME/.auniter.ini`) to define named *environments* that correspond to specific
+hardware devices. The environment name takes the form `env:{name}` (e.g.
+`env:nano`). The config file also allow mapping of a short alias (e.g. `uno`) to
+the fully qualified board name (`fqbn`) used by the arduino binary (e.g.
 `arduino:avr:uno`).
 
 The script can monitor the output of the serial port, and parse the output of an
@@ -35,39 +34,58 @@ AUnit unit test to determine if the test passed or failed.
 
 ## Installation
 
-### Requirements
+### Ubuntu Linux (18.04, 20.04)
 
-These scripts are meant to be used from a Linux environment. The following
-components and version numbers have been tested:
-
-* Ubuntu Linux
-    * Ubuntu 16.04
-    * Ubuntu 17.10
-    * Ubuntu 18.04
-    * Xubuntu 18.04
-* [Arduino IDE](https://arduino.cc/en/Main/Software):
-    * 1.8.5
-    * 1.8.6
-    * 1.8.7
-* [pyserial](https://pypi.org/project/pyserial/)
-    * 3.4-1
-    * installation: `sudo apt install python3 python3-pip python3-serial`
-* terminal program (for `auniter monitor` functionality)
+1. Install the [Arduino IDE](https://www.arduino.cc/en/Main/Software). The
+following versions have been tested: 1.8.5, 1.8.6, 1.8.7, 1.8.13.
+1. Install Python3 if you don't already have it.
+    * `$ apt install python3 python3-pip`
+1. Install various Python packages
+    * [pyserial](https://pypi.org/project/pyserial/)
+        * `$ pip3 install --user serial`
+1 Install a terminal program (for the `auniter monitor` functionality). I use
+`picocom` but `microcom` seems to work pretty well:
     * [picocom](https://linux.die.net/man/8/picocom)
-        * tested with v2.2
-        * installation: `sudo apt install picocom`
+        * tested with v2.2, v3.1
+        * `$ sudo apt install picocom`
     * [microcom](http://manpages.ubuntu.com/manpages/bionic/man1/microcom.1.html).
         * tested with v2016.01.0
-        * installation: `sudo apt install microcom`
+        * `$ sudo apt install microcom`
 
-Some limited testing on MacOS has been done, but it is currently not supported.
+### MacOS (10.14.6 Mojave)
+
+Most of the functionality seems to work under MacOS (10.14 Mojave), but I have
+not tested things as much as Linux. I do not own a Mac that runs 10.15
+(Catalina), so I cannot test anything there.
+
+1. Install the [Arduino IDE](https://www.arduino.cc/en/Main/Software). The
+   following versions have been tested: 1.8.13.
+1. Install [Home Brew](https://brew.sh/)
+1. Install various GNU shell utils:
+    * `$ brew install coreutils`
+    * `$ brew install gsed`
+1. Install Python3. I have tested with Python3.8 but Python3.7 should also work.
+    * `$ brew install python3.8`
+    * I think the `pip3` is automatically installed by`python3.8`.
+1. Install various Python packages.
+    * [pyserial](https://pypi.org/project/pyserial/)
+        * `$ pip3 install --user serial`
+1 Install a terminal program (for the `auniter monitor` functionality)
+    * [picocom](https://linux.die.net/man/8/picocom)
+        * tested with v3.1
+        * `$ brew install picocom`
+
+### Windows
 
 Windows is definitely not supported because the scripts require the `bash`
-shell. I am not familiar with
+shell. It *might* be possible to use this under
 [Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10)
-so I do not know if it would work on that.
+but I do not know.
 
-### Obtain the Code
+### Obtain the AUniter Code
+
+This is not an Arduino library. You will not find it in the Arduino Library
+manager. You need to grab the code direclty from GitHub.
 
 The latest development version can be installed by cloning the
 [GitHub repository](https://github.com/bxparks/AUniter), and checking out the
@@ -76,16 +94,27 @@ The latest development version can be installed by cloning the
 
 ### Environment Variable
 
-There is one environment variable that **must** be defined in your `.bashrc`
-file:
+The `AUNITER_ARDUINO_BINARY` environment variable **must** be defined in your
+`.bashrc` file. Locate the directory where the Arduino IDE has been installed.
+I normally install multiple versions of the Arduino IDE, so I will rename them
+to include the version number. For example, the latest Arduion IDE 1.8.13 is
+installed in the following directories:
 
-* `export AUNITER_ARDUINO_BINARY={path}` - location of the Arduino command line
-  binary
+* Ubuntu Linux
+    * `$HOME/dev/arduino-1.8.13/`
+* MacOS
+    * `$HOME/dev/Arduino-1.8.13.app/`
 
-I have something like this in my `$HOME/.bashrc` file:
-```
-export AUNITER_ARDUINO_BINARY="$HOME/dev/arduino-1.8.5/arduino"
-```
+Then the `AUNITER_ARDUINO_BINARY` is the location of the actual Arduino IDE
+program, which are the following for me:
+
+* Ubuntu Linux
+    * `export AUNITER_ARDUINO_BINARY="$HOME/dev/arduino-1.8.13/arduino"`
+* MacOS
+    * `export AUNITER_ARDUINO_BINARY="$HOME/dev/Arduino-1.8.13.app/Contents/MacOS/Arduino`
+
+Save your `.bashrc` file, logout, and log back in (or manually set the
+environment variable in each of your terminal windows).
 
 ### Shell Alias
 
@@ -110,13 +139,16 @@ your home directory. The format of the file is the
 and the meaning of these properties will be explained below. This INI file has
 evolved to be similar to the one used by [PlatformIO](https://platformio.org/)
 with some major differences:
-1. `auniter.ini` is far simpler and easier to use (but less flexible)
-1. there is only one `auniter.ini` per user (shared among many projects and
-  libraries), instead of one INI file per project as used by PlatformIO
+
+1. The `auniter.ini` format is simpler and easier to use (but less flexible)
+1. There is only one `auniter.ini` per user (shared among many projects and
+  libraries), instead of one INI file per project as used by PlatformIO (The
+  most recent version of auniter.sh allows per-project `auniter.ini` file.)
 
 For the purposes of this tutorial, copy the `sample.auniter.ini` file to
 `$HOME/.auniter.ini`. For reference, here's the condensed version of the sample
 with comments stripped out:
+
 ```ini
 [auniter]
   monitor = picocom -b $baud --omap crlf --imap lfcrlf --echo $port
@@ -198,7 +230,10 @@ esp32
 
 ### Subcommand: ports
 
-The `ports` command simply lists the available serial ports:
+The `ports` command simply lists the available serial ports.
+
+On Ubuntu, it looks something like this:
+
 ```
 $ auniter ports
 /dev/ttyS4 - n/a
@@ -208,6 +243,14 @@ $ auniter ports
 /dev/ttyUSB0 - USB2.0-Serial
 /dev/ttyACM1 - USB Serial
 /dev/ttyACM0 - SparkFun Pro Micro
+```
+
+On MacOS, it looks like this:
+```
+$ auniter ports
+/dev/cu.Bluetooth-Incoming-Port - n/a
+/dev/cu.wchusbserial1410 - USB2.0-Serial
+/dev/cu.usbserial-1410 - USB2.0-Serial
 ```
 
 ### Subcommand: verify
@@ -250,12 +293,16 @@ $ auniter upload uno:USB0 Blink.ino
 $ auniter upload micro:/dev/ttyACM0 Blink.ino Clock.ino
 ```
 
-### Port Specifier {port}
+### Port Specifier {port} Shorthand
 
 The serial port on a Linux machine is a file that has the form `/dev/ttyXXXn`,
 for example `/dev/ttyUSB0`. For convenience, the repetitive `/dev/tty` part can
 be omitted from the `{port}` specifier. In other words, you can type
 `uno:USB0`, instead of `uno:/dev/ttyUSB0`.
+
+On the MacOS, the serial port seems to look like `/dev/cu.wchusbserial1410`. A
+shorthand is *not* supported on the Mac so the full device path must be
+provided.
 
 ### Subcommand: test
 
@@ -353,7 +400,7 @@ There are 4 parameters currently supported in an environment section:
 [env:NAME]
   board = {alias}
   locking = (true | false)
-  exclude = egrep regular expression
+  exclude = egrep regular expression separaed by '|' symbol
   preprocessor = space-separated list of preprocessor symbols
 ```
 
@@ -466,6 +513,9 @@ environment, set the `locking` parameter to `false`, like this:
   board = promicro16
   locking = false
 ```
+
+Unfortunately, the MacOS does not support the `flock` command, so locking is
+disabled on the Mac.
 
 ### Excluding Files (exclude)
 
@@ -655,4 +705,5 @@ In all the other `*.cpp` and `*.h` files, you would just do:
 ## Limitations
 
 [Teensyduino](https://pjrc.com/teensy/teensyduino.html) is not
-currently supported because of Issue #4.
+currently supported because of
+[Issue #4](https://github.com/bxparks/AUniter/issues/4).
