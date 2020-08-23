@@ -4,11 +4,19 @@
 # MIT License
 #
 # Dependencies:
+#
 #   * ./run_arduino.sh
 #   * ./serial_monitor.py
+#   * Python3 (3.7 or 3.8 should work)
+#       * $ sudo apt install python3 python3-pip (Linux)
+#       * $ brew install python3
+#   * Python serial
+#       * $ pip3 install --user serial
 #   * picocom
-#       * apt install picocom (Linux)
-#       * brew install picocom (MacOS)
+#       * $ sudo apt install picocom (Linux)
+#       * $ brew install picocom (MacOS)
+#   * MacOS only
+#       * $ brew install coreutils gsed
 
 set -eu
 
@@ -46,11 +54,12 @@ FLOCK_TIMEOUT_CODE=10
 
 function usage_common() {
     cat <<'END'
-Usage: auniter.sh [-h] [flags] command [flags] [args ...]
+Usage: auniter.sh [-h] [auniter_flags] command [command_flags] [args ...]
        auniter.sh config
        auniter.sh envs
        auniter.sh ports
-       auniter.sh verify|compile {env} files ...
+       auniter.sh verify {env} files ...
+       auniter.sh compile {env} files ...
        auniter.sh upload {env}:{port},... files ...
        auniter.sh test {env}:{port},... files ...
        auniter.sh monitor [{env}:]{port}
@@ -68,7 +77,18 @@ function usage_long() {
 
     cat <<'END'
 
-Commands:
+AUniter Flags (auniter_flags):
+    --help          Print this help page.
+    --config {file} Read configs from 'file' instead of $HOME/.auniter.conf'.
+    --ide|-i        Use the Arduino IDE binary (arduino or Arduino) defined
+                    by $AUNITER_ARDUINO_BINARY.
+    --cli|-c        Use the Arduino-CLI binary (arduino-cli) defined by
+                    $AUNITER_ARDUINO_CLI.
+    --verbose       Verbose output from various subcommands.
+    --preserve-temp-files
+                    Preserve /tmp/arduino* files for further analysis.
+
+Commands (command):
     config  Print location of the auto-detected config file.
     envs    List the environments defined in the CONFIG_FILE.
     ports   List the tty ports and the associated Arduino boards.
@@ -79,14 +99,7 @@ Commands:
     monitor Run the serial terminal defined in aniter.conf on the given port.
     upmon   Upload the sketch and run the monitor upon success.
 
-AUniter Flags
-    --help          Print this help page.
-    --config {file} Read configs from 'file' instead of $HOME/.auniter.conf'.
-    --verbose       Verbose output from various subcommands.
-    --preserve-temp-files
-                    Preserve /tmp/arduino* files for further analysis.
-
-Command Flags:
+Command Flags (command_flags):
     --baud baud
         (monitor, upmon) Speed of the serial port for serial_montor.py.
         (Default: 115200. The default value can be changed in CONFIG_FILE.)
@@ -351,6 +364,7 @@ function process_file() {
     if [[ "$mode" == 'verify' || "$mode" == 'compile' ]]; then
         # Allow multiple verify commands to run at the same time.
         $DIRNAME/run_arduino.sh \
+            --$cli_option \
             --verify \
             --env $env \
             --board $board \
@@ -381,6 +395,7 @@ function process_file() {
             local flock=''
         fi
         local status=0; $flock $DIRNAME/run_arduino.sh \
+            --$cli_option \
             --$mode \
             --env $env \
             --board $board \
@@ -428,14 +443,35 @@ function print_summary_file() {
 }
 
 function check_environment_variables() {
+    local cli_option=$1
+
     # Check for AUNITER_ARDUINO_BINARY
-    if [[ -z ${AUNITER_ARDUINO_BINARY+x} ]]; then
-        echo "AUNITER_ARDUINO_BINARY environment variable is not defined"
-        exit 1
+    if [[ "$cli_option" == 'ide' ]]; then
+        if [[ -z ${AUNITER_ARDUINO_BINARY+x} ]]; then
+            echo "AUNITER_ARDUINO_BINARY environment variable is not defined"
+            exit 1
+        fi
+        if [[ ! -x $AUNITER_ARDUINO_BINARY ]]; then
+            echo "AUNITER_ARDUINO_BINARY=$AUNITER_ARDUINO_BINARY \
+is not executable"
+            exit 1
+        fi
+
+        echo "Using IDE: AUNITER_ARDUINO_BINARY=$AUNITER_ARDUINO_BINARY"
     fi
-    if [[ ! -x $AUNITER_ARDUINO_BINARY ]]; then
-        echo "AUNITER_ARDUINO_BINARY=$AUNITER_ARDUINO_BINARY is not executable"
-        exit 1
+
+    # Check for AUNITER_ARDUINO_CLI
+    if [[ "$cli_option" == 'cli' ]]; then
+        if [[ -z ${AUNITER_ARDUINO_CLI+x} ]]; then
+            echo "AUNITER_ARDUINO_CLI environment variable is not defined"
+            exit 1
+        fi
+        if [[ ! -x $AUNITER_ARDUINO_CLI ]]; then
+            echo "AUNITER_ARDUINO_CLI=$AUNITER_ARDUINO_BINARY is not executable"
+            exit 1
+        fi
+
+        echo "Using CLI: AUNITER_ARDUINO_CLI=$AUNITER_ARDUINO_CLI"
     fi
 }
 
@@ -565,6 +601,8 @@ function handle_upmon() {
 
 # Read in the default flags in the [auniter] section of the config file.
 function read_default_configs() {
+    echo "Reading config: $config_file"
+
     monitor=$(get_config "$config_file" 'auniter' 'monitor')
 
     local baud_value=$(get_config "$config_file" 'auniter' 'baud')
@@ -586,11 +624,20 @@ function main() {
     mode=
     verbose=
     preserve=
+    local cli_option='ide'
     local config=
     while [[ $# -gt 0 ]]; do
         case $1 in
             --help|-h) usage_long ;;
             --config) shift; config=$1 ;;
+            --cli|-c)
+                cli_option='cli'
+                # Give up on --build-properties, cannot get it to work.
+                echo "Arduino-CLI cannot be supported due to broken \
+--build-properties flag"
+                exit 1
+                ;;
+            --ide|-i) cli_option='ide' ;;
             --verbose) verbose='--verbose' ;;
             --preserve) preserve='--preserve-temp-files' ;;
             -*) echo "Unknown auniter option '$1'"; usage ;;
@@ -618,13 +665,14 @@ function main() {
     trap interrupted INT
 
     read_default_configs
-    check_environment_variables
+    check_environment_variables $cli_option
     create_temp_files
     case $mode in
         config) print_config $config_file;;
         envs) list_envs $config_file;;
         ports) list_ports ;;
-        verify|compile) handle_build "$@" ;;
+        verify) handle_build "$@" ;;
+        compile) mode='verify'; handle_build "$@" ;;
         upload) handle_build "$@" ;;
         test) handle_build "$@" ;;
         monitor) handle_monitor "$@" ;;

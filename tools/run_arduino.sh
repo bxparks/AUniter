@@ -10,11 +10,11 @@ DIRNAME=$(dirname $0)
 
 function usage() {
     cat <<'END'
-Usage: run_arduino.sh [--help] [--verbose] [--verify | --upload | --test]
-                      [--env {env}] [--board {board}] [--port {port}]
-                      [--baud {baud}] [--sketchbook {path}]
-                      [--preprocessor {flags}] [--preserve]
-                      [--summary_file file] file.ino
+Usage: run_arduino.sh [--help] [--verbose] [--cli | --ide]
+    [--verify | --upload | --test]
+    [--env {env}] [--board {board}] [--port {port}] [--baud {baud}]
+    [--sketchbook {path}] [--preprocessor {flags}] [--preserve]
+    [--summary_file file] file.ino
 
 Helper shell wrapper around the 'arduino' commandline binary and the
 'serial_monitor.py' script. This allows the 'auniter.sh' to wrap a flock(1)
@@ -22,6 +22,9 @@ command around the serial port to prevent concurrent access to the arduino
 board. This script is not meant to be used by the end-user.
 
 Flags:
+    --ide           Use the Arduino IDE binary given by AUNITER_ARDUINO_BINARY.
+    --cli           Use the Arduino-CLI binary given by AUNITER_ARDUINO_CLI.
+    --verify        Verify the compile of the sketch file(s).
     --upload        Compile and upload the given program.
     --test          Verify the AUnit test after uploading the program.
     --env {env}     Name of the current build environment, for error messages.
@@ -103,11 +106,11 @@ function verify_or_upload_using_cli() {
     local port_flag=${port:+"--port $port"}
     if [[ "$mode" == 'upload' || "$mode" == 'test' ]]; then
         local arduino_cmd_mode='upload'
-        local build_properties_flag=''
+        local build_properties_value=''
     else
         local arduino_cmd_mode='compile'
-        local build_properties_flag="--build-properties \
-'compiler.cpp.extra_flags=-DAUNITER $preprocessor'"
+        local extra_flags="-DAUNITER $preprocessor"
+        local build_properties_value="compiler.cpp.extra_flags=$extra_flags"
     fi
 
     # Arduino-CLI (as of v0.12.0-rc3) 'upload' command does not accept a
@@ -118,15 +121,28 @@ function verify_or_upload_using_cli() {
         local full_path="$PWD/$file"
     fi
 
-    local cmd="$AUNITER_ARDUINO_BINARY \
+    echo "\$ $AUNITER_ARDUINO_CLI \
 $verbose \
 $arduino_cmd_mode \
 $board_flag \
 $port_flag \
-$build_properties_flag \
+--build-properties $build_properties_value \
 $full_path"
-    echo "\$ $cmd"
-    if ! eval $cmd; then
+
+    # Unfortunately, arduino-cli is thoroughly broken with respons to the
+    # parsing of the --build-properties flag if the value contains embedded
+    # quotes, which happens if the -D symbol defines a c-string (in quotes).
+    # I've tried every combination of escaping and backslashes in
+    # $build_properties_value, cannot get this to work.
+    echo "Arduino-CLI cannot be support due to broken --build-properties"
+    exit 1
+    if ! $AUNITER_ARDUINO_CLI \
+$verbose \
+$arduino_cmd_mode \
+$board_flag \
+$port_flag \
+--build-properties "$build_properties_value" \
+$full_path; then
         echo "FAILED $arduino_cmd_mode: $env $port $file" \
             | tee -a $summary_file
         return 1
@@ -155,9 +171,12 @@ sketchbook=
 preprocessor=
 summary_file=
 preserve=
+cli_option='ide'
 while [[ $# -gt 0 ]]; do
     case $1 in
         --help|-h) usage ;;
+        --cli|-c) cli_option='cli' ;;
+        --ide|-i) cli_option='ide' ;;
         --verify) mode='verify' ;;
         --upload) mode='upload' ;;
         --test) mode='test' ;;
@@ -181,17 +200,17 @@ if [[ $# -eq 0 ]]; then
 fi
 
 # Determine whether to use the Arduino IDE or the Arduino-CLI.
-if [[ "$AUNITER_ARDUINO_BINARY" =~ arduino-cli ]]; then
+if [[ "$cli_option" == 'cli' ]]; then
     # Arduino-CLI 'upload' must do a manual 'compile', unlike the Arduino IDE
     # which does it automatically.
     verify_or_upload_using_cli verify $1
     if [[ $mode == 'upload' || $mode == 'test' ]]; then
         verify_or_upload_using_cli upload $1
     fi
-elif [[ "$AUNITER_ARDUINO_BINARY" =~ [aA]rduino ]]; then
+elif [[ "$cli_option" == 'ide' ]]; then
     verify_or_upload_using_ide $mode $1
 else
-    echo "Unsupported \$AUNITER_ARDUINO_BINARY: $AUNITER_ARDUINO_BINARY"
+    echo "Unsupported cli_option '$cli_option'"
     usage
 fi
 
