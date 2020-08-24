@@ -129,13 +129,12 @@ $port_flag \
 --build-properties $build_properties_value \
 $full_path"
 
-    # Unfortunately, arduino-cli is thoroughly broken with respons to the
+    # Unfortunately, arduino-cli is thoroughly broken with respect to the
     # parsing of the --build-properties flag if the value contains embedded
     # quotes, which happens if the -D symbol defines a c-string (in quotes).
     # I've tried every combination of escaping and backslashes in
-    # $build_properties_value, cannot get this to work.
-    echo "Arduino-CLI cannot be support due to broken --build-properties"
-    exit 1
+    # $build_properties_value, cannot get this to work. The 'auniter.sh' will
+    # detect this condition and fail immediately before this script is called.
     if ! $AUNITER_ARDUINO_CLI \
 $verbose \
 $arduino_cmd_mode \

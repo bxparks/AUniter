@@ -276,6 +276,7 @@ function process_env_and_port() {
 
     # No flock(1) on MacOS.
     if [[ $(uname -s) =~ Darwin.* ]]; then
+        echo "Cannot lock '$port' on MacOS. Continuing without locking..."
         locking=false
     else
         locking=$(get_config "$config_file" "env:$env" locking)
@@ -286,6 +287,14 @@ function process_env_and_port() {
     exclude=${exclude:-'^$'} # if empty, exclude nothing, not everything
 
     preprocessor=$(get_config "$config_file" "env:$env" preprocessor)
+
+    # If the preprocessor directive contains quotes, then arduino-cli cannot
+    # be used due to its incorrect handling of the --build-properties flag.
+    if [[ "$preprocessor" =~ \" && "$cli_option" == 'cli' ]]; then
+        echo "'preprocessor' directive in auniter.ini cannot contain strings"
+        echo "Use --ide flag instead"
+        exit 1
+    fi
 }
 
 # If a port is not fully qualified (i.e. start with /), then append
@@ -624,7 +633,7 @@ function main() {
     mode=
     verbose=
     preserve=
-    local cli_option='ide'
+    cli_option='ide'
     local config=
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -633,9 +642,8 @@ function main() {
             --cli|-c)
                 cli_option='cli'
                 # Give up on --build-properties, cannot get it to work.
-                echo "Arduino-CLI cannot be supported due to broken \
---build-properties flag"
-                exit 1
+                # echo "Arduino-CLI cannot be supported due to broken --build-properties flag"
+                # exit 1
                 ;;
             --ide|-i) cli_option='ide' ;;
             --verbose) verbose='--verbose' ;;
