@@ -1,15 +1,18 @@
 # AUniter Command Line Tools
 
-The `auniter.sh` shell is a wrapper around the Arduino IDE using the [Arduino
-Commandline
+The `auniter.sh` script is a `bash` script wrapper around the Arduino IDE using
+the [Arduino Commandline
 Interface](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc).
-It has been extensively tested on Ubuntu Linux. It works on my MacOS laptop but
-testing is not as extensive.
+Starting with v1.8, the `auniter.sh` script also supports the
+[Arduino-CLI](https://github.com/arduino/arduino-cli) binary. It has been
+extensively tested on Ubuntu Linux 18.04 and 20.04. It works on my MacOS 10.14.6
+(Mojave) laptop but testing is not as extensive. I do not have a machine running
+MacOS 10.15 (Catalina).
 
 The `auniter.sh` script takes advantage of the command line interface to provide
 some useful extended functionality:
 
-1) Verifying (compile) multiple `*.ino` files across multiple boards.
+1) Verifying (compiling) multiple `*.ino` files across multiple boards.
 2) Uploading multiple `*.ino` files across multiple boards.
 3) Testing multiple [AUnit](https://github.com/bxparks/AUnit) unit tests
 across multiple boards.
@@ -38,6 +41,12 @@ AUnit unit test to determine if the test passed or failed.
 
 1. Install the [Arduino IDE](https://www.arduino.cc/en/Main/Software). The
 following versions have been tested: 1.8.5, 1.8.6, 1.8.7, 1.8.13.
+    * Make a note of where the `arduino/` directory is installed.
+    * I usually rename the directory to contain the version number, for example,
+      `mv arduino arduino-1.8.13`.
+1. Install the [arduino-cli](https://github.com/arduino/arduino-cli).
+    * Make a note of where you installed the `arduino-cli` binary.
+    * I normally install it in my `$HOME/bin` directory.
 1. Install Python3 if you don't already have it.
     * `$ apt install python3 python3-pip`
 1. Install various Python packages
@@ -54,13 +63,20 @@ following versions have been tested: 1.8.5, 1.8.6, 1.8.7, 1.8.13.
 
 ### MacOS (10.14.6 Mojave)
 
-Most of the functionality seems to work under MacOS (10.14 Mojave), but I have
+Most of the functionality seems to work under MacOS 10.14 (Mojave), but I have
 not tested things as much as Linux. I do not own a Mac that runs 10.15
-(Catalina), so I cannot test anything there.
+(Catalina), so I cannot test anything there. The script relies on the GNU
+versions of a few core Unix commands, instead of the BSD versions supplied on
+the MacOS by default. You need to install the GNU versions as described below.
 
+1. Install [Home Brew](https://brew.sh/)
 1. Install the [Arduino IDE](https://www.arduino.cc/en/Main/Software). The
    following versions have been tested: 1.8.13.
-1. Install [Home Brew](https://brew.sh/)
+    * Make a note of where you installed the app.
+1. Install the [arduino-cli](https://github.com/arduino/arduino-cli).
+    * Make a note of where you installed the `arduino-cli` binary.
+    * If you installed it using `brew`, it will be located at
+      `/usr/local/bin/arduino-cli`.
 1. Install various GNU shell utils:
     * `$ brew install coreutils`
     * `$ brew install gsed`
@@ -70,7 +86,7 @@ not tested things as much as Linux. I do not own a Mac that runs 10.15
 1. Install various Python packages.
     * [pyserial](https://pypi.org/project/pyserial/)
         * `$ pip3 install --user serial`
-1 Install a terminal program (for the `auniter monitor` functionality)
+1. Install a terminal program (for the `auniter monitor` functionality)
     * [picocom](https://linux.die.net/man/8/picocom)
         * tested with v3.1
         * `$ brew install picocom`
@@ -92,37 +108,47 @@ The latest development version can be installed by cloning the
 `develop` branch. The `master` branch contains the stable release. The
 `auniter.sh` script is in the `./tools` directory.
 
-### Environment Variable
+### Environment Variables
 
-The `AUNITER_ARDUINO_BINARY` environment variable **must** be defined in your
-`.bashrc` file. Locate the directory where the Arduino IDE has been installed.
-I normally install multiple versions of the Arduino IDE, so I will rename them
-to include the version number. For example, the latest Arduion IDE 1.8.13 is
-installed in the following directories:
+There are 2 environment variables that must be defined, depending on whether you
+use the `auniter.sh` script with the Arduino IDE or with arduino-cli:
 
-* Ubuntu Linux
-    * `$HOME/dev/arduino-1.8.13/`
-* MacOS
-    * `$HOME/dev/Arduino-1.8.13.app/`
+* `AUNITER_ARDUINO_BINARY` variable contains the location of the Arduino IDE
+  binary.
+* `AUNITER_ARDUINO_CLI` variable contains the location of the `arduino-cli`
+  binary.
 
-Then the `AUNITER_ARDUINO_BINARY` is the location of the actual Arduino IDE
-program, which are the following for me:
+At least one of these must be defined in your `$HOME/.bashrc` file.
 
-* Ubuntu Linux
-    * `export AUNITER_ARDUINO_BINARY="$HOME/dev/arduino-1.8.13/arduino"`
-* MacOS
-    * `export AUNITER_ARDUINO_BINARY="$HOME/dev/Arduino-1.8.13.app/Contents/MacOS/Arduino`
+**Ubuntu Linux**
 
-Save your `.bashrc` file, logout, and log back in (or manually set the
-environment variable in each of your terminal windows).
+The varibles will look something like this:
 
-### Shell Alias
+```
+export AUNITER_ARDUINO_BINARY="$HOME/dev/arduino-1.8.13/arduino"`
+export AUNITER_ARDUINO_CLI="$HOME/bin/arduino-cli"
+```
+
+(assuming that the Arduino IDE was installed into a directory called
+`arduino-1.8.13/`).
+
+**MacOS**
+
+The variables will look something like this:
+```
+export AUNITER_ARDUINO_BINARY="$HOME/dev/Arduino-1.8.13.app/Contents/MacOS/Arduino`
+export AUNITER_ARDUINO_CLI='/usr/local/bin/arduino-cli'
+```
+
+You may need to log out and log back in to activate these environment variables.
+
+### Shell Aliases
 
 I recommend creating an alias for the `auniter.sh` script in your `.bashrc`
 file. I use the following 2 aliases:
 ```
 alias auniter='{path-to-auniter-directory}/tools/auniter.sh'
-alias au='{path-to-auniter-directory}/tools/auniter.sh'
+alias au='auniter'
 ```
 Don't add `{path-to-auniter-directory}/tools` to your `$PATH`. It won't work
 because `auniter.sh` needs to know its own install directory to find helper
@@ -133,17 +159,23 @@ alias.)**
 
 ### Config File
 
-The `auniter.sh` script looks for a config file named `$HOME/.auniter.ini` in
-your home directory. The format of the file is the
-[INI file](https://en.wikipedia.org/wiki/INI_file),
-and the meaning of these properties will be explained below. This INI file has
-evolved to be similar to the one used by [PlatformIO](https://platformio.org/)
-with some major differences:
+The `auniter.sh` script looks for a config file named `auniter.ini` in
+your home directory. Starting with v1.8, the `auniter.ini` file is searched in
+the following order:
 
-1. The `auniter.ini` format is simpler and easier to use (but less flexible)
-1. There is only one `auniter.ini` per user (shared among many projects and
-  libraries), instead of one INI file per project as used by PlatformIO (The
-  most recent version of auniter.sh allows per-project `auniter.ini` file.)
+1. Use the value of --config flag if it is given, else,
+2. Look for 'auniter.ini' in the current directory, else,
+3. Look for 'auniter.ini' in any parent directory recursively until `/`, else,
+4. Look for '$HOME/auniter.ini', else,
+5. Look for '$HOME/.auniter.ini'.
+
+I typically use only a single `$HOME/.auniter.ini` file, but occasionally, it is
+useful to override the default with a project-specific `auniter.ini` file.
+
+The format of the file is the [INI
+file](https://en.wikipedia.org/wiki/INI_file), and the meaning of these
+properties will be explained below. The `auniter.ini` file has evolved to be
+similar to the one used by [PlatformIO](https://platformio.org/).
 
 For the purposes of this tutorial, copy the `sample.auniter.ini` file to
 `$HOME/.auniter.ini`. For reference, here's the condensed version of the sample
@@ -200,10 +232,12 @@ Type `auniter --help` to get the latest usage. Here is the summary portion
 of the help message:
 ```
 $ auniter --help
-Usage: auniter.sh [-h] [flags] command [flags] [args ...]
+Usage: auniter.sh [-h] [auniter_flags] command [command_flags] [args ...]
+       auniter.sh config
        auniter.sh envs
        auniter.sh ports
        auniter.sh verify {env} files ...
+       auniter.sh compile {env} files ...
        auniter.sh upload {env}:{port},... files ...
        auniter.sh test {env}:{port},... files ...
        auniter.sh monitor [{env}:]{port}
@@ -213,6 +247,37 @@ Usage: auniter.sh [-h] [flags] command [flags] [args ...]
 
 The 7 subcommands (`envs`, `ports`, `verify`, `upload`, `test`, `monitor`,
 `upmon`) are described below.
+
+### AUniter Flags
+
+There are several top-level flags:
+
+* `--ide`: Use the Arduino IDE and the `AUNITER_ARDUINO_BINARY` environment
+  variable. This is the default if neither `--ide` nor `--cli` are given.
+* `--cli`: Use the arduino-cli and the `AUNITER_ARDUINO_CLI` environment
+  variable
+* `--verbose`: Print out verbose debugging output
+
+If you want to make `--cli` the default, create the `auniter` alias with this
+flag:
+
+```
+alias auniter='.../tools/auniter.sh --cli'
+alias au=auniter
+```
+
+### Subcommand: config
+
+The `config` command shows the location of the current `auniter.ini` config
+file, and then prints out the content of that file.
+
+```
+$ auniter config
+Reading config: /home/brian/.auniter.ini
+Using IDE: AUNITER_ARDUINO_BINARY=/home/brian/dev/arduino-1.8.13/arduino
++ cat /home/brian/.auniter.ini
+[...]
+```
 
 ### Subcommand: envs
 
@@ -253,12 +318,13 @@ $ auniter ports
 /dev/cu.usbserial-1410 - USB2.0-Serial
 ```
 
-### Subcommand: verify
+### Subcommand: verify and compile
 
-This command runs the Arduino IDE binary and verifies that the given program
-files build successfully for the specified environment `{env}` which is
-defined in the `.auniter.ini` file. The following example verifies that the
-`Blink.ino` sketch compiles under the `nano` environment:
+The `verify` and `compile` commands are aliases of each other. This command runs
+the Arduino IDE binary and verifies that the given program files build
+successfully for the specified environment `{env}` which is defined in the
+`.auniter.ini` file. The following example verifies that the `Blink.ino` sketch
+compiles under the `nano` environment:
 
 ```
 $ auniter verify uno Blink.ino

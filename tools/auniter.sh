@@ -85,8 +85,7 @@ AUniter Flags (auniter_flags):
     --cli|-c        Use the Arduino-CLI binary (arduino-cli) defined by
                     $AUNITER_ARDUINO_CLI.
     --verbose       Verbose output from various subcommands.
-    --preserve-temp-files
-                    Preserve /tmp/arduino* files for further analysis.
+    --preserve      Preserve /tmp/arduino* files for further analysis.
 
 Commands (command):
     config  Print location of the auto-detected config file.
@@ -146,7 +145,7 @@ function get_ino_file() {
 
 # Find the auniter.ini file, in the following order:
 # 1) Return the value of --config flag given as an argument, else
-# 2) Look for 'auniter.ini' in the current directoyr, else
+# 2) Look for 'auniter.ini' in the current directory, else
 # 3) Look for 'auniter.ini' in parent directories, else
 # 4) Look for '$HOME/auniter.ini', else
 # 5) Look for '$HOME/.auniter.ini'.
@@ -476,7 +475,7 @@ is not executable"
             exit 1
         fi
         if [[ ! -x $AUNITER_ARDUINO_CLI ]]; then
-            echo "AUNITER_ARDUINO_CLI=$AUNITER_ARDUINO_BINARY is not executable"
+            echo "AUNITER_ARDUINO_CLI=$AUNITER_ARDUINO_CLI is not executable"
             exit 1
         fi
 
@@ -625,7 +624,8 @@ function read_default_configs() {
 # Print the current config file
 function print_config() {
     local config_file="$1"
-    echo "$config_file"
+    echo "+ cat $config_file"
+    cat "$config_file"
 }
 
 # Parse auniter command line flags
@@ -639,12 +639,7 @@ function main() {
         case $1 in
             --help|-h) usage_long ;;
             --config) shift; config=$1 ;;
-            --cli|-c)
-                cli_option='cli'
-                # Give up on --build-properties, cannot get it to work.
-                # echo "Arduino-CLI cannot be supported due to broken --build-properties flag"
-                # exit 1
-                ;;
+            --cli|-c) cli_option='cli' ;;
             --ide|-i) cli_option='ide' ;;
             --verbose) verbose='--verbose' ;;
             --preserve) preserve='--preserve-temp-files' ;;

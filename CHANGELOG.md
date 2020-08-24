@@ -4,6 +4,12 @@
     * Auto-detect the location of 'auniter.ini' in the following order:
       `--config` flag, the current directory, any parent directory,
       `$HOME/auniter.ini`, and finally `$HOME/.auniter.ini`.
+    * Add `config` command to print the auto-detected `auniter.ini` file.
+    * Add support for [arduino-cli](https://github.com/arduino/arduino-cli)
+      using the `AUNITER_ARDUINO_CLI` environment variable. The `preprocessor`
+      directive in the `auniter.ini` must not contain a string due to a bug in
+      `arduino-cli`.
+    * Add better support and testing on MacOS 10.14 (Mojave).
 * 1.7.2 (2020-08-21)
     * Look for a `*.ino` file in the current directory if no sketch file is
       specified for auniter.sh.
