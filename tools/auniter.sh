@@ -9,7 +9,7 @@
 #   * ./serial_monitor.py
 #   * Python3 (3.7 or 3.8 should work)
 #       * $ sudo apt install python3 python3-pip (Linux)
-#       * $ brew install python3
+#       * $ brew install python3 (MacOS)
 #   * Python serial
 #       * $ pip3 install --user serial
 #   * picocom

@@ -98,50 +98,48 @@ function verify_or_upload_using_ide() {
 
 # The Arduino-CLI 'upload' command only does the 'upload', not the 'compile'.
 # Usage: verify_or_upload_using_cli (upload|test|verify) file
+#
+# Arduino-CLI (as of v0.12.0-rc3) 'upload' command does not accept a
+# relative path to the program (??), so append $PWD if necessary.
+# Fortunately the 'compile --upload' variant will accept a relative path, so
+# we no longer have to convert the file into its absolute path.
 function verify_or_upload_using_cli() {
     local mode=$1
     local file=$2
 
     local board_flag="--fqbn $board"
     local port_flag=${port:+"--port $port"}
+    local arduino_cmd_mode='compile'
+    local upload_flag=''
+    local extra_flags="-DAUNITER $preprocessor"
+    local build_properties_value="compiler.cpp.extra_flags=$extra_flags"
     if [[ "$mode" == 'upload' || "$mode" == 'test' ]]; then
-        local arduino_cmd_mode='upload'
-        local build_properties_value=''
-    else
-        local arduino_cmd_mode='compile'
-        local extra_flags="-DAUNITER $preprocessor"
-        local build_properties_value="compiler.cpp.extra_flags=$extra_flags"
-    fi
-
-    # Arduino-CLI (as of v0.12.0-rc3) 'upload' command does not accept a
-    # relative path to the program (??), so append $PWD if necessary.
-    if [[ ! $file =~ ^/ ]]; then
-        local full_path="$file"
-    else
-        local full_path="$PWD/$file"
+        upload_flag='--upload'
     fi
 
     echo "\$ $AUNITER_ARDUINO_CLI \
 $verbose \
 $arduino_cmd_mode \
+$upload_flag \
 $board_flag \
 $port_flag \
 --build-properties $build_properties_value \
-$full_path"
+$file"
 
-    # Unfortunately, arduino-cli is thoroughly broken with respect to the
-    # parsing of the --build-properties flag if the value contains embedded
-    # quotes, which happens if the -D symbol defines a c-string (in quotes).
-    # I've tried every combination of escaping and backslashes in
-    # $build_properties_value, cannot get this to work. The 'auniter.sh' will
-    # detect this condition and fail immediately before this script is called.
+    # Unfortunately, arduino-cli does not parse the --build-properties flag
+    # properly if the value contains embedded quotes, which happens if the -D
+    # symbol defines a c-string (in quotes). I've tried every combination of
+    # escaping and backslashes in $build_properties_value, cannot get this to
+    # work. The 'auniter.sh' will detect this condition and fail immediately
+    # before this script is called.
     if ! $AUNITER_ARDUINO_CLI \
 $verbose \
 $arduino_cmd_mode \
+$upload_flag \
 $board_flag \
 $port_flag \
 --build-properties "$build_properties_value" \
-$full_path; then
+$file; then
         echo "FAILED $arduino_cmd_mode: $env $port $file" \
             | tee -a $summary_file
         return 1
@@ -200,12 +198,7 @@ fi
 
 # Determine whether to use the Arduino IDE or the Arduino-CLI.
 if [[ "$cli_option" == 'cli' ]]; then
-    # Arduino-CLI 'upload' must do a manual 'compile', unlike the Arduino IDE
-    # which does it automatically.
-    verify_or_upload_using_cli verify $1
-    if [[ $mode == 'upload' || $mode == 'test' ]]; then
-        verify_or_upload_using_cli upload $1
-    fi
+    verify_or_upload_using_cli $mode $1
 elif [[ "$cli_option" == 'ide' ]]; then
     verify_or_upload_using_ide $mode $1
 else
