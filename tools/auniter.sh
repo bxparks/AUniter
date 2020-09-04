@@ -4,11 +4,37 @@
 # MIT License
 #
 # Dependencies:
-#   * run_arduino.sh
-#   * serial_monitor.py
-#   * picocom (optional)
+#
+#   * ./run_arduino.sh
+#   * ./serial_monitor.py
+#   * Python3 (3.7 or 3.8 should work)
+#       * $ sudo apt install python3 python3-pip (Linux)
+#       * $ brew install python3 (MacOS)
+#   * Python serial
+#       * $ pip3 install --user serial
+#   * picocom
+#       * $ sudo apt install picocom (Linux)
+#       * $ brew install picocom (MacOS)
+#   * MacOS only
+#       * $ brew install coreutils gsed
 
 set -eu
+
+# Find the GNU version of various binaries on MacOS.
+case $(uname -s) in
+    Darwin*)
+        SED=gsed
+        REALPATH=grealpath
+        ;;
+    Linux*)
+        SED=sed
+        REALPATH=realpath
+        ;;
+    *)
+        echo 'Unsupported Unix-like OS'
+        ;;
+esac
+
 
 # Can't use $(realpath $(dirname $0)) because realpath doesn't exist on MacOS
 DIRNAME=$(dirname $0)
@@ -28,13 +54,16 @@ FLOCK_TIMEOUT_CODE=10
 
 function usage_common() {
     cat <<'END'
-Usage: auniter.sh [-h] [flags] command [flags] [args ...]
+Usage: auniter.sh [-h] [auniter_flags] command [command_flags] [args ...]
+       auniter.sh config
        auniter.sh envs
        auniter.sh ports
        auniter.sh verify {env} files ...
+       auniter.sh compile {env} files ...
        auniter.sh upload {env}:{port},... files ...
        auniter.sh test {env}:{port},... files ...
        auniter.sh monitor [{env}:]{port}
+       auniter.sh mon [{env}:]{port}
        auniter.sh upmon {env}:{port} file
 END
 }
@@ -49,23 +78,29 @@ function usage_long() {
 
     cat <<'END'
 
-Commands:
+AUniter Flags (auniter_flags):
+    --help          Print this help page.
+    --config {file} Read configs from 'file' instead of $HOME/.auniter.conf'.
+    --ide           Use the Arduino IDE binary (arduino or Arduino) defined
+                    by $AUNITER_ARDUINO_BINARY.
+    --cli           Use the Arduino-CLI binary (arduino-cli) defined by
+                    $AUNITER_ARDUINO_CLI.
+    --verbose       Verbose output from various subcommands.
+    --preserve      Preserve /tmp/arduino* files for further analysis.
+
+Commands (command):
+    config  Print location of the auto-detected config file.
     envs    List the environments defined in the CONFIG_FILE.
     ports   List the tty ports and the associated Arduino boards.
     verify  Verify the compile of the sketch file(s).
+    compile Alias for 'verify'.
     upload  Upload the sketch(es) to the given board at port.
     test    Upload the AUnit unit test(s), and verify pass or fail.
     monitor Run the serial terminal defined in aniter.conf on the given port.
+    mon     Alias for 'monitor'.
     upmon   Upload the sketch and run the monitor upon success.
 
-AUniter Flags
-    --help          Print this help page.
-    --config {file} Read configs from 'file' instead of $HOME/.auniter.conf'.
-    --verbose       Verbose output from various subcommands.
-    --preserve-temp-files
-                    Preserve /tmp/arduino* files for further analysis.
-
-Command Flags:
+Command Flags (command_flags):
     --baud baud
         (monitor, upmon) Speed of the serial port for serial_montor.py.
         (Default: 115200. The default value can be changed in CONFIG_FILE.)
@@ -105,10 +140,61 @@ function get_ino_file() {
     fi
 
     # Strip off any trailing '/'
-    local dir=$(echo $file | sed -e 's/\/*$//')
+    local dir=$(echo $file | $SED -e 's/\/*$//')
     local file=$(basename $dir)
     echo "${dir}/${file}.ino"
 }
+
+# Find the auniter.ini file, in the following order:
+# 1) Return the value of --config flag given as an argument, else
+# 2) Look for 'auniter.ini' in the current directory, else
+# 3) Look for 'auniter.ini' in parent directories, else
+# 4) Look for '$HOME/auniter.ini', else
+# 5) Look for '$HOME/.auniter.ini'.
+function find_config_file() {
+    # Check if the --config flag was given
+    local config=$1
+    if [[ "$config" != '' ]]; then
+        echo "$config"
+        return
+    fi
+
+    # Look for 'auniter.ini' in the current directory or any parent directory
+    local save_dir=$PWD
+    local found=0
+    while true; do
+        if [[ -e auniter.ini ]]; then
+            echo "$PWD/auniter.ini"
+            found=1
+            break
+        fi
+
+        if [[ "$PWD" == '/' ]]; then
+            break
+        fi
+
+        cd ..
+    done
+    cd $save_dir
+    if [[ $found == '1' ]]; then
+        return
+    fi
+
+    # Check for $HOME/auniter.ini
+    if [[ -e "$HOME/auniter.ini" ]]; then
+        echo "$HOME/auniter.ini"
+        return
+    fi
+
+    # Finally check for $HOME/.auniter.ini, mostly for backwards compatibility.
+    if [[ -e "$HOME/.auniter.ini" ]]; then
+        echo "$HOME/.auniter.ini"
+        return
+    fi
+
+    echo ''
+}
+
 
 # Find the given $key in a $section from the $config file.
 # Usage: get_config config section key
@@ -136,7 +222,7 @@ function get_config() {
     # 2) Support multiple sections of the same name. Entries of duplicate
     # sections are merged together.
     # 3) Works on MacOS sed as well as GNU sed.
-    sed -n -E -e \
+    $SED -n -E -e \
         ":label_s;
         /^\[$section\]/ {
             n;
@@ -159,7 +245,7 @@ function list_envs() {
     if [[ ! -f "$config_file" ]]; then
         return
     fi
-    sed -n -e 's/^\[env:\(.*\)\]/\1/p' "$config_file"
+    $SED -n -e 's/^\[env:\(.*\)\]/\1/p' "$config_file"
 }
 
 # Parse the {env}:{port} specifier, setting the following global variables:
@@ -175,9 +261,9 @@ function process_env_and_port() {
 
     # Split {env}:{port} into two fields.
     env=$(echo $env_and_port \
-            | sed -E -e 's/([^:]*):?([^:]*)/\1/')
+            | $SED -E -e 's/([^:]*):?([^:]*)/\1/')
     port=$(echo $env_and_port \
-            | sed -E -e 's/([^:]*):?([^:]*)/\2/')
+            | $SED -E -e 's/([^:]*):?([^:]*)/\2/')
 
     env_search=$(list_envs $config_file | grep $env || true)
     if [[ "$env_search" == '' ]]; then
@@ -189,13 +275,27 @@ function process_env_and_port() {
 
     port=$(resolve_port "$port")
 
-    locking=$(get_config "$config_file" "env:$env" locking)
-    locking=${locking:-true} # set to 'true' if empty
+    # No flock(1) on MacOS.
+    if [[ $(uname -s) =~ Darwin.* ]]; then
+        echo "Cannot lock '$port' on MacOS. Continuing without locking..."
+        locking=false
+    else
+        locking=$(get_config "$config_file" "env:$env" locking)
+        locking=${locking:-true} # set to 'true' if empty
+    fi
 
     exclude=$(get_config "$config_file" "env:$env" exclude)
     exclude=${exclude:-'^$'} # if empty, exclude nothing, not everything
 
     preprocessor=$(get_config "$config_file" "env:$env" preprocessor)
+
+    # If the preprocessor directive contains quotes, then arduino-cli cannot
+    # be used due to its incorrect handling of the --build-properties flag.
+    if [[ "$preprocessor" =~ \" && "$cli_option" == 'cli' ]]; then
+        echo "'preprocessor' directive in auniter.ini cannot contain strings"
+        echo "Use --ide flag instead"
+        exit 1
+    fi
 }
 
 # If a port is not fully qualified (i.e. start with /), then append
@@ -215,7 +315,7 @@ function resolve_port() {
 # Requires $envs to define the target environments as a comma-separated list
 # of {env}:{port}.
 function process_envs() {
-    local env_and_ports=$(echo "$envs" | sed -e 's/,/ /g')
+    local env_and_ports=$(echo "$envs" | $SED -e 's/,/ /g')
     for env_and_port in $env_and_ports; do
         process_env_and_port $env_and_port
 
@@ -256,7 +356,7 @@ function process_files() {
             continue
         fi
 
-        if realpath $ino_file | egrep --silent "$exclude"; then
+        if $REALPATH $ino_file | egrep --silent "$exclude"; then
             echo "SKIPPED $mode: $env: excluding $file" \
                 | tee -a $summary_file
             continue
@@ -271,9 +371,10 @@ function process_file() {
     local file=$1
     echo "-------- Processing file '$file'"
 
-    if [[ "$mode" == 'verify' ]]; then
+    if [[ "$mode" == 'verify' || "$mode" == 'compile' ]]; then
         # Allow multiple verify commands to run at the same time.
         $DIRNAME/run_arduino.sh \
+            --$cli_option \
             --verify \
             --env $env \
             --board $board \
@@ -283,7 +384,7 @@ function process_file() {
             $preserve \
             --summary_file $summary_file \
             $file
-    else
+    else # $mode == 'test' | 'upload'
         # flock(1) returns status 1 if the lock file doesn't exist, which
         # prevents distinguishing that from failure of run_arduino.sh.
         if [[ ! -e $port ]]; then
@@ -304,6 +405,7 @@ function process_file() {
             local flock=''
         fi
         local status=0; $flock $DIRNAME/run_arduino.sh \
+            --$cli_option \
             --$mode \
             --env $env \
             --board $board \
@@ -351,14 +453,35 @@ function print_summary_file() {
 }
 
 function check_environment_variables() {
+    local cli_option=$1
+
     # Check for AUNITER_ARDUINO_BINARY
-    if [[ -z ${AUNITER_ARDUINO_BINARY+x} ]]; then
-        echo "AUNITER_ARDUINO_BINARY environment variable is not defined"
-        exit 1
+    if [[ "$cli_option" == 'ide' ]]; then
+        if [[ -z ${AUNITER_ARDUINO_BINARY+x} ]]; then
+            echo "AUNITER_ARDUINO_BINARY environment variable is not defined"
+            exit 1
+        fi
+        if [[ ! -x $AUNITER_ARDUINO_BINARY ]]; then
+            echo "AUNITER_ARDUINO_BINARY=$AUNITER_ARDUINO_BINARY \
+is not executable"
+            exit 1
+        fi
+
+        echo "Using IDE: AUNITER_ARDUINO_BINARY=$AUNITER_ARDUINO_BINARY"
     fi
-    if [[ ! -x $AUNITER_ARDUINO_BINARY ]]; then
-        echo "AUNITER_ARDUINO_BINARY=$AUNITER_ARDUINO_BINARY is not executable"
-        exit 1
+
+    # Check for AUNITER_ARDUINO_CLI
+    if [[ "$cli_option" == 'cli' ]]; then
+        if [[ -z ${AUNITER_ARDUINO_CLI+x} ]]; then
+            echo "AUNITER_ARDUINO_CLI environment variable is not defined"
+            exit 1
+        fi
+        if [[ ! -x $AUNITER_ARDUINO_CLI ]]; then
+            echo "AUNITER_ARDUINO_CLI=$AUNITER_ARDUINO_CLI is not executable"
+            exit 1
+        fi
+
+        echo "Using CLI: AUNITER_ARDUINO_CLI=$AUNITER_ARDUINO_CLI"
     fi
 }
 
@@ -488,6 +611,8 @@ function handle_upmon() {
 
 # Read in the default flags in the [auniter] section of the config file.
 function read_default_configs() {
+    echo "Reading config: $config_file"
+
     monitor=$(get_config "$config_file" 'auniter' 'monitor')
 
     local baud_value=$(get_config "$config_file" 'auniter' 'baud')
@@ -498,16 +623,26 @@ function read_default_configs() {
     port_timeout=${port_timeout_value:-$PORT_TIMEOUT}
 }
 
+# Print the current config file
+function print_config() {
+    local config_file="$1"
+    echo "+ cat $config_file"
+    cat "$config_file"
+}
+
 # Parse auniter command line flags
 function main() {
     mode=
     verbose=
-    config=
     preserve=
+    cli_option='ide'
+    local config=
     while [[ $# -gt 0 ]]; do
         case $1 in
             --help|-h) usage_long ;;
             --config) shift; config=$1 ;;
+            --cli) cli_option='cli' ;;
+            --ide) cli_option='ide' ;;
             --verbose) verbose='--verbose' ;;
             --preserve) preserve='--preserve-temp-files' ;;
             -*) echo "Unknown auniter option '$1'"; usage ;;
@@ -523,22 +658,29 @@ function main() {
     shift
 
     # Determine the location of the config file.
-    config_file=${config:-$CONFIG_FILE}
+    config_file=$(find_config_file "$config")
+    if [[ "$config_file" == '' ]]; then
+        echo 'Cannot find auniter.ini in any directory'
+        usage
+        exit 1
+    fi
 
     # Must install a trap for Control-C because the script ignores almost all
     # interrupts and continues processing.
     trap interrupted INT
 
     read_default_configs
-    check_environment_variables
+    check_environment_variables $cli_option
     create_temp_files
     case $mode in
+        config) print_config $config_file;;
         envs) list_envs $config_file;;
         ports) list_ports ;;
         verify) handle_build "$@" ;;
+        compile) mode='verify'; handle_build "$@" ;;
         upload) handle_build "$@" ;;
         test) handle_build "$@" ;;
-        monitor) handle_monitor "$@" ;;
+        monitor|mon) handle_monitor "$@" ;;
         upmon) handle_upmon "$@" ;;
         *) echo "Unknown command '$mode'"; usage ;;
     esac
