@@ -126,7 +126,7 @@ configurations and aliases which look like this:
 
 ## Installation
 
-1. See [AUniter tools](tools/) to install the `auniter.sh` command line tools.
+1. See [AUniter Tools](tools/) to install the `auniter.sh` command line tools.
 1. See [AUniter Jenkins Integration](jenkins/) to integrate with Jenkins.
 1. See [AUniter Badge Service](BadgeService/) to display the
    build status in the source repository.
@@ -144,7 +144,7 @@ configurations and aliases which look like this:
     * Arduino IDE
         * tested on 1.8.5, 1.8.6, 1.8.7, 1.8.9, 1.8.13
 * **AUniter Jenkins Integration** requires the following:
-    * **Auniter Tools**
+    * **AUniter Tools**
     * [AUnit](https://github.com/bxparks/AUnit) (optional)
     * [Jenkins](https://jenkins.io) Continuous Integration platform
     * Linux system (tested on Ubuntu 16.04, 17.10, 18.04)
@@ -220,6 +220,17 @@ There are a few features of `amake` that I found problemmatic for my purposes.
   validate multiple `*.ino` files, on multiple Arduino boards, on multiple
   serial ports.
 
+### Arduino-CLI
+
+The [Arduino CLI](https://github.com/arduino/arduino-cli) is currently in alpha
+stage. I did not learn about it until I had built the `AUniter` tools. It is a
+Go Lang program which interacts relatively nicely with the Arduino IDE.
+
+Version 1.8 includes an initial integration with Arduino-CLI and exposes
+that functionality through the `--cli` flag. However, the Arduino-CLI has a
+broken parser for its `--build-properties` flag, so it does not support `-D`
+flags that contain strings.
+
 ### Arduino-Makefile
 
 The [Arduino-Makefile](https://github.com/sudar/Arduino-Makefile) package
@@ -290,17 +301,6 @@ The [Arduino Builde](https://github.com/arduino/arduino-builder) seems to be a
 collection of Go-lang programs that provide commandline interface for compiling
 Arduino sketches. However, I have not been able to find any documentation that
 describes how to actually to use these programs.
-
-### Arduino-CLI
-
-The [Arduino CLI](https://github.com/arduino/arduino-cli) is currently in alpha
-stage. I did not learn about it until I had built the `AUniter` tools. It is a
-Go Lang program which interacts relatively nicely with the Arduino IDE.
-
-Version 1.8 includes an initial integration with Arduino-CLI and exposes
-that functionality through the `--cli` flag. However, the Arduino-CLI has a
-broken parser for its `--build-properties` flag, so it does not support `-D`
-flags that contain strings.
 
 ## License
 
