@@ -80,9 +80,9 @@ function usage_long() {
 AUniter Flags (auniter_flags):
     --help          Print this help page.
     --config {file} Read configs from 'file' instead of $HOME/.auniter.conf'.
-    --ide|-i        Use the Arduino IDE binary (arduino or Arduino) defined
+    --ide           Use the Arduino IDE binary (arduino or Arduino) defined
                     by $AUNITER_ARDUINO_BINARY.
-    --cli|-c        Use the Arduino-CLI binary (arduino-cli) defined by
+    --cli           Use the Arduino-CLI binary (arduino-cli) defined by
                     $AUNITER_ARDUINO_CLI.
     --verbose       Verbose output from various subcommands.
     --preserve      Preserve /tmp/arduino* files for further analysis.
@@ -639,8 +639,8 @@ function main() {
         case $1 in
             --help|-h) usage_long ;;
             --config) shift; config=$1 ;;
-            --cli|-c) cli_option='cli' ;;
-            --ide|-i) cli_option='ide' ;;
+            --cli) cli_option='cli' ;;
+            --ide) cli_option='ide' ;;
             --verbose) verbose='--verbose' ;;
             --preserve) preserve='--preserve-temp-files' ;;
             -*) echo "Unknown auniter option '$1'"; usage ;;
