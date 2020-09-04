@@ -28,14 +28,13 @@ through the Arduino IDE binary in command line mode.
 
 There are 3 components to the **AUniter** package:
 
-1. A command line tool (`tools/auniter.sh`) that can compile and upload Arduino
-   programs. It can also upload unit tests written in
+1. A command line tool [`tools/auniter.sh`](tools/) that can compile and upload
+   Arduino programs. It can also upload unit tests written in
    [AUnit](https://github.com/bxparks/AUnit) and validate the success and
    failure of the unit tests.
-1. Integration of the `auniter.sh` script with a locally hosted Jenkins system
-   (`jenkins/`) to provide continuous build and test integration upon changes
-   to the source code repository.
-    * This depends on the `auniter.sh` above.
+1. A locally hosted [Jenkins Integration](jenkins/) to provide Ccontinuous
+   Integration (CI) of unit tests upon changes to the source code repository.
+    * This depends on the `auniter.sh` described above.
     * As of v1.8 or so, I no longer use this integration because:
         1. the Arduino IDE is simply too slow, with some of my projects taking
             1-2 hours to run through all the test suites,
@@ -47,12 +46,12 @@ There are 3 components to the **AUniter** package:
       [UnixHostDuino](https://github.com/bxparks/UnixHostDuino) project
       more frequently as an alternative, even though it cannot handle the
       Arduino programs that depend on specific hardware.
-1. A badge service (`BadgeService/`) running on
+1. A [Badge Service](BadgeService/) running on
    [Google Cloud Functions](https://cloud.google.com/functions/)
    that allows the locally hosted Jenkins system to update the status of the
    build, so that an indicator badge can be displayed on a source control
    repository like GitHub.
-    * This depends on the Jenkins service above.
+    * This depends on the Jenkins Integration described above.
     * As of v1.8 or so, I no longer use this service, because the Arduino IDE
       is too slow to handle the number of INO files that I needed to compile in
       my Continuous Integration pipeline. I may revisit this when Arduino-CLI
@@ -134,7 +133,7 @@ configurations and aliases which look like this:
 
 ## System Requirements
 
-* AUniter Tools require the following:
+* **AUniter Tools** require the following:
     * Linux
         * tested on Ubuntu 16.04, 17.10, 18.04, 20.04
     * MacOS
@@ -144,13 +143,14 @@ configurations and aliases which look like this:
         * requires GNU gsed
     * Arduino IDE
         * tested on 1.8.5, 1.8.6, 1.8.7, 1.8.9, 1.8.13
-* AUniter Integration with Jenkins requires the following:
-    * `auniter.sh`
+* **AUniter Jenkins Integration** requires the following:
+    * **Auniter Tools**
     * [AUnit](https://github.com/bxparks/AUnit) (optional)
     * [Jenkins](https://jenkins.io) Continuous Integration platform
     * Linux system (tested on Ubuntu 16.04, 17.10, 18.04)
-* AUniter BadgeService requires the following:
-    * AUniter Integration with Jenkins
+* **AUniter BadgeService** requires the following:
+    * **AUniter Integration with Jenkins**
+    * [Google Cloud Services](https://cloud.google.com/) account
     * [Google Functions](https://cloud.google.com/functions/)
 
 Windows is definitely not supported because the scripts require the `bash`
