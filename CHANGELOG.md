@@ -8,6 +8,10 @@
     * Add `config` command to print the auto-detected `auniter.ini` file.
     * Add `compile` command as an alias for `verify`, because the Arduino-CLI
       binary uses `compile` instead of `verify`.
+    * Add `mon` command as an alias for `monitor`, because we often want
+      to run the 'monitor' command after an 'upmon', and this makes it
+      easier to retrieve the previous 'upmon' command from the bash history and
+      just remove the 'up'.
     * Add support for [arduino-cli](https://github.com/arduino/arduino-cli)
       using the `AUNITER_ARDUINO_CLI` environment variable. The `preprocessor`
       directive in the `auniter.ini` must not contain a string due to a bug in

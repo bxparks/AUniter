@@ -63,6 +63,7 @@ Usage: auniter.sh [-h] [auniter_flags] command [command_flags] [args ...]
        auniter.sh upload {env}:{port},... files ...
        auniter.sh test {env}:{port},... files ...
        auniter.sh monitor [{env}:]{port}
+       auniter.sh mon [{env}:]{port}
        auniter.sh upmon {env}:{port} file
 END
 }
@@ -96,6 +97,7 @@ Commands (command):
     upload  Upload the sketch(es) to the given board at port.
     test    Upload the AUnit unit test(s), and verify pass or fail.
     monitor Run the serial terminal defined in aniter.conf on the given port.
+    mon     Alias for 'monitor'.
     upmon   Upload the sketch and run the monitor upon success.
 
 Command Flags (command_flags):
@@ -678,7 +680,7 @@ function main() {
         compile) mode='verify'; handle_build "$@" ;;
         upload) handle_build "$@" ;;
         test) handle_build "$@" ;;
-        monitor) handle_monitor "$@" ;;
+        monitor|mon) handle_monitor "$@" ;;
         upmon) handle_upmon "$@" ;;
         *) echo "Unknown command '$mode'"; usage ;;
     esac

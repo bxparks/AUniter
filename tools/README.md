@@ -241,6 +241,7 @@ Usage: auniter.sh [-h] [auniter_flags] command [command_flags] [args ...]
        auniter.sh upload {env}:{port},... files ...
        auniter.sh test {env}:{port},... files ...
        auniter.sh monitor [{env}:]{port}
+       auniter.sh mon [{env}:]{port}
        auniter.sh upmon {env}:{port} file
 [...]
 ```
