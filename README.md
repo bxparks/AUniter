@@ -35,14 +35,28 @@ There are 3 components to the **AUniter** package:
 1. Integration of the `auniter.sh` script with a locally hosted Jenkins system
    (`jenkins/`) to provide continuous build and test integration upon changes
    to the source code repository.
+    * This depends on the `auniter.sh` above.
+    * As of v1.8 or so, I no longer use this integration because:
+        1. the Arduino IDE is simply too slow, with some of my projects taking
+            1-2 hours to run through all the test suites,
+        1. The Arduino-CLI tool cannot replace the Arduino IDE because its
+            [broken --build-properties
+            flag](https://github.com/arduino/arduino-cli/issues/846), and,
+        1. The Jenkins service is too brittle and cumbersome to maintain.
+    * I have started to use the
+      [UnixHostDuino](https://github.com/bxparks/UnixHostDuino) project
+      more frequently as an alternative, even though it cannot handle the
+      Arduino programs that depend on specific hardware.
 1. A badge service (`BadgeService/`) running on
    [Google Cloud Functions](https://cloud.google.com/functions/)
    that allows the locally hosted Jenkins system to update the status of the
    build, so that an indicator badge can be displayed on a source control
    repository like GitHub.
-
-(These components are organized as onion rings. In other words, each component
-in this list requires the previous component to function.)
+    * This depends on the Jenkins service above.
+    * As of v1.8 or so, I no longer use this service, because the Arduino IDE
+      is too slow to handle the number of INO files that I needed to compile in
+      my Continuous Integration pipeline. I may revisit this when Arduino-CLI
+      fixes the broken parser of its `--build-properties` flag.
 
 The `auniter.sh` script uses the command line mode of the
 [Arduino IDE binary](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc).
@@ -107,9 +121,9 @@ configurations and aliases which look like this:
   preprocessor = -DAUNITER_MICRO -DAUNITER_BUTTON=3
 ```
 
-Version: 1.7.2 (2020-08-21)
+**Version**: 1.8 (2020-09-04)
 
-Changelog: [CHANGELOG.md](CHANGELOG.md)
+**Changelog**: [CHANGELOG.md](CHANGELOG.md)
 
 ## Installation
 
@@ -121,18 +135,23 @@ Changelog: [CHANGELOG.md](CHANGELOG.md)
 ## System Requirements
 
 * AUniter Tools require the following:
-    * Linux system (tested on Ubuntu 16.04, 17.10, 18.04, 20.04)
-    * Arduino IDE (tested on 1.8.5, 1.8.6, 1.8.7, 1.8.9, 1.8.13)
+    * Linux
+        * tested on Ubuntu 16.04, 17.10, 18.04, 20.04
+    * MacOS
+        * tested on 10.14.6 (Mojave)
+        * *not* tested on 10.15 (Catalina)
+        * requires GNU coreutils
+        * requires GNU gsed
+    * Arduino IDE
+        * tested on 1.8.5, 1.8.6, 1.8.7, 1.8.9, 1.8.13
 * AUniter Integration with Jenkins requires the following:
-    * AUniter Tools
+    * `auniter.sh`
     * [AUnit](https://github.com/bxparks/AUnit) (optional)
     * [Jenkins](https://jenkins.io) Continuous Integration platform
     * Linux system (tested on Ubuntu 16.04, 17.10, 18.04)
 * AUniter BadgeService requires the following:
     * AUniter Integration with Jenkins
     * [Google Functions](https://cloud.google.com/functions/)
-
-Some exploration on MacOS has been done, but it is currently not supported.
 
 Windows is definitely not supported because the scripts require the `bash`
 shell. I am not familiar with
@@ -143,6 +162,8 @@ so I do not know if it would work on that.
 
 * [Teensyduino](https://pjrc.com/teensy/teensyduino.html) is not supported
   due to [Issue #4](https://github.com/bxparks/AUniter/issues/4).
+* Arduino-CLI has a broken parser for its `--build-properties` flag, so
+  `-D` flags with a string does not work.
 
 ## Alternatives Considered
 
@@ -275,11 +296,11 @@ describes how to actually to use these programs.
 The [Arduino CLI](https://github.com/arduino/arduino-cli) is currently in alpha
 stage. I did not learn about it until I had built the `AUniter` tools. It is a
 Go Lang program which interacts relatively nicely with the Arduino IDE.
-According to the developers, this project will eventually replace the command
-line mode of the
-[Arduino IDE binary](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc).
-When that happens, the `auniter.sh` script may use the `Arduino CLI` binary
-directly, instead of going through the Arduino IDE (in headless mode).
+
+Version 1.8 includes an initial integration with Arduino-CLI and exposes
+that functionality through the `--cli` flag. However, the Arduino-CLI has a
+broken parser for its `--build-properties` flag, so it does not support `-D`
+flags that contain strings.
 
 ## License
 

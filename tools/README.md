@@ -770,6 +770,15 @@ In all the other `*.cpp` and `*.h` files, you would just do:
 
 ## Limitations
 
-[Teensyduino](https://pjrc.com/teensy/teensyduino.html) is not
-currently supported because of
+* [Teensyduino](https://pjrc.com/teensy/teensyduino.html) is not
+  currently supported because of
 [Issue #4](https://github.com/bxparks/AUniter/issues/4).
+* When using the Arduino-CLI (through the `--cli` flag), the `preprocessor`
+  flags are passed into the `arduino-cli` binary using the `--build-properties`
+  flag. Unfortunately, the Arduino-CLI has a broken parser for that flag (see
+  https://github.com/arduino/arduino-cli/issues/846), so any `-D` flag that
+  contains a string (double-quotes) will not be processed correctly. The
+  `auniter.sh` script detects this condition and exits with an error message if
+  a `-D` flag with a string is detected. The only solution right now is to use
+  the Arduino IDE (using the `--ide` option) instead of the Arduino-CLI (using
+  the `--cli` option).
