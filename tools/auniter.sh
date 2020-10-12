@@ -112,6 +112,9 @@ Command Flags (command_flags):
         (upload, test) Just perform a 'verify' if --port or {:port} is missing.
         Useful in Continuous Integration on multiple boards where only some
         boards are actually connected to a serial port.
+    -D MACRO=value
+        Add the 'MACRO' to the C-preprocessor with the 'value'. Multiple -D
+        flags can be given. The space after the -D is required.
 
 Files:
     Multiple *.ino files and directories may be given. If a directory is given,
@@ -287,7 +290,10 @@ function process_env_and_port() {
     exclude=$(get_config "$config_file" "env:$env" exclude)
     exclude=${exclude:-'^$'} # if empty, exclude nothing, not everything
 
+    # Get the CPP macros from auniter.ini. Then add the '-D macro' flags on the
+    # 'auniter.sh' command line.
     preprocessor=$(get_config "$config_file" "env:$env" preprocessor)
+    preprocessor="$preprocessor $cli_preprocessor"
 
     # If the preprocessor directive contains quotes, then arduino-cli cannot
     # be used due to its incorrect handling of the --build-properties flag.
@@ -494,11 +500,13 @@ function interrupted() {
 # Process build (verify, upload, or test) commands.
 function handle_build() {
     local single=0
+    cli_preprocessor=
     sketchbook_flag=
     skip_missing_port=0
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --single) single=1 ;;
+            --single) single=1 ;; # internal flag
+            -D) shift; cli_preprocessor="$cli_preprocessor -D $1" ;;
             --sketchbook) shift; sketchbook_flag="--sketchbook $1" ;;
             --skip_missing_port) skip_missing_port=1 ;;
             -*) echo "Unknown build option '$1'"; usage ;;
@@ -637,6 +645,7 @@ function main() {
     preserve=
     cli_option='ide'
     local config=
+
     while [[ $# -gt 0 ]]; do
         case $1 in
             --help|-h) usage_long ;;

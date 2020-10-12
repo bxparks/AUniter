@@ -1,6 +1,9 @@
 # Changelog
 
 * Unreleased
+    * Add `-D MACRO=value` flag which adds additional C-Preprocessor macros
+      when using `verify`, `upload`, `upmon` and `test` subcommands. Multiple
+      `-D` flags will define multiple MACROs.
 * 1.8 (2020-09-04)
     * Auto-detect the location of 'auniter.ini' in the following order:
       `--config` flag, the current directory, any parent directory,

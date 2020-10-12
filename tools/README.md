@@ -197,31 +197,31 @@ with comments stripped out:
 
 [env:uno]
   board = uno
-  preprocessor = -DAUNITER_UNO
+  preprocessor = -D AUNITER_UNO
 
 [env:nano]
   board = nano
-  preprocessor = -DAUNITER_NANO -DAUNITER_LEFT_BUTTON=2 -DAUNITER_RIGHT_BUTTON=3
+  preprocessor = -D AUNITER_NANO -D AUNITER_LEFT_BUTTON=2 -D AUNITER_RIGHT_BUTTON=3
 
 [env:leonardo]
   board = leonardo
   locking = false
-  preprocessor = -DAUNITER_LEONARDO
+  preprocessor = -D AUNITER_LEONARDO
 
 [env:micro]
   board = promicro16
   locking = false
-  preprocessor = -DAUNITER_MICRO
+  preprocessor = -D AUNITER_MICRO
 
 [env:esp8266]
   board = nodemcuv2
   exclude = AceButton/examples/CapacitiveButton
-  preprocessor = -DAUNITER_ESP8266 -DAUNITER_SSID="MyWiFi" -DAUNITER_PASSWORD="mypassword"
+  preprocessor = -D AUNITER_ESP8266 -D AUNITER_SSID="MyWiFi" -D AUNITER_PASSWORD="mypassword"
 
 [env:esp32]
   board = esp32
   exclude = AceButton/examples/CapacitiveButton
-  preprocessor = -DAUNITER_ESP32 -DAUNITER_SSID="MyWiFi" -DAUNITER_PASSWORD="mypassword"
+  preprocessor = -D AUNITER_ESP32 -D AUNITER_SSID="MyWiFi" -D AUNITER_PASSWORD="mypassword"
 ```
 
 The examples below will use these settings.
@@ -253,11 +253,18 @@ The 7 subcommands (`envs`, `ports`, `verify`, `upload`, `test`, `monitor`,
 
 There are several top-level flags:
 
-* `--ide`: Use the Arduino IDE and the `AUNITER_ARDUINO_BINARY` environment
-  variable. This is the default if neither `--ide` nor `--cli` are given.
-* `--cli`: Use the arduino-cli and the `AUNITER_ARDUINO_CLI` environment
-  variable
-* `--verbose`: Print out verbose debugging output
+* `--config path`
+    * Read the `auniter.ini` file from the given path, instead of using
+      the default `auniter.ini`.
+    * See the section *Config File* above for details on the search algorithm
+      used to find the default `auniter.ini` file.
+* `--ide`
+    * Use the Arduino IDE and the `AUNITER_ARDUINO_BINARY` environment
+    variable. This is the default if neither `--ide` nor `--cli` are given.
+* `--cli`
+    * Use the arduino-cli and the `AUNITER_ARDUINO_CLI` environment variable
+* `--verbose`
+    * Print out verbose debugging output
 
 If you want to make `--cli` the default, create the `auniter` alias with this
 flag:
@@ -611,13 +618,17 @@ By default, the `auniter.sh` script looks in the
 ```
 $HOME/.auniter.ini
 ```
-file in your home directory. The script can be told to look elsewhere using the
-`--config` command line flag. (Use `--config /dev/null` to indicate no config
-file.) This may be useful if the config file is checked into source control for
-each Arduino project.
+file in your home directory, or one of the other `auniter.ini` files
+in the search path described above in the section labeled *Config File*.
+
+The script can be told to look elsewhere using the `--config` command line flag.
+(Use `--config /dev/null` to indicate no config file.) This may be useful if the
+config file is checked into source control for each Arduino project.
+
+Example:
 
 ```
-$ auniter --config {path-to-config-file} subcommand {env}:{port} ...
+$ auniter --config $HOME/tmp/auniter.ini verify nano Sample.ino
 ```
 
 (The `--config` flag is an option on the `auniter.sh` command, not the
@@ -630,6 +641,30 @@ subcommand, so it must occur *before* the subcommands.)
 The `auniter.sh` accepts a `--verbose` flag, which enables verbose mode for
 those subcommands which support it. In particular, it is passed into the Arduino
 binary, which then prints out the compilation steps in extreme detail.
+
+Example:
+
+```
+$ auniter --verbose verify nano Sample.ino
+```
+
+### Additional Preprocessor Macros (-D)
+
+(Valid on the `verify`, `upload`, `upmon`, `test` subcommands).
+
+The `-D MACRO=value` flag can be given after one of the above subcommands
+to add the `macro=value` expression to the C-preprocessor.
+
+* Multiple `-D` flags can be given to define multiple macro expressions.
+* The space between the `-D` and the `MACRO=value` is *required*.
+* The MACROs defined on the command line flag are added *after* the
+  `preprocessor` flags defined in the `auniter.ini` file (see below).
+
+Example:
+
+```
+$ auniter verify -D ENABLE_SERIAL_DEBUG=1 nano Sample.ino
+```
 
 ### Default Baud Rate (baud, --baud)
 
@@ -645,6 +680,12 @@ rate to 9600:
   baud = 9600
 ```
 
+Example:
+
+```
+$ auniter upmon --baud 9600 nano:USB0 Sample.ino
+```
+
 ### Skip Missing Port (--skip_missing_port)
 
 (Valid for subcommands: `upload` and `test`)
@@ -654,11 +695,25 @@ message if the `{port}` specifier is not given. However, in continuous
 integration scripts, it is useful to simply skip the operation if the port is
 missing. This flag turns on that feature.
 
+Example:
+
+```
+$ auniter test --skip_missing_port nano:USB0,esp8266:USB1 Sample.ino
+```
+
 ### Sketchbook Path (--sketchbook)
+
+(Valid for subcommands: `verify`, `upload`, `upmon` and `test`)
 
 In continuous integration scripts, the root path of the sketchbook needs to be
 changed to a directory where the various libaries have been checked out. This
 flag changes the sketchbook directory of the Arduino IDE.
+
+Example:
+
+```
+$ auniter verify --sketchbook $HOME/MyArduinoProjects nano Sample.ino
+```
 
 ## Integration with Jenkins
 
