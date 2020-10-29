@@ -154,6 +154,10 @@ function get_ino_file() {
 # 3) Look for 'auniter.ini' in parent directories, else
 # 4) Look for '$HOME/auniter.ini', else
 # 5) Look for '$HOME/.auniter.ini'.
+#
+# Usage: find_config_file {config_path}
+# If "config_path" is empty, then use the algorithm above to find the
+# auniter.ini file.
 function find_config_file() {
     # Check if the --config flag was given
     local config=$1
@@ -200,6 +204,7 @@ function find_config_file() {
 
 
 # Find the given $key in a $section from the $config file.
+#
 # Usage: get_config config section key
 #
 # The config file is expected to be in an INI file format:
@@ -259,6 +264,7 @@ function list_envs() {
 #   - $port - /dev/ttyXXX
 #   - $locking - (true|false) whether flock(1) should lock the /dev/ttyXXX
 #   - $exclude - egrep pattern of files to skip
+#   - $preprocessor - '-D' flags to pass to the cpp C-preprocessor
 function process_env_and_port() {
     local env_and_port=$1
 
@@ -290,18 +296,8 @@ function process_env_and_port() {
     exclude=$(get_config "$config_file" "env:$env" exclude)
     exclude=${exclude:-'^$'} # if empty, exclude nothing, not everything
 
-    # Get the CPP macros from auniter.ini. Then add the '-D macro' flags on the
-    # 'auniter.sh' command line.
+    # Get the CPP macros from auniter.ini.
     preprocessor=$(get_config "$config_file" "env:$env" preprocessor)
-    preprocessor="$preprocessor $cli_preprocessor"
-
-    # If the preprocessor directive contains quotes, then arduino-cli cannot
-    # be used due to its incorrect handling of the --build-properties flag.
-    if [[ "$preprocessor" =~ \" && "$cli_option" == 'cli' ]]; then
-        echo "'preprocessor' directive in auniter.ini cannot contain strings"
-        echo "Use --ide flag instead"
-        exit 1
-    fi
 }
 
 # If a port is not fully qualified (i.e. start with /), then append
@@ -345,6 +341,21 @@ function process_envs() {
                     | tee -a $summary_file
             fi
             continue
+        fi
+
+        # Determine the effective $preprocessor for the current environment by
+        # adding the '-D macro' flags given on the 'auniter.sh' command line.
+        preprocessor="$preprocessor $cli_preprocessor"
+
+        # If the preprocessor directive contains quotes, then arduino-cli cannot
+        # be used due to its incorrect handling of the --build-properties flag.
+        # TODO(brian): Remove this when the ArduinoCLI finally supports
+        # preprocessor flags contains strings.
+        if [[ "$preprocessor" =~ \" && "$cli_option" == 'cli' ]]; then
+            echo "\
+The ArduinoCLI (invoked with --cli) does not support preprocessor flags
+containing strings. Use --ide flag instead"
+            exit 1
         fi
 
         process_files "$@"
@@ -618,6 +629,10 @@ function handle_upmon() {
 }
 
 # Read in the default flags in the [auniter] section of the config file.
+# Set the following global variables:
+#   * monitor
+#   * baud
+#   * port_timeout
 function read_default_configs() {
     echo "Reading config: $config_file"
 
@@ -640,10 +655,6 @@ function print_config() {
 
 # Parse auniter command line flags
 function main() {
-    mode=
-    verbose=
-    preserve=
-    cli_option='ide'
     local config=
 
     while [[ $# -gt 0 ]]; do
@@ -695,4 +706,21 @@ function main() {
     esac
 }
 
+# Define the initial set of global variables. A whole bunch more are defined by
+# process_env_and_port() function.
+#
+# TODO(brian): Too many global variables are used in this script, indicating
+# that this has probably outgrown the reasonable limits of bash(1). I should
+# probably migrate this to something else, lilke Python. But the Python
+# deployment story is so freaking complicated. Too many Python versions, too
+# many python environments, needing to support different Operating Systems.
+mode=
+verbose=
+preserve=
+cli_option='ide'
+config_file=
+summary_file=
+cli_preprocessor=
+sketchbook_flag=
+skip_missing_port=0
 main "$@"
