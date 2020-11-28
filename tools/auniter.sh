@@ -351,17 +351,6 @@ function process_envs() {
         # adding the '-D macro' flags given on the 'auniter.sh' command line.
         preprocessor="$preprocessor $cli_preprocessor"
 
-        # If the preprocessor directive contains quotes, then arduino-cli cannot
-        # be used due to its incorrect handling of the --build-properties flag.
-        # TODO(brian): Remove this when the ArduinoCLI finally supports
-        # preprocessor flags contains strings.
-        if [[ "$preprocessor" =~ \" && "$cli_option" == 'cli' ]]; then
-            echo "\
-The ArduinoCLI (invoked with --cli) does not support preprocessor flags
-containing strings. Use --ide flag instead"
-            exit 1
-        fi
-
         process_files "$@"
     done
 }
