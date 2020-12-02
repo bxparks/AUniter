@@ -4,6 +4,14 @@
     * Add `-D MACRO=value` flag which adds additional C-Preprocessor macros
       when using `verify`, `upload`, `upmon` and `test` subcommands. Multiple
       `-D` flags will define multiple MACROs.
+    * Add `--output filename` flag (short form `-o`) to the `upmon` command. It
+      captures the serial output of the microcontroller and saves it to the
+      given `filename`. By default, the process ends after a 10 second timeout.
+      However, if `--eof string` flag is given, the script looks for the given
+      string and terminates just after it is detected in the serial output. The
+      `string` itself is saved into the file. The `--output` flag could be
+      useful in the `monitor` command as well, but it is not clear that it would
+      be useful, so for the lack of infinite time, I have not implemented it.
 * 1.8 (2020-09-04)
     * Auto-detect the location of 'auniter.ini' in the following order:
       `--config` flag, the current directory, any parent directory,
