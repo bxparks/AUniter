@@ -62,9 +62,10 @@ Usage: auniter.sh [-h] [auniter_flags] command [command_flags] [args ...]
        auniter.sh compile {env} files ...
        auniter.sh upload {env}:{port},... files ...
        auniter.sh test {env}:{port},... files ...
-       auniter.sh monitor [{env}:]{port}
-       auniter.sh mon [{env}:]{port}
+       auniter.sh monitor|mon [{env}:]{port}
        auniter.sh upmon {env}:{port} file
+       auniter.sh save (--output|-o) outfile [--eof {eof}] [{env}:]{port}
+       auniter.sh upsave (--output|-o) outfile [--eof {eof}] [{env}:]{port}
 END
 }
 
@@ -99,6 +100,10 @@ Commands (command):
     monitor Run the serial terminal defined in aniter.conf on the given port.
     mon     Alias for 'monitor'.
     upmon   Upload the sketch and run the monitor upon success.
+    upsave  Upload the sketch and save the serial output to the given output
+            file. The default EOF string is '' which means only the 10 second
+            timeout will terminate the file.
+    save    Connect to the serial port and save its output to the given file.
 
 Command Flags (command_flags):
     --baud baud
@@ -628,6 +633,61 @@ function handle_upmon() {
     run_monitor $port $baud "$monitor"
 }
 
+# Save the serial output.
+function run_save() {
+    local port=$1
+    local baud=$2
+    local eof="$3"
+    local output="$4"
+
+    $DIRNAME/serial_monitor.py --monitor --eof "$eof" | tee "$output"
+}
+
+function handle_save() {
+    local eof=''
+    local output=''
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --eof) shift; eof="$1" ;;
+            --output|-o) shift; output="$1" ;;
+            -*) echo "Unknown save flag '$1'"; usage ;;
+            *) break ;;
+        esac
+        shift
+    done
+    if [[ "$output" == '' ]]; then
+        echo "Missing '--output' flag for 'save' command"
+        usage
+    fi
+
+    run_save $port $baud "$eof" "$output"
+}
+
+# Capture the serial output to the given outfile.
+function handle_upsave() {
+    local eof=''
+    local output=''
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --eof) shift; eof="$1" ;;
+            --output|-o) shift; output="$1" ;;
+            -*) echo "Unknown upsave flag '$1'"; usage ;;
+            *) break ;;
+        esac
+        shift
+    done
+    if [[ "$output" == '' ]]; then
+        echo "Missing '--output' flag for 'upsave' command"
+        usage
+    fi
+
+    mode=upload
+    handle_build --single "$@"
+
+    mode=save
+    run_save $port $baud "$eof" "$output"
+}
+
 # Read in the default flags in the [auniter] section of the config file.
 # Set the following global variables:
 #   * monitor
@@ -702,6 +762,8 @@ function main() {
         test) handle_build "$@" ;;
         monitor|mon) handle_monitor "$@" ;;
         upmon) handle_upmon "$@" ;;
+        save) handle_save "$@" ;;
+        upsave) handle_upsave "$@" ;;
         *) echo "Unknown command '$mode'"; usage ;;
     esac
 }
@@ -711,7 +773,7 @@ function main() {
 #
 # TODO(brian): Too many global variables are used in this script, indicating
 # that this has probably outgrown the reasonable limits of bash(1). I should
-# probably migrate this to something else, lilke Python. But the Python
+# probably migrate this to something else, like Python. But the Python
 # deployment story is so freaking complicated. Too many Python versions, too
 # many python environments, needing to support different Operating Systems.
 mode=

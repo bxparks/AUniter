@@ -14,7 +14,7 @@ with a status 0 if the test is successful, otherwise exits with a status 1.
 
 Usage:
     serial_monitor.py [--help] [--log_level] [--list | --test | --monitor)
-        [--port /dev/ttyPort] [--baud 115200]
+        [--port /dev/ttyPort] [--baud 115200] [--eof eof]
 
 Flags:
     --list List the known tty ports. (default)
@@ -23,6 +23,7 @@ Flags:
     --port {tty} Set the tty port.
     --baud {baud} Set the baud rate.
     --log_level (INFO|DEBUG|ERROR) Set the logging level.
+    --eof eof The End-of-File string marker.
 """
 
 import argparse
@@ -58,30 +59,38 @@ TEST_MODE_START_FOUND = 1
 TEST_MODE_END_SUMMARY_FOUND = 2
 
 
-def monitor(port, baud):
+def monitor(port, baud, eof, timeout):
     """Read the serial output and echo the lines to the STDOUT."""
     logging.info('Reading the serial port %s at %s baud' % (port, baud))
-    ser = open_port(port, baud)
+    ser = open_port(port, baud, timeout)
     logging.info('Monitoring port %s...' % port)
     try:
         while True:
             line = ser.readline()
             line = line.decode('ascii')
-            if line == '': break
+            if line == '':
+                logging.error(
+                    f"No output detected after {timeout} seconds... exiting."
+                )
+                break
+
             line = line.rstrip()
             print(line)
+            if eof in line:
+                # The line with eof is *included* in the output.
+                logging.info(f"Detected '{eof}' EOF string... exiting.")
+                break
     finally:
         ser.close()
-    logging.error('No output detected after 10 seconds... exiting.')
 
 
-def validate_test(port, baud):
+def validate_test(port, baud, timeout):
     """Read and verify an AUnit test looking and matching specific lines from
     the TestRunner of AUnit in the serial output.
     """
     logging.info('Reading the AUnit test on serial port %s at %s baud' %
                  (port, baud))
-    ser = open_port(port, baud)
+    ser = open_port(port, baud, timeout)
     try:
         summary_line = ''
         test_mode = TEST_MODE_UNKNOWN
@@ -137,7 +146,7 @@ def list_ports():
         print(comport)
 
 
-def open_port(port, baud):
+def open_port(port, baud, timeout):
     """Open the given port. Boards like Teensy, Leonardo, and Micro do not
     create a virtual serial port until the Arduino program runs, so we make
     multiple attempts (NUM_ATTEMPTS) to open the port using an exponential back
@@ -145,7 +154,7 @@ def open_port(port, baud):
     """
     wait_time = WAIT_TIME_BASE
     count = 1
-    ser = serial.Serial(port=None, baudrate=baud, timeout=TIMEOUT_ON_IDLE)
+    ser = serial.Serial(port=None, baudrate=baud, timeout=timeout)
     ser.port = port
     while True:
         try:
@@ -184,6 +193,13 @@ def main():
         '--test', action='store_true', help='Verify an AUnit test')
     parser.add_argument(
         '--monitor', action='store_true', help='Monitor the serial port')
+    parser.add_argument(
+        '--eof', action='store', default='', help='End of File string')
+    parser.add_argument(
+        '--timeout',
+        action='store',
+        default=TIMEOUT_ON_IDLE,
+        help='End of File string')
     args = parser.parse_args()
 
     # Configure logging.
@@ -191,9 +207,9 @@ def main():
         level=args.log_level, format=LOG_FORMAT, datefmt=DATE_FORMAT)
 
     if args.monitor:
-        monitor(args.port, args.baud)
+        monitor(args.port, args.baud, args.eof, args.timeout)
     elif args.test:
-        validate_test(args.port, args.baud)
+        validate_test(args.port, args.baud, args.timeout)
     else:
         list_ports()
 
