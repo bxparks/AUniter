@@ -63,9 +63,7 @@ Usage: auniter.sh [-h] [auniter_flags] command [command_flags] [args ...]
        auniter.sh upload {env}:{port},... files ...
        auniter.sh test {env}:{port},... files ...
        auniter.sh monitor|mon [{env}:]{port}
-       auniter.sh upmon {env}:{port} file
-       auniter.sh save (--output|-o) outfile [--eof {eof}] [{env}:]{port}
-       auniter.sh upsave (--output|-o) outfile [--eof {eof}] [{env}:]{port}
+       auniter.sh upmon [(--output|-o) outfile] [--eof {eof}] {env}:{port} file
 END
 }
 
@@ -99,11 +97,12 @@ Commands (command):
     test    Upload the AUnit unit test(s), and verify pass or fail.
     monitor Run the serial terminal defined in aniter.conf on the given port.
     mon     Alias for 'monitor'.
-    upmon   Upload the sketch and run the monitor upon success.
-    upsave  Upload the sketch and save the serial output to the given output
-            file. The default EOF string is '' which means only the 10 second
-            timeout will terminate the file.
-    save    Connect to the serial port and save its output to the given file.
+    upmon   Upload the sketch and run the monitor upon success. If the --output
+            (or -o) flag is given, the output is saved to the given output file.
+            The default EOF string is '' which means only the 10 second timeout
+            will terminate the file. If --eof is given, the program will return
+            to the user right after the EOF string is detected. The EOF string
+            will be included in the output file.
 
 Command Flags (command_flags):
     --baud baud
@@ -624,16 +623,8 @@ function handle_monitor() {
     run_monitor $port $baud "$monitor"
 }
 
-# Combination of 'upload' then 'monitor' if upload goes ok.
-function handle_upmon() {
-    mode=upload
-    handle_build --single "$@"
-
-    mode=monitor
-    run_monitor $port $baud "$monitor"
-}
-
-# Save the serial output.
+# Save the serial output to an output file, instead of displaying it on the
+# screen.
 function run_save() {
     local port=$1
     local baud=$2
@@ -643,49 +634,30 @@ function run_save() {
     $DIRNAME/serial_monitor.py --monitor --eof "$eof" | tee "$output"
 }
 
-function handle_save() {
+# Combination of 'upload' then 'monitor' if upload goes ok.
+function handle_upmon() {
     local eof=''
     local output=''
     while [[ $# -gt 0 ]]; do
         case $1 in
             --eof) shift; eof="$1" ;;
             --output|-o) shift; output="$1" ;;
-            -*) echo "Unknown save flag '$1'"; usage ;;
+            -*) echo "Unknown upmon flag '$1'"; usage ;;
             *) break ;;
         esac
         shift
     done
-    if [[ "$output" == '' ]]; then
-        echo "Missing '--output' flag for 'save' command"
-        usage
-    fi
-
-    run_save $port $baud "$eof" "$output"
-}
-
-# Capture the serial output to the given outfile.
-function handle_upsave() {
-    local eof=''
-    local output=''
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --eof) shift; eof="$1" ;;
-            --output|-o) shift; output="$1" ;;
-            -*) echo "Unknown upsave flag '$1'"; usage ;;
-            *) break ;;
-        esac
-        shift
-    done
-    if [[ "$output" == '' ]]; then
-        echo "Missing '--output' flag for 'upsave' command"
-        usage
-    fi
 
     mode=upload
     handle_build --single "$@"
 
-    mode=save
-    run_save $port $baud "$eof" "$output"
+    if [[ "$output" != '' ]]; then
+        mode=save # setting mode not needed, but preserves consistency
+        run_save $port $baud "$eof" "$output"
+    else
+        mode=monitor
+        run_monitor $port $baud "$monitor"
+    fi
 }
 
 # Read in the default flags in the [auniter] section of the config file.
@@ -762,8 +734,6 @@ function main() {
         test) handle_build "$@" ;;
         monitor|mon) handle_monitor "$@" ;;
         upmon) handle_upmon "$@" ;;
-        save) handle_save "$@" ;;
-        upsave) handle_upsave "$@" ;;
         *) echo "Unknown command '$mode'"; usage ;;
     esac
 }

@@ -76,7 +76,7 @@ def monitor(port, baud, eof, timeout):
 
             line = line.rstrip()
             print(line)
-            if eof in line:
+            if eof and eof in line:
                 # The line with eof is *included* in the output.
                 logging.info(f"Detected '{eof}' EOF string... exiting.")
                 break
