@@ -631,7 +631,8 @@ function run_save() {
     local eof="$3"
     local output="$4"
 
-    $DIRNAME/serial_monitor.py --monitor --eof "$eof" | tee "$output"
+    $DIRNAME/serial_monitor.py --monitor --port $port --eof "$eof" |
+        tee "$output"
 }
 
 # Combination of 'upload' then 'monitor' if upload goes ok.
