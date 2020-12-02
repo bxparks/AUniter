@@ -62,9 +62,8 @@ Usage: auniter.sh [-h] [auniter_flags] command [command_flags] [args ...]
        auniter.sh compile {env} files ...
        auniter.sh upload {env}:{port},... files ...
        auniter.sh test {env}:{port},... files ...
-       auniter.sh monitor [{env}:]{port}
-       auniter.sh mon [{env}:]{port}
-       auniter.sh upmon {env}:{port} file
+       auniter.sh monitor|mon [{env}:]{port}
+       auniter.sh upmon [(--output|-o) outfile] [--eof {eof}] {env}:{port} file
 END
 }
 
@@ -98,7 +97,12 @@ Commands (command):
     test    Upload the AUnit unit test(s), and verify pass or fail.
     monitor Run the serial terminal defined in aniter.conf on the given port.
     mon     Alias for 'monitor'.
-    upmon   Upload the sketch and run the monitor upon success.
+    upmon   Upload the sketch and run the monitor upon success. If the --output
+            (or -o) flag is given, the output is saved to the given output file.
+            The default EOF string is '' which means only the 10 second timeout
+            will terminate the file. If --eof is given, the program will return
+            to the user right after the EOF string is detected. The EOF string
+            will be included in the output file.
 
 Command Flags (command_flags):
     --baud baud
@@ -619,13 +623,41 @@ function handle_monitor() {
     run_monitor $port $baud "$monitor"
 }
 
+# Save the serial output to an output file, instead of displaying it on the
+# screen.
+function run_save() {
+    local port=$1
+    local baud=$2
+    local eof="$3"
+    local output="$4"
+
+    $DIRNAME/serial_monitor.py --monitor --eof "$eof" | tee "$output"
+}
+
 # Combination of 'upload' then 'monitor' if upload goes ok.
 function handle_upmon() {
+    local eof=''
+    local output=''
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --eof) shift; eof="$1" ;;
+            --output|-o) shift; output="$1" ;;
+            -*) echo "Unknown upmon flag '$1'"; usage ;;
+            *) break ;;
+        esac
+        shift
+    done
+
     mode=upload
     handle_build --single "$@"
 
-    mode=monitor
-    run_monitor $port $baud "$monitor"
+    if [[ "$output" != '' ]]; then
+        mode=save # setting mode not needed, but preserves consistency
+        run_save $port $baud "$eof" "$output"
+    else
+        mode=monitor
+        run_monitor $port $baud "$monitor"
+    fi
 }
 
 # Read in the default flags in the [auniter] section of the config file.
@@ -711,7 +743,7 @@ function main() {
 #
 # TODO(brian): Too many global variables are used in this script, indicating
 # that this has probably outgrown the reasonable limits of bash(1). I should
-# probably migrate this to something else, lilke Python. But the Python
+# probably migrate this to something else, like Python. But the Python
 # deployment story is so freaking complicated. Too many Python versions, too
 # many python environments, needing to support different Operating Systems.
 mode=
