@@ -1,6 +1,7 @@
 # Changelog
 
 * Unreleased
+* 1.9 (2020-12-03)
     * Add `-D MACRO=value` flag which adds additional C-Preprocessor macros
       when using `verify`, `upload`, `upmon` and `test` subcommands. Multiple
       `-D` flags will define multiple MACROs.
