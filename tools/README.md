@@ -461,6 +461,28 @@ $ auniter upmon uno:USB0 Blink.ino
 The argument list is very similar to `upload` except that `upmon` accepts
 only a single `{env}:{port}` pair.
 
+The `--output file` option (short form `-o`) can be given to the `upmon` command
+to capture the Serial output of the microcontroller to the specified `file`,
+like this:
+
+```
+$ auniter upmon -o file.txt uno:USB0 Blink.ino
+```
+
+By default, the `auniter` program has no way of knowing when the microcontroller
+has finished its output. So `auniter` will wait about 10 seconds before closing
+the file and returning control to the user. However, if the Serial output
+contains a special marker that indicates "end of file", then that marker can be
+given in the `--eof {string}`:
+
+```
+$ auniter upmon -o file.txt --eof END uno:USB0 Blink.ino
+```
+
+When the string `END` is found anywhere in the output line from microcontroller,
+the `auniter` command will close the output file and return. The string that
+contains the `END` marker will be included as the final line of the file.
+
 ## Advanced Usage
 
 The following features are useful if you are working with multiple board types,
