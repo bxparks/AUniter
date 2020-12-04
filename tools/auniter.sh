@@ -62,9 +62,8 @@ Usage: auniter.sh [-h] [auniter_flags] command [command_flags] [args ...]
        auniter.sh compile {env} files ...
        auniter.sh upload {env}:{port},... files ...
        auniter.sh test {env}:{port},... files ...
-       auniter.sh monitor [{env}:]{port}
-       auniter.sh mon [{env}:]{port}
-       auniter.sh upmon {env}:{port} file
+       auniter.sh monitor|mon [{env}:]{port}
+       auniter.sh upmon [(--output|-o) outfile] [--eof {eof}] {env}:{port} file
 END
 }
 
@@ -98,7 +97,12 @@ Commands (command):
     test    Upload the AUnit unit test(s), and verify pass or fail.
     monitor Run the serial terminal defined in aniter.conf on the given port.
     mon     Alias for 'monitor'.
-    upmon   Upload the sketch and run the monitor upon success.
+    upmon   Upload the sketch and run the monitor upon success. If the --output
+            (or -o) flag is given, the output is saved to the given output file.
+            The default EOF string is '' which means only the 10 second timeout
+            will terminate the file. If --eof is given, the program will return
+            to the user right after the EOF string is detected. The EOF string
+            will be included in the output file.
 
 Command Flags (command_flags):
     --baud baud
@@ -112,6 +116,9 @@ Command Flags (command_flags):
         (upload, test) Just perform a 'verify' if --port or {:port} is missing.
         Useful in Continuous Integration on multiple boards where only some
         boards are actually connected to a serial port.
+    -D MACRO=value
+        Add the 'MACRO' to the C-preprocessor with the 'value'. Multiple -D
+        flags can be given. The space after the -D is required.
 
 Files:
     Multiple *.ino files and directories may be given. If a directory is given,
@@ -151,6 +158,10 @@ function get_ino_file() {
 # 3) Look for 'auniter.ini' in parent directories, else
 # 4) Look for '$HOME/auniter.ini', else
 # 5) Look for '$HOME/.auniter.ini'.
+#
+# Usage: find_config_file {config_path}
+# If "config_path" is empty, then use the algorithm above to find the
+# auniter.ini file.
 function find_config_file() {
     # Check if the --config flag was given
     local config=$1
@@ -197,6 +208,7 @@ function find_config_file() {
 
 
 # Find the given $key in a $section from the $config file.
+#
 # Usage: get_config config section key
 #
 # The config file is expected to be in an INI file format:
@@ -256,6 +268,7 @@ function list_envs() {
 #   - $port - /dev/ttyXXX
 #   - $locking - (true|false) whether flock(1) should lock the /dev/ttyXXX
 #   - $exclude - egrep pattern of files to skip
+#   - $preprocessor - '-D' flags to pass to the cpp C-preprocessor
 function process_env_and_port() {
     local env_and_port=$1
 
@@ -287,15 +300,8 @@ function process_env_and_port() {
     exclude=$(get_config "$config_file" "env:$env" exclude)
     exclude=${exclude:-'^$'} # if empty, exclude nothing, not everything
 
+    # Get the CPP macros from auniter.ini.
     preprocessor=$(get_config "$config_file" "env:$env" preprocessor)
-
-    # If the preprocessor directive contains quotes, then arduino-cli cannot
-    # be used due to its incorrect handling of the --build-properties flag.
-    if [[ "$preprocessor" =~ \" && "$cli_option" == 'cli' ]]; then
-        echo "'preprocessor' directive in auniter.ini cannot contain strings"
-        echo "Use --ide flag instead"
-        exit 1
-    fi
 }
 
 # If a port is not fully qualified (i.e. start with /), then append
@@ -339,6 +345,21 @@ function process_envs() {
                     | tee -a $summary_file
             fi
             continue
+        fi
+
+        # Determine the effective $preprocessor for the current environment by
+        # adding the '-D macro' flags given on the 'auniter.sh' command line.
+        preprocessor="$preprocessor $cli_preprocessor"
+
+        # If the preprocessor directive contains quotes, then arduino-cli cannot
+        # be used due to its incorrect handling of the --build-properties flag.
+        # TODO(brian): Remove this when the ArduinoCLI finally supports
+        # preprocessor flags contains strings.
+        if [[ "$preprocessor" =~ \" && "$cli_option" == 'cli' ]]; then
+            echo "\
+The ArduinoCLI (invoked with --cli) does not support preprocessor flags
+containing strings. Use --ide flag instead"
+            exit 1
         fi
 
         process_files "$@"
@@ -494,11 +515,13 @@ function interrupted() {
 # Process build (verify, upload, or test) commands.
 function handle_build() {
     local single=0
+    cli_preprocessor=
     sketchbook_flag=
     skip_missing_port=0
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --single) single=1 ;;
+            --single) single=1 ;; # internal flag
+            -D) shift; cli_preprocessor="$cli_preprocessor -D $1" ;;
             --sketchbook) shift; sketchbook_flag="--sketchbook $1" ;;
             --skip_missing_port) skip_missing_port=1 ;;
             -*) echo "Unknown build option '$1'"; usage ;;
@@ -600,16 +623,49 @@ function handle_monitor() {
     run_monitor $port $baud "$monitor"
 }
 
+# Save the serial output to an output file, instead of displaying it on the
+# screen.
+function run_save() {
+    local port=$1
+    local baud=$2
+    local eof="$3"
+    local output="$4"
+
+    $DIRNAME/serial_monitor.py --monitor --port $port --eof "$eof" |
+        tee "$output"
+}
+
 # Combination of 'upload' then 'monitor' if upload goes ok.
 function handle_upmon() {
+    local eof=''
+    local output=''
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --eof) shift; eof="$1" ;;
+            --output|-o) shift; output="$1" ;;
+            -*) echo "Unknown upmon flag '$1'"; usage ;;
+            *) break ;;
+        esac
+        shift
+    done
+
     mode=upload
     handle_build --single "$@"
 
-    mode=monitor
-    run_monitor $port $baud "$monitor"
+    if [[ "$output" != '' ]]; then
+        mode=save # setting mode not needed, but preserves consistency
+        run_save $port $baud "$eof" "$output"
+    else
+        mode=monitor
+        run_monitor $port $baud "$monitor"
+    fi
 }
 
 # Read in the default flags in the [auniter] section of the config file.
+# Set the following global variables:
+#   * monitor
+#   * baud
+#   * port_timeout
 function read_default_configs() {
     echo "Reading config: $config_file"
 
@@ -632,11 +688,8 @@ function print_config() {
 
 # Parse auniter command line flags
 function main() {
-    mode=
-    verbose=
-    preserve=
-    cli_option='ide'
     local config=
+
     while [[ $# -gt 0 ]]; do
         case $1 in
             --help|-h) usage_long ;;
@@ -686,4 +739,21 @@ function main() {
     esac
 }
 
+# Define the initial set of global variables. A whole bunch more are defined by
+# process_env_and_port() function.
+#
+# TODO(brian): Too many global variables are used in this script, indicating
+# that this has probably outgrown the reasonable limits of bash(1). I should
+# probably migrate this to something else, like Python. But the Python
+# deployment story is so freaking complicated. Too many Python versions, too
+# many python environments, needing to support different Operating Systems.
+mode=
+verbose=
+preserve=
+cli_option='ide'
+config_file=
+summary_file=
+cli_preprocessor=
+sketchbook_flag=
+skip_missing_port=0
 main "$@"

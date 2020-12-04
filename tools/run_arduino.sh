@@ -34,8 +34,8 @@ Flags:
     --sketchbook {path}
                     Home directory of the sketch, for resolving libraries.
     --preprocessor {flags}
-                    Build flags of the form '-DMACRO -DMACRO=value' as a single
-                    argument (must be quoted if multiple macros).
+                    Build flags of the form '-D MACRO -D MACRO=value' as a
+                    single argument (must be quoted if multiple macros).
     --preserve      Preserve /tmp/arduino* temp files for further analysis.
     --summary_file {file}
                     Send error logs to 'file'.
@@ -73,7 +73,7 @@ function verify_or_upload_using_ide() {
         $port_flag \
         $sketchbook_flag \
         $preserve \
-        --pref "'compiler.cpp.extra_flags=-DAUNITER $preprocessor'" \
+        --pref "'compiler.cpp.extra_flags=-D AUNITER $preprocessor'" \
         $file
     if ! $AUNITER_ARDUINO_BINARY \
             --$arduino_cmd_mode \
@@ -82,7 +82,7 @@ function verify_or_upload_using_ide() {
             $port_flag \
             $sketchbook_flag \
             $preserve \
-            --pref "compiler.cpp.extra_flags=-DAUNITER $preprocessor" \
+            --pref "compiler.cpp.extra_flags=-D AUNITER $preprocessor" \
             $file; then
         echo "FAILED $arduino_cmd_mode: $env $port $file" \
             | tee -a $summary_file
@@ -111,7 +111,7 @@ function verify_or_upload_using_cli() {
     local port_flag=${port:+"--port $port"}
     local arduino_cmd_mode='compile'
     local upload_flag=''
-    local extra_flags="-DAUNITER $preprocessor"
+    local extra_flags="-D AUNITER $preprocessor"
     local build_properties_value="compiler.cpp.extra_flags=$extra_flags"
     if [[ "$mode" == 'upload' || "$mode" == 'test' ]]; then
         upload_flag='--upload'
