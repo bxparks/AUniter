@@ -124,20 +124,21 @@ $upload_flag \
 $board_flag \
 $port_flag \
 --build-property '$build_property_value' \
+--warnings all \
 $file"
 
-    # Unfortunately, arduino-cli does not parse the --build-properties flag
-    # properly if the value contains embedded quotes, which happens if the -D
-    # symbol defines a c-string (in quotes). I've tried every combination of
-    # escaping and backslashes in $build_property_value, cannot get this to
-    # work. The 'auniter.sh' will detect this condition and fail immediately
-    # before this script is called.
+    # Arduino-cli does not parse the --build-properties flag properly if the
+    # value contains embedded quotes, which happens if the -D symbol defines a
+    # c-string (in quotes). Fortunately the --build-properties flag is
+    # deprecated as of v0.14.0 in favor of --build-property flag which handles
+    # embedded quotes properly.
     if ! $AUNITER_ARDUINO_CLI \
 $verbose \
 $arduino_cmd_mode \
 $upload_flag \
 $board_flag \
 $port_flag \
+--warnings all \
 --build-property "$build_property_value" \
 $file; then
         echo "FAILED $arduino_cmd_mode: $env $port $file" \
