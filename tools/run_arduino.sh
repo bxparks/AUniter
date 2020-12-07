@@ -123,8 +123,8 @@ $arduino_cmd_mode \
 $upload_flag \
 $board_flag \
 $port_flag \
---build-property '$build_property_value' \
 --warnings all \
+--build-property '$build_property_value' \
 $file"
 
     # Arduino-cli does not parse the --build-properties flag properly if the
