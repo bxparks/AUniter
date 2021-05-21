@@ -120,7 +120,7 @@ configurations and aliases which look like this:
   preprocessor = -DAUNITER_MICRO -DAUNITER_BUTTON=3
 ```
 
-**Version**: 1.9 (2020-12-03)
+**Version**: 1.9.1 (2020-05-21)
 
 **Changelog**: [CHANGELOG.md](CHANGELOG.md)
 
