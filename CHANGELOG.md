@@ -1,6 +1,10 @@
 # Changelog
 
 * Unreleased
+    * Support `-D MACRO=value` when using `--cli` flag to invoke the ArduinoCLI
+      using the new `--build-property` flag.
+    * Add `--warnings all` flag when using `ArduinoCLI` to enable all compiler
+      warnings.
 * 1.9 (2020-12-03)
     * Add `-D MACRO=value` flag which adds additional C-Preprocessor macros
       when using `verify`, `upload`, `upmon` and `test` subcommands. Multiple
