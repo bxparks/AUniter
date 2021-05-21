@@ -43,7 +43,7 @@ There are 3 components to the **AUniter** package:
             flag](https://github.com/arduino/arduino-cli/issues/846), and,
         1. The Jenkins service is too brittle and cumbersome to maintain.
     * I have started to use the
-      [UnixHostDuino](https://github.com/bxparks/UnixHostDuino) project
+      EpoxyDuino (https://github.com/bxparks/EpoxyDuino) project
       more frequently as an alternative, even though it cannot handle the
       Arduino programs that depend on specific hardware.
 1. A [Badge Service](BadgeService/) running on
@@ -120,7 +120,7 @@ configurations and aliases which look like this:
   preprocessor = -DAUNITER_MICRO -DAUNITER_BUTTON=3
 ```
 
-**Version**: 1.9 (2020-12-03)
+**Version**: 1.9.1 (2020-05-21)
 
 **Changelog**: [CHANGELOG.md](CHANGELOG.md)
 

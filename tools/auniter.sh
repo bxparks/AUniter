@@ -351,17 +351,6 @@ function process_envs() {
         # adding the '-D macro' flags given on the 'auniter.sh' command line.
         preprocessor="$preprocessor $cli_preprocessor"
 
-        # If the preprocessor directive contains quotes, then arduino-cli cannot
-        # be used due to its incorrect handling of the --build-properties flag.
-        # TODO(brian): Remove this when the ArduinoCLI finally supports
-        # preprocessor flags contains strings.
-        if [[ "$preprocessor" =~ \" && "$cli_option" == 'cli' ]]; then
-            echo "\
-The ArduinoCLI (invoked with --cli) does not support preprocessor flags
-containing strings. Use --ide flag instead"
-            exit 1
-        fi
-
         process_files "$@"
     done
 }
@@ -512,15 +501,14 @@ function interrupted() {
     exit 1
 }
 
-# Process build (verify, upload, or test) commands.
+# Process the build command (verify, upload, or test). Depends on 'mode' to be
+# set properly ('verify', 'upload', 'test').
 function handle_build() {
-    local single=0
     cli_preprocessor=
     sketchbook_flag=
     skip_missing_port=0
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --single) single=1 ;; # internal flag
             -D) shift; cli_preprocessor="$cli_preprocessor -D $1" ;;
             --sketchbook) shift; sketchbook_flag="--sketchbook $1" ;;
             --skip_missing_port) skip_missing_port=1 ;;
@@ -530,22 +518,21 @@ function handle_build() {
         shift
     done
 
+    handle_envs_and_files "$@"
+}
+
+# Usage: handle_envs_and_files {env:xxx},{env:yyy} [file ...]
+# The environments are given as a comma-separated list.
+# The files are given as a space-separated list.
+# If the file is missing, look for a '*.ino' file in the current directory.
+function handle_envs_and_files() {
     if [[ $# -lt 1 ]]; then
         echo 'No environment given'
         usage
     fi
     envs=$1
     shift
-    if [[ "$single" == 1 ]]; then
-        if [[ "$envs" =~ , ]]; then
-            echo "Multiple environments not allowed in 'upmon' command"
-            usage
-        fi
-        if [[ $# -gt 1 ]]; then
-            echo "Multiple files not allowed in 'upmon' command"
-            usage
-        fi
-    fi
+
     local files
     if [[ $# -lt 1 ]]; then
         # Check for a sketch file named *.ino in the current directory.
@@ -635,22 +622,44 @@ function run_save() {
         tee "$output"
 }
 
-# Combination of 'upload' then 'monitor' if upload goes ok.
+# Combination of 'upload' then 'monitor' if upload goes ok. Simiilar to
+# handle_build() but supports additional flags: --output and --eof.
 function handle_upmon() {
     local eof=''
     local output=''
+    cli_preprocessor=
+    sketchbook_flag=
+    skip_missing_port=0
     while [[ $# -gt 0 ]]; do
         case $1 in
             --eof) shift; eof="$1" ;;
             --output|-o) shift; output="$1" ;;
+            -D) shift; cli_preprocessor="$cli_preprocessor -D $1" ;;
+            --sketchbook) shift; sketchbook_flag="--sketchbook $1" ;;
+            --skip_missing_port) skip_missing_port=1 ;;
             -*) echo "Unknown upmon flag '$1'"; usage ;;
             *) break ;;
         esac
         shift
     done
 
+    if [[ $# -lt 1 ]]; then
+        echo 'No environment given'
+        usage
+    fi
+    envs=$1
+    shift
+    if [[ "$envs" =~ , ]]; then
+        echo "Multiple environments not allowed in 'upmon' command"
+        usage
+    fi
+    if [[ $# -gt 1 ]]; then
+        echo "Multiple files not allowed in 'upmon' command"
+        usage
+    fi
+
     mode=upload
-    handle_build --single "$@"
+    handle_envs_and_files $envs "$@"
 
     if [[ "$output" != '' ]]; then
         mode=save # setting mode not needed, but preserves consistency
@@ -729,8 +738,7 @@ function main() {
         config) print_config $config_file;;
         envs) list_envs $config_file;;
         ports) list_ports ;;
-        verify) handle_build "$@" ;;
-        compile) mode='verify'; handle_build "$@" ;;
+        verify|compile) mode='verify'; handle_build "$@" ;;
         upload) handle_build "$@" ;;
         test) handle_build "$@" ;;
         monitor|mon) handle_monitor "$@" ;;
