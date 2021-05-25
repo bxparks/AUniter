@@ -389,6 +389,7 @@ function process_file() {
             --env $env \
             --board $board \
             --preprocessor "$preprocessor" \
+            $clean \
             $sketchbook_flag \
             $verbose \
             $preserve \
@@ -509,6 +510,7 @@ function handle_build() {
     skip_missing_port=0
     while [[ $# -gt 0 ]]; do
         case $1 in
+            --clean) clean='--clean' ;;
             -D) shift; cli_preprocessor="$cli_preprocessor -D $1" ;;
             --sketchbook) shift; sketchbook_flag="--sketchbook $1" ;;
             --skip_missing_port) skip_missing_port=1 ;;
@@ -758,6 +760,7 @@ function main() {
 mode=
 verbose=
 preserve=
+clean=
 cli_option='ide'
 config_file=
 summary_file=

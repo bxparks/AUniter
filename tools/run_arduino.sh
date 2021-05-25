@@ -11,7 +11,7 @@ DIRNAME=$(dirname $0)
 function usage() {
     cat <<'END'
 Usage: run_arduino.sh [--help] [--verbose] [--cli | --ide]
-    [--verify | --upload | --test]
+    [--verify | --upload | --test] [--clean]
     [--env {env}] [--board {board}] [--port {port}] [--baud {baud}]
     [--sketchbook {path}] [--preprocessor {flags}] [--preserve]
     [--summary_file file] file.ino
@@ -27,6 +27,7 @@ Flags:
     --verify        Verify the compile of the sketch file(s).
     --upload        Compile and upload the given program.
     --test          Verify the AUnit test after uploading the program.
+    --clean         Clean the Arduino CLI compiler cache (not needed for IDE).
     --env {env}     Name of the current build environment, for error messages.
     --board {fqbn}  Fully qualified board name (fqbn).
     --port {port}   Serial port device (e.g. /dev/ttyUSB0).
@@ -121,6 +122,7 @@ function verify_or_upload_using_cli() {
 $verbose \
 $arduino_cmd_mode \
 $upload_flag \
+$clean \
 $board_flag \
 $port_flag \
 --warnings all \
@@ -169,6 +171,7 @@ sketchbook=
 preprocessor=
 summary_file=
 preserve=
+clean=
 cli_option='ide'
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -178,6 +181,7 @@ while [[ $# -gt 0 ]]; do
         --verify) mode='verify' ;;
         --upload) mode='upload' ;;
         --test) mode='test' ;;
+        --clean) clean='--clean' ;;
         --verbose) verbose='--verbose' ;;
         --env) shift; env=$1 ;;
         --board) shift; board=$1 ;;

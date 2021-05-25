@@ -1,6 +1,9 @@
 # Changelog
 
 * Unreleased
+    * Add `--clean` flag to `auniter.sh` which tells Arduino-CLI to clean its
+      build cache. Sometimes it caches too aggressively and does not detected
+      changes to Core files.
 * 1.9.1 (2021-05-21)
     * Support `-D MACRO=value` when using `--cli` flag to invoke the ArduinoCLI
       using the new `--build-property` flag.
