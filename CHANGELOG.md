@@ -4,6 +4,8 @@
     * Add `--clean` flag to `auniter.sh` which tells Arduino-CLI to clean its
       build cache. Sometimes it caches too aggressively and does not detected
       changes to Core files.
+    * Allow `--port` to be `none`, to allow an ATtiny85 to be programmed
+      through USBtinyISP instead of the serial port.
 * 1.9.1 (2021-05-21)
     * Support `-D MACRO=value` when using `--cli` flag to invoke the ArduinoCLI
       using the new `--build-property` flag.

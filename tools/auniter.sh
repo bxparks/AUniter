@@ -306,11 +306,14 @@ function process_env_and_port() {
 
 # If a port is not fully qualified (i.e. start with /), then append
 # "/dev/tty" to the given port. On Linux, all serial ports seem to start
-# with this prefix, so we can specify "/dev/ttyUSB0" as just "USB0".
+# with this prefix, so we can specify "/dev/ttyUSB0" as just "USB0". If
+# port is "none", then just return "none".
 function resolve_port() {
     local port_alias=$1
     if [[ $port_alias =~ ^/ ]]; then
         echo $port_alias
+    elif [[ "$port_alias" == 'none' ]]; then
+        echo 'none'
     elif [[ "$port_alias" == '' ]]; then
         echo ''
     else
@@ -398,7 +401,7 @@ function process_file() {
     else # $mode == 'test' | 'upload'
         # flock(1) returns status 1 if the lock file doesn't exist, which
         # prevents distinguishing that from failure of run_arduino.sh.
-        if [[ ! -e $port ]]; then
+        if [[ "$port" != 'none' && ! -e "$port" ]]; then
             echo "FAILED $mode: $env: cannot find port $port: $file" \
                 | tee -a $summary_file
             return
