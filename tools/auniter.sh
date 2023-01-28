@@ -571,6 +571,7 @@ function run_monitor() {
     fi
 
     # Execute the monitor command as listed in the CONFIG_FILE.
+    echo "+ $monitor"
     eval "$monitor"
 }
 
