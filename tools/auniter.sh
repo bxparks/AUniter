@@ -556,6 +556,7 @@ function handle_envs_and_files() {
 }
 
 function list_ports() {
+    echo "+ $DIRNAME/serial_monitor.py --list"
     $DIRNAME/serial_monitor.py --list
 }
 
