@@ -116,6 +116,10 @@ Command Flags (command_flags):
         (upload, test) Just perform a 'verify' if --port or {:port} is missing.
         Useful in Continuous Integration on multiple boards where only some
         boards are actually connected to a serial port.
+    --delay N
+        (upmon) Delay running the serial monitor after uploading by N seconds.
+        Needed on some microcontrollers (e.g. Seeed XIAO) whose serial port
+        is not ready to be monitor until a split second after flashing.
     -D MACRO=value
         Add the 'MACRO' to the C-preprocessor with the 'value'. Multiple -D
         flags can be given. The space after the -D is required.
@@ -637,6 +641,7 @@ function handle_upmon() {
     cli_preprocessor=
     sketchbook_flag=
     skip_missing_port=0
+    local delay=0
     while [[ $# -gt 0 ]]; do
         case $1 in
             --eof) shift; eof="$1" ;;
@@ -644,6 +649,7 @@ function handle_upmon() {
             -D) shift; cli_preprocessor="$cli_preprocessor -D $1" ;;
             --sketchbook) shift; sketchbook_flag="--sketchbook $1" ;;
             --skip_missing_port) skip_missing_port=1 ;;
+            --delay) shift; delay=$1 ;;
             -*) echo "Unknown upmon flag '$1'"; usage ;;
             *) break ;;
         esac
@@ -665,9 +671,14 @@ function handle_upmon() {
         usage
     fi
 
+    # Upload
     mode=upload
     handle_envs_and_files $envs "$@"
 
+    # Some boards requires a little of time to set up their serial monitor.
+    sleep $delay
+
+    # Fire up the Serial Monitor
     if [[ "$output" != '' ]]; then
         mode=save # setting mode not needed, but preserves consistency
         run_save $port $baud "$eof" "$output"

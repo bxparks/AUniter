@@ -737,6 +737,20 @@ Example:
 $ auniter verify --sketchbook $HOME/MyArduinoProjects nano Sample.ino
 ```
 
+### Upmon Delay (--delay N)
+
+(Valid for subcommands: `upmon`
+
+Delay running the serial monitor after uploading by N seconds. Needed on some
+microcontrollers (e.g. Seeed XIAO) whose serial port is not ready to be monitor
+until a split second after flashing.
+
+Example:
+
+```
+$ auniter upmon --delay 1 xiao:ACM0 Sample.ino
+```
+
 ## Integration with Jenkins
 
 I have successfully integrated `auniter.sh` into a locally hosted
