@@ -276,7 +276,11 @@ function list_envs() {
 function parse_env_and_port() {
     local env_and_port="$1"
 
-    # Split {env}:{port} into two fields.
+    # Split {env}:{port} into two fields. Don't resolve the port until
+    # just before using it. This solves the problem of the Adafruit ItsyBitsy M4
+    # whose bootloader appears as /dev/ttyACM0, but the serial monitor appears
+    # as /dev/ttyACM1. The port for this device will be given as 'ACM*' (i.e.
+    # expand the glob and use the first port).
     env=$(echo "$env_and_port" | $SED -E -e 's/([^:]*):?([^:]*)/\1/')
     port=$(echo "$env_and_port" | $SED -E -e 's/([^:]*):?([^:]*)/\2/')
 
@@ -287,8 +291,6 @@ function parse_env_and_port() {
 
     board_alias=$(get_config "$config_file" "env:$env" board)
     board=$(get_config "$config_file" boards "$board_alias")
-
-    port=$(resolve_port "$port")
 
     # No flock(1) on MacOS.
     if [[ $(uname -s) =~ Darwin.* ]]; then
@@ -311,16 +313,34 @@ function parse_env_and_port() {
 # with this prefix, so we can specify "/dev/ttyUSB0" as just "USB0". If
 # port is "none", then just return "none".
 function resolve_port() {
-    local port_alias=$1
-    if [[ $port_alias =~ ^/ ]]; then
-        echo $port_alias
+    local port_alias="$1"
+    local port=''
+    if [[ "$port_alias" =~ ^/ ]]; then
+        port="$port_alias"
     elif [[ "$port_alias" == 'none' ]]; then
-        echo 'none'
+        port='none'
     elif [[ "$port_alias" == '' ]]; then
-        echo ''
+        port=''
     else
-        echo "/dev/tty$port_alias"
+        port="/dev/tty$port_alias"
     fi
+
+    # If the port contains a glob (e.g. ACM*), select the first one.
+    # This handles the problem with the Adafruit ItsyBitsy M4, where the
+    # bootloader appears as /dev/ttyACM0, then after it is flashed, the serial
+    # port appears as /dev/ttyACM1. So the env:port for this device will
+    # be given as 'itsym4:ACM*'.
+    if [[ "$port" =~ '*' ]]; then
+        shopt -s nullglob
+        local ports=($port) # Expand the glob into a list
+        if [[ "${#ports[@]}" > 0 ]]; then
+            port="${ports[0]}"
+        else
+            port=''
+        fi
+        shopt -u nullglob
+    fi
+    echo "$port"
 }
 
 # Process the given files in the current {env}:{port}.
@@ -400,8 +420,9 @@ function process_file() {
     else # $mode == 'test' | 'upload'
         # flock(1) returns status 1 if the lock file doesn't exist, which
         # prevents distinguishing that from failure of run_arduino.sh.
-        if [[ "$port" != 'none' && ! -e "$port" ]]; then
-            echo "FAILED $mode: $env: cannot find port $port: $file" \
+        local resolved_port=$(resolve_port "$port")
+        if [[ "$resolved_port" != 'none' && ! -e "$resolved_port" ]]; then
+            echo "FAILED $mode: $env: cannot find port $resolved_port: $file" \
                 | tee -a $summary_file
             return
         fi
@@ -410,19 +431,19 @@ function process_file() {
         # time.
         local timeout=${port_timeout:-$PORT_TIMEOUT}
         if [[ "$locking" == 'true' ]]; then
-            echo "Enabling flock on serial port $port"
+            echo "Enabling flock on serial port $resolved_port"
             local flock="flock --timeout $timeout --conflict-exit-code \
-                $FLOCK_TIMEOUT_CODE $port"
+                $FLOCK_TIMEOUT_CODE $resolved_port"
         else
-            echo "Disabling flock on serial port $port"
+            echo "Disabling flock on serial port $resolved_port"
             local flock=''
         fi
         local status=0; $flock $DIRNAME/run_arduino.sh \
             --$cli_option \
-            --$mode \
+            --upload \
             --env $env \
             --board $board \
-            --port $port \
+            --port $resolved_port \
             --baud $baud \
             $sketchbook_flag \
             --preprocessor "$preprocessor" \
@@ -430,14 +451,36 @@ function process_file() {
             $preserve \
             --summary_file $summary_file \
             "$file" || status=$?
-
         if [[ "$status" == $FLOCK_TIMEOUT_CODE ]]; then
-            echo "FAILED $mode: $env: could not obtain lock on $port: $file" \
+            echo "FAILED $mode: $env: locking failed on $resolved_port: $file" \
                 | tee -a $summary_file
         elif [[ "$status" != 0 ]]; then
             echo "FAILED $mode: $env: run_arduino.sh failed on $file" \
                 | tee -a $summary_file
         fi
+
+        if [[ $mode == 'test' ]]; then
+            # After uploading, resolve the $port again because the Adafruit
+            # ItsyBitsy M4 boots as /dev/ttyACM0, but the serial port appears as
+            # /dev/ttyACM1.
+            resolved_port=$(resolve_port "$port")
+            validate_test $file $resolved_port
+        fi
+    fi
+}
+
+# Run the serial monitor in AUnit test validation mode.
+function validate_test() {
+    local file="$1"
+    local port="$2"
+
+    echo # blank line
+    local cmd="$DIRNAME/serial_monitor.py --test --port $port --baud $baud"
+    echo "\$ $cmd"
+    if $cmd; then
+        echo "PASSED $mode: $env $port $file" | tee -a $summary_file
+    else
+        echo "FAILED $mode: $env $port $file" | tee -a $summary_file
     fi
 }
 
@@ -568,6 +611,12 @@ function run_monitor() {
         echo "Property 'monitor' must be defined in $config_file"
         usage
     fi
+    local resolved_port=$(resolve_port "$port")
+    if [[ "$resolved_port" == '' ]]; then
+        echo "Unable to find port $port"
+        usage
+    fi
+    port=$resolved_port
 
     # Execute the monitor command as listed in the CONFIG_FILE.
     echo "+ $monitor"
@@ -603,13 +652,6 @@ function handle_monitor() {
     # is no ':', then assume that it's just the port.
     if [[ "$port" =~ : ]]; then
         parse_env_and_port "$port"
-    else
-        port=$(resolve_port $port)
-    fi
-
-    if [[ "$port" == '' ]]; then
-        echo 'No port given for 'monitor' command'
-        usage
     fi
 
     run_monitor $port $baud "$monitor"
@@ -623,7 +665,8 @@ function run_save() {
     local eof="$3"
     local output="$4"
 
-    $DIRNAME/serial_monitor.py --monitor --port $port --eof "$eof" |
+    local resolved_port=$(resolve_port "$port")
+    $DIRNAME/serial_monitor.py --monitor --port $resolved_port --eof "$eof" |
         tee "$output"
 }
 
@@ -635,7 +678,7 @@ function handle_upmon() {
     cli_preprocessor=
     sketchbook_flag=
     skip_missing_port=0
-    local delay=0
+    local delay=1
     while [[ $# -gt 0 ]]; do
         case $1 in
             --eof) shift; eof="$1" ;;
