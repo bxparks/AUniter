@@ -60,8 +60,8 @@ Usage: auniter.sh [-h] [auniter_flags] command [command_flags] [args ...]
        auniter.sh ports
        auniter.sh verify {env} files ...
        auniter.sh compile {env} files ...
-       auniter.sh upload {env}:{port},... files ...
-       auniter.sh test {env}:{port},... files ...
+       auniter.sh upload {env}:{port} files ...
+       auniter.sh test {env}:{port} files ...
        auniter.sh monitor|mon [{env}:]{port}
        auniter.sh upmon [(--output|-o) outfile] [--eof {eof}] {env}:{port} file
 END
@@ -273,14 +273,12 @@ function list_envs() {
 #   - $locking - (true|false) whether flock(1) should lock the /dev/ttyXXX
 #   - $exclude - egrep pattern of files to skip
 #   - $preprocessor - '-D' flags to pass to the cpp C-preprocessor
-function process_env_and_port() {
-    local env_and_port=$1
+function parse_env_and_port() {
+    local env_and_port="$1"
 
     # Split {env}:{port} into two fields.
-    env=$(echo $env_and_port \
-            | $SED -E -e 's/([^:]*):?([^:]*)/\1/')
-    port=$(echo $env_and_port \
-            | $SED -E -e 's/([^:]*):?([^:]*)/\2/')
+    env=$(echo "$env_and_port" | $SED -E -e 's/([^:]*):?([^:]*)/\1/')
+    port=$(echo "$env_and_port" | $SED -E -e 's/([^:]*):?([^:]*)/\2/')
 
     env_search=$(list_envs $config_file | grep $env || true)
     if [[ "$env_search" == '' ]]; then
@@ -325,41 +323,38 @@ function resolve_port() {
     fi
 }
 
-# Requires $envs to define the target environments as a comma-separated list
-# of {env}:{port}.
-function process_envs() {
-    local env_and_ports=$(echo "$envs" | $SED -e 's/,/ /g')
-    for env_and_port in $env_and_ports; do
-        process_env_and_port $env_and_port
+# Process the given files in the current {env}:{port}.
+function process_env_and_files() {
+    local env_and_port="$1"
+    shift
+    parse_env_and_port "$env_and_port"
 
-        echo "======== Processing environment '$env_and_port'"
-        if [[ "$env_search" == '' ]]; then
-            echo "FAILED $mode: Unknown environment '$env'" \
+    if [[ "$env_search" == '' ]]; then
+        echo "FAILED $mode: Unknown environment '$env'" \
+            | tee -a $summary_file
+        continue
+    fi
+    if [[ "$board" == '' ]]; then
+        echo "FAILED $mode: board '$board_alias' not found" \
+            | tee -a $summary_file
+        continue
+    fi
+    if [[ "$port" == '' && "$mode" != 'verify' ]]; then
+        if [[ "$skip_missing_port" == 0 ]]; then
+            echo "FAILED $mode: Unknown port for $env" \
                 | tee -a $summary_file
-            continue
-        fi
-        if [[ "$board" == '' ]]; then
-            echo "FAILED $mode: board '$board_alias' not found" \
+        else
+            echo "SKIPPED $mode: Unknown port for $env" \
                 | tee -a $summary_file
-            continue
         fi
-        if [[ "$port" == '' && "$mode" != 'verify' ]]; then
-            if [[ "$skip_missing_port" == 0 ]]; then
-                echo "FAILED $mode: Unknown port for $env" \
-                    | tee -a $summary_file
-            else
-                echo "SKIPPED $mode: Unknown port for $env" \
-                    | tee -a $summary_file
-            fi
-            continue
-        fi
+        continue
+    fi
 
-        # Determine the effective $preprocessor for the current environment by
-        # adding the '-D macro' flags given on the 'auniter.sh' command line.
-        preprocessor="$preprocessor $cli_preprocessor"
+    # Determine the effective $preprocessor for the current environment by
+    # adding the '-D macro' flags given on the 'auniter.sh' command line.
+    preprocessor="$preprocessor $cli_preprocessor"
 
-        process_files "$@"
-    done
+    process_files "$@"
 }
 
 # Requires $board and $port to define the target environment.
@@ -527,19 +522,18 @@ function handle_build() {
         shift
     done
 
-    handle_envs_and_files "$@"
+    handle_files "$@"
 }
 
-# Usage: handle_envs_and_files {env:xxx},{env:yyy} [file ...]
-# The environments are given as a comma-separated list.
+# Usage: handle_files {env:port} [file ...]
 # The files are given as a space-separated list.
 # If the file is missing, look for a '*.ino' file in the current directory.
-function handle_envs_and_files() {
+function handle_files() {
     if [[ $# -lt 1 ]]; then
         echo 'No environment given'
         usage
     fi
-    envs=$1
+    env="$1"
     shift
 
     local files
@@ -555,7 +549,7 @@ function handle_envs_and_files() {
         files="$@"
     fi
 
-    process_envs $files
+    process_env_and_files "$env" $files
     print_summary_file
 }
 
@@ -608,7 +602,7 @@ function handle_monitor() {
     # If the port_specifier is {env}:{port}, extract the {port}. If there
     # is no ':', then assume that it's just the port.
     if [[ "$port" =~ : ]]; then
-        process_env_and_port "$port"
+        parse_env_and_port "$port"
     else
         port=$(resolve_port $port)
     fi
@@ -633,7 +627,7 @@ function run_save() {
         tee "$output"
 }
 
-# Combination of 'upload' then 'monitor' if upload goes ok. Simiilar to
+# Combination of 'upload' then 'monitor' if upload goes ok. Similar to
 # handle_build() but supports additional flags: --output and --eof.
 function handle_upmon() {
     local eof=''
@@ -660,12 +654,8 @@ function handle_upmon() {
         echo 'No environment given'
         usage
     fi
-    envs=$1
+    local env=$1
     shift
-    if [[ "$envs" =~ , ]]; then
-        echo "Multiple environments not allowed in 'upmon' command"
-        usage
-    fi
     if [[ $# -gt 1 ]]; then
         echo "Multiple files not allowed in 'upmon' command"
         usage
@@ -673,7 +663,7 @@ function handle_upmon() {
 
     # Upload
     mode=upload
-    handle_envs_and_files $envs "$@"
+    handle_files "$env" "$@"
 
     # Some boards requires a little of time to set up their serial monitor.
     sleep $delay
@@ -756,9 +746,11 @@ function main() {
         config) print_config $config_file;;
         envs) list_envs $config_file;;
         ports) list_ports ;;
+
         verify|compile) mode='verify'; handle_build "$@" ;;
         upload) handle_build "$@" ;;
         test) handle_build "$@" ;;
+
         monitor|mon) handle_monitor "$@" ;;
         upmon) handle_upmon "$@" ;;
         *) echo "Unknown command '$mode'"; usage ;;
@@ -766,7 +758,7 @@ function main() {
 }
 
 # Define the initial set of global variables. A whole bunch more are defined by
-# process_env_and_port() function.
+# parse_env_and_port() function.
 #
 # TODO(brian): Too many global variables are used in this script, indicating
 # that this has probably outgrown the reasonable limits of bash(1). I should
