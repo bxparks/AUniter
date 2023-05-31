@@ -124,6 +124,14 @@ Command Flags (command_flags):
         Add the 'MACRO' to the C-preprocessor with the 'value'. Multiple -D
         flags can be given. The space after the -D is required.
 
+{env}:{port}
+    env     Board environment (e.g. nano, xiao, stm32).
+
+    port    Serial port (e.g. /dev/ttyUSB0, USB0, ACM0, ACM*). The wildcard
+            'ACM*' is required on Adafruit ItsyBitsy M4 boards which changes its
+            serial port from ACM0 to ACM1 when rebooted immediately after
+            flashing.
+
 Files:
     Multiple *.ino files and directories may be given. If a directory is given,
     then the script looks for an Arduino sketch file under the directory with
@@ -476,7 +484,7 @@ function validate_test() {
 
     echo # blank line
     local cmd="$DIRNAME/serial_monitor.py --test --port $port --baud $baud"
-    echo "\$ $cmd"
+    echo "+ $cmd"
     if $cmd; then
         echo "PASSED $mode: $env $port $file" | tee -a $summary_file
     else
@@ -666,8 +674,13 @@ function run_save() {
     local output="$4"
 
     local resolved_port=$(resolve_port "$port")
-    $DIRNAME/serial_monitor.py --monitor --port $resolved_port --eof "$eof" |
-        tee "$output"
+    if [[ "$resolved_port" == '' ]]; then
+        echo "Unable to resolve $port; try adding --delay N flag"
+        usage
+    fi
+    local cmd="$DIRNAME/serial_monitor.py --monitor --port $resolved_port --eof $eof | tee $output"
+    echo "+ $cmd"
+    eval $cmd
 }
 
 # Combination of 'upload' then 'monitor' if upload goes ok. Similar to
@@ -714,7 +727,7 @@ function handle_upmon() {
     # Fire up the Serial Monitor
     if [[ "$output" != '' ]]; then
         mode=save # setting mode not needed, but preserves consistency
-        run_save $port $baud "$eof" "$output"
+        run_save "$port" "$baud" "$eof" "$output"
     else
         mode=monitor
         run_monitor $port $baud "$monitor"
