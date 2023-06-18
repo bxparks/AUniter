@@ -60,8 +60,8 @@ Usage: auniter.sh [-h] [auniter_flags] command [command_flags] [args ...]
        auniter.sh ports
        auniter.sh verify {env} files ...
        auniter.sh compile {env} files ...
-       auniter.sh upload {env}:{port},... files ...
-       auniter.sh test {env}:{port},... files ...
+       auniter.sh upload {env}:{port} files ...
+       auniter.sh test {env}:{port} files ...
        auniter.sh monitor|mon [{env}:]{port}
        auniter.sh upmon [(--output|-o) outfile] [--eof {eof}] {env}:{port} file
 END
@@ -116,9 +116,21 @@ Command Flags (command_flags):
         (upload, test) Just perform a 'verify' if --port or {:port} is missing.
         Useful in Continuous Integration on multiple boards where only some
         boards are actually connected to a serial port.
+    --delay N
+        (upmon) Delay running the serial monitor after uploading by N seconds.
+        Needed on some microcontrollers (e.g. Seeed XIAO) whose serial port
+        is not ready to be monitor until a split second after flashing.
     -D MACRO=value
         Add the 'MACRO' to the C-preprocessor with the 'value'. Multiple -D
         flags can be given. The space after the -D is required.
+
+{env}:{port}
+    env     Board environment (e.g. nano, xiao, stm32).
+
+    port    Serial port (e.g. /dev/ttyUSB0, USB0, ACM0, ACM*). The wildcard
+            'ACM*' is required on Adafruit ItsyBitsy M4 boards which changes its
+            serial port from ACM0 to ACM1 when rebooted immediately after
+            flashing.
 
 Files:
     Multiple *.ino files and directories may be given. If a directory is given,
@@ -269,14 +281,16 @@ function list_envs() {
 #   - $locking - (true|false) whether flock(1) should lock the /dev/ttyXXX
 #   - $exclude - egrep pattern of files to skip
 #   - $preprocessor - '-D' flags to pass to the cpp C-preprocessor
-function process_env_and_port() {
-    local env_and_port=$1
+function parse_env_and_port() {
+    local env_and_port="$1"
 
-    # Split {env}:{port} into two fields.
-    env=$(echo $env_and_port \
-            | $SED -E -e 's/([^:]*):?([^:]*)/\1/')
-    port=$(echo $env_and_port \
-            | $SED -E -e 's/([^:]*):?([^:]*)/\2/')
+    # Split {env}:{port} into two fields. Don't resolve the port until
+    # just before using it. This solves the problem of the Adafruit ItsyBitsy M4
+    # whose bootloader appears as /dev/ttyACM0, but the serial monitor appears
+    # as /dev/ttyACM1. The port for this device will be given as 'ACM*' (i.e.
+    # expand the glob and use the first port).
+    env=$(echo "$env_and_port" | $SED -E -e 's/([^:]*):?([^:]*)/\1/')
+    port=$(echo "$env_and_port" | $SED -E -e 's/([^:]*):?([^:]*)/\2/')
 
     env_search=$(list_envs $config_file | grep $env || true)
     if [[ "$env_search" == '' ]]; then
@@ -285,8 +299,6 @@ function process_env_and_port() {
 
     board_alias=$(get_config "$config_file" "env:$env" board)
     board=$(get_config "$config_file" boards "$board_alias")
-
-    port=$(resolve_port "$port")
 
     # No flock(1) on MacOS.
     if [[ $(uname -s) =~ Darwin.* ]]; then
@@ -306,53 +318,71 @@ function process_env_and_port() {
 
 # If a port is not fully qualified (i.e. start with /), then append
 # "/dev/tty" to the given port. On Linux, all serial ports seem to start
-# with this prefix, so we can specify "/dev/ttyUSB0" as just "USB0".
+# with this prefix, so we can specify "/dev/ttyUSB0" as just "USB0". If
+# port is "none", then just return "none".
 function resolve_port() {
-    local port_alias=$1
-    if [[ $port_alias =~ ^/ ]]; then
-        echo $port_alias
+    local port_alias="$1"
+    local port=''
+    if [[ "$port_alias" =~ ^/ ]]; then
+        port="$port_alias"
+    elif [[ "$port_alias" == 'none' ]]; then
+        port='none'
     elif [[ "$port_alias" == '' ]]; then
-        echo ''
+        port=''
     else
-        echo "/dev/tty$port_alias"
+        port="/dev/tty$port_alias"
     fi
+
+    # If the port contains a glob (e.g. ACM*), select the first one.
+    # This handles the problem with the Adafruit ItsyBitsy M4, where the
+    # bootloader appears as /dev/ttyACM0, then after it is flashed, the serial
+    # port appears as /dev/ttyACM1. So the env:port for this device will
+    # be given as 'itsym4:ACM*'.
+    if [[ "$port" =~ '*' ]]; then
+        shopt -s nullglob
+        local ports=($port) # Expand the glob into a list
+        if [[ "${#ports[@]}" > 0 ]]; then
+            port="${ports[0]}"
+        else
+            port=''
+        fi
+        shopt -u nullglob
+    fi
+    echo "$port"
 }
 
-# Requires $envs to define the target environments as a comma-separated list
-# of {env}:{port}.
-function process_envs() {
-    local env_and_ports=$(echo "$envs" | $SED -e 's/,/ /g')
-    for env_and_port in $env_and_ports; do
-        process_env_and_port $env_and_port
+# Process the given files in the current {env}:{port}.
+function process_env_and_files() {
+    local env_and_port="$1"
+    shift
+    parse_env_and_port "$env_and_port"
 
-        echo "======== Processing environment '$env_and_port'"
-        if [[ "$env_search" == '' ]]; then
-            echo "FAILED $mode: Unknown environment '$env'" \
+    if [[ "$env_search" == '' ]]; then
+        echo "FAILED $mode: Unknown environment '$env'" \
+            | tee -a $summary_file
+        continue
+    fi
+    if [[ "$board" == '' ]]; then
+        echo "FAILED $mode: board '$board_alias' not found" \
+            | tee -a $summary_file
+        continue
+    fi
+    if [[ "$port" == '' && "$mode" != 'verify' ]]; then
+        if [[ "$skip_missing_port" == 0 ]]; then
+            echo "FAILED $mode: Unknown port for $env" \
                 | tee -a $summary_file
-            continue
-        fi
-        if [[ "$board" == '' ]]; then
-            echo "FAILED $mode: board '$board_alias' not found" \
+        else
+            echo "SKIPPED $mode: Unknown port for $env" \
                 | tee -a $summary_file
-            continue
         fi
-        if [[ "$port" == '' && "$mode" != 'verify' ]]; then
-            if [[ "$skip_missing_port" == 0 ]]; then
-                echo "FAILED $mode: Unknown port for $env" \
-                    | tee -a $summary_file
-            else
-                echo "SKIPPED $mode: Unknown port for $env" \
-                    | tee -a $summary_file
-            fi
-            continue
-        fi
+        continue
+    fi
 
-        # Determine the effective $preprocessor for the current environment by
-        # adding the '-D macro' flags given on the 'auniter.sh' command line.
-        preprocessor="$preprocessor $cli_preprocessor"
+    # Determine the effective $preprocessor for the current environment by
+    # adding the '-D macro' flags given on the 'auniter.sh' command line.
+    preprocessor="$preprocessor $cli_preprocessor"
 
-        process_files "$@"
-    done
+    process_files "$@"
 }
 
 # Requires $board and $port to define the target environment.
@@ -389,6 +419,7 @@ function process_file() {
             --env $env \
             --board $board \
             --preprocessor "$preprocessor" \
+            $clean \
             $sketchbook_flag \
             $verbose \
             $preserve \
@@ -397,8 +428,9 @@ function process_file() {
     else # $mode == 'test' | 'upload'
         # flock(1) returns status 1 if the lock file doesn't exist, which
         # prevents distinguishing that from failure of run_arduino.sh.
-        if [[ ! -e $port ]]; then
-            echo "FAILED $mode: $env: cannot find port $port: $file" \
+        local resolved_port=$(resolve_port "$port")
+        if [[ "$resolved_port" != 'none' && ! -e "$resolved_port" ]]; then
+            echo "FAILED $mode: $env: cannot find port $resolved_port: $file" \
                 | tee -a $summary_file
             return
         fi
@@ -407,19 +439,19 @@ function process_file() {
         # time.
         local timeout=${port_timeout:-$PORT_TIMEOUT}
         if [[ "$locking" == 'true' ]]; then
-            echo "Enabling flock on serial port $port"
+            echo "Enabling flock on serial port $resolved_port"
             local flock="flock --timeout $timeout --conflict-exit-code \
-                $FLOCK_TIMEOUT_CODE $port"
+                $FLOCK_TIMEOUT_CODE $resolved_port"
         else
-            echo "Disabling flock on serial port $port"
+            echo "Disabling flock on serial port $resolved_port"
             local flock=''
         fi
         local status=0; $flock $DIRNAME/run_arduino.sh \
             --$cli_option \
-            --$mode \
+            --upload \
             --env $env \
             --board $board \
-            --port $port \
+            --port $resolved_port \
             --baud $baud \
             $sketchbook_flag \
             --preprocessor "$preprocessor" \
@@ -427,14 +459,36 @@ function process_file() {
             $preserve \
             --summary_file $summary_file \
             "$file" || status=$?
-
         if [[ "$status" == $FLOCK_TIMEOUT_CODE ]]; then
-            echo "FAILED $mode: $env: could not obtain lock on $port: $file" \
+            echo "FAILED $mode: $env: locking failed on $resolved_port: $file" \
                 | tee -a $summary_file
         elif [[ "$status" != 0 ]]; then
             echo "FAILED $mode: $env: run_arduino.sh failed on $file" \
                 | tee -a $summary_file
         fi
+
+        if [[ $mode == 'test' ]]; then
+            # After uploading, resolve the $port again because the Adafruit
+            # ItsyBitsy M4 boots as /dev/ttyACM0, but the serial port appears as
+            # /dev/ttyACM1.
+            resolved_port=$(resolve_port "$port")
+            validate_test $file $resolved_port
+        fi
+    fi
+}
+
+# Run the serial monitor in AUnit test validation mode.
+function validate_test() {
+    local file="$1"
+    local port="$2"
+
+    echo # blank line
+    local cmd="$DIRNAME/serial_monitor.py --test --port $port --baud $baud"
+    echo "+ $cmd"
+    if $cmd; then
+        echo "PASSED $mode: $env $port $file" | tee -a $summary_file
+    else
+        echo "FAILED $mode: $env $port $file" | tee -a $summary_file
     fi
 }
 
@@ -509,6 +563,7 @@ function handle_build() {
     skip_missing_port=0
     while [[ $# -gt 0 ]]; do
         case $1 in
+            --clean) clean='--clean' ;;
             -D) shift; cli_preprocessor="$cli_preprocessor -D $1" ;;
             --sketchbook) shift; sketchbook_flag="--sketchbook $1" ;;
             --skip_missing_port) skip_missing_port=1 ;;
@@ -518,19 +573,18 @@ function handle_build() {
         shift
     done
 
-    handle_envs_and_files "$@"
+    handle_files "$@"
 }
 
-# Usage: handle_envs_and_files {env:xxx},{env:yyy} [file ...]
-# The environments are given as a comma-separated list.
+# Usage: handle_files {env:port} [file ...]
 # The files are given as a space-separated list.
 # If the file is missing, look for a '*.ino' file in the current directory.
-function handle_envs_and_files() {
+function handle_files() {
     if [[ $# -lt 1 ]]; then
         echo 'No environment given'
         usage
     fi
-    envs=$1
+    env="$1"
     shift
 
     local files
@@ -546,11 +600,12 @@ function handle_envs_and_files() {
         files="$@"
     fi
 
-    process_envs $files
+    process_env_and_files "$env" $files
     print_summary_file
 }
 
 function list_ports() {
+    echo "+ $DIRNAME/serial_monitor.py --list"
     $DIRNAME/serial_monitor.py --list
 }
 
@@ -564,8 +619,15 @@ function run_monitor() {
         echo "Property 'monitor' must be defined in $config_file"
         usage
     fi
+    local resolved_port=$(resolve_port "$port")
+    if [[ "$resolved_port" == '' ]]; then
+        echo "Unable to find port $port"
+        usage
+    fi
+    port=$resolved_port
 
     # Execute the monitor command as listed in the CONFIG_FILE.
+    echo "+ $monitor"
     eval "$monitor"
 }
 
@@ -597,14 +659,7 @@ function handle_monitor() {
     # If the port_specifier is {env}:{port}, extract the {port}. If there
     # is no ':', then assume that it's just the port.
     if [[ "$port" =~ : ]]; then
-        process_env_and_port "$port"
-    else
-        port=$(resolve_port $port)
-    fi
-
-    if [[ "$port" == '' ]]; then
-        echo 'No port given for 'monitor' command'
-        usage
+        parse_env_and_port "$port"
     fi
 
     run_monitor $port $baud "$monitor"
@@ -618,11 +673,17 @@ function run_save() {
     local eof="$3"
     local output="$4"
 
-    $DIRNAME/serial_monitor.py --monitor --port $port --eof "$eof" |
-        tee "$output"
+    local resolved_port=$(resolve_port "$port")
+    if [[ "$resolved_port" == '' ]]; then
+        echo "Unable to resolve $port; try adding --delay N flag"
+        usage
+    fi
+    local cmd="$DIRNAME/serial_monitor.py --monitor --port $resolved_port --eof $eof | tee $output"
+    echo "+ $cmd"
+    eval $cmd
 }
 
-# Combination of 'upload' then 'monitor' if upload goes ok. Simiilar to
+# Combination of 'upload' then 'monitor' if upload goes ok. Similar to
 # handle_build() but supports additional flags: --output and --eof.
 function handle_upmon() {
     local eof=''
@@ -630,6 +691,7 @@ function handle_upmon() {
     cli_preprocessor=
     sketchbook_flag=
     skip_missing_port=0
+    local delay=1
     while [[ $# -gt 0 ]]; do
         case $1 in
             --eof) shift; eof="$1" ;;
@@ -637,6 +699,7 @@ function handle_upmon() {
             -D) shift; cli_preprocessor="$cli_preprocessor -D $1" ;;
             --sketchbook) shift; sketchbook_flag="--sketchbook $1" ;;
             --skip_missing_port) skip_missing_port=1 ;;
+            --delay) shift; delay=$1 ;;
             -*) echo "Unknown upmon flag '$1'"; usage ;;
             *) break ;;
         esac
@@ -647,23 +710,24 @@ function handle_upmon() {
         echo 'No environment given'
         usage
     fi
-    envs=$1
+    local env=$1
     shift
-    if [[ "$envs" =~ , ]]; then
-        echo "Multiple environments not allowed in 'upmon' command"
-        usage
-    fi
     if [[ $# -gt 1 ]]; then
         echo "Multiple files not allowed in 'upmon' command"
         usage
     fi
 
+    # Upload
     mode=upload
-    handle_envs_and_files $envs "$@"
+    handle_files "$env" "$@"
 
+    # Some boards requires a little of time to set up their serial monitor.
+    sleep $delay
+
+    # Fire up the Serial Monitor
     if [[ "$output" != '' ]]; then
         mode=save # setting mode not needed, but preserves consistency
-        run_save $port $baud "$eof" "$output"
+        run_save "$port" "$baud" "$eof" "$output"
     else
         mode=monitor
         run_monitor $port $baud "$monitor"
@@ -738,9 +802,11 @@ function main() {
         config) print_config $config_file;;
         envs) list_envs $config_file;;
         ports) list_ports ;;
+
         verify|compile) mode='verify'; handle_build "$@" ;;
         upload) handle_build "$@" ;;
         test) handle_build "$@" ;;
+
         monitor|mon) handle_monitor "$@" ;;
         upmon) handle_upmon "$@" ;;
         *) echo "Unknown command '$mode'"; usage ;;
@@ -748,7 +814,7 @@ function main() {
 }
 
 # Define the initial set of global variables. A whole bunch more are defined by
-# process_env_and_port() function.
+# parse_env_and_port() function.
 #
 # TODO(brian): Too many global variables are used in this script, indicating
 # that this has probably outgrown the reasonable limits of bash(1). I should
@@ -758,6 +824,7 @@ function main() {
 mode=
 verbose=
 preserve=
+clean=
 cli_option='ide'
 config_file=
 summary_file=

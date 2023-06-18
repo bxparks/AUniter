@@ -21,20 +21,25 @@ vastly different build environment such as
 The underlying tool is a shell wrapper around the command line abilities built
 right into the
 [Arduino IDE](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc)
-itself. Therefore, the AUniter package is able to support all boards, libraries,
+itself or the [Arduino CLI](https://arduino.github.io/arduino-cli/).
+Therefore, the AUniter package is able to support all boards, libraries,
 and build configurations which are supported by the Arduino IDE. There is no
 duplicate installs of boards and libraries because the build and upload steps go
-through the Arduino IDE binary in command line mode.
+through the Arduino IDE binary in command line mode, or the Arduino CLI command
+line tool.
 
-There are 3 components to the **AUniter** package:
+There are 3 components to the **AUniter** package, of which 2 of them are
+obsolete, so the only remaining tool is the `auniter.sh` script:
 
-1. A command line tool [`tools/auniter.sh`](tools/) that can compile and upload
-   Arduino programs. It can also upload unit tests written in
-   [AUnit](https://github.com/bxparks/AUnit) and validate the success and
-   failure of the unit tests.
-1. A locally hosted [Jenkins Integration](jenkins/) to provide Ccontinuous
-   Integration (CI) of unit tests upon changes to the source code repository.
-    * This depends on the `auniter.sh` described above.
+1. [`tools/auniter.sh`](tools/)
+    * compile, upload, and monitor Arduino programs using a command
+      line interface.
+    * can automatically run and verify unit tests written using the
+      [AUnit](https://github.com/bxparks/AUnit) testing framework
+1. [Jenkins Integration](jenkins/) (**Obsolete**)
+    * provides Continuous Integration (CI) of unit tests upon changes to the
+      source code repository.
+    * depends on the `auniter.sh` described above.
     * As of v1.8 or so, I no longer use this integration because:
         1. the Arduino IDE is simply too slow, with some of my projects taking
             1-2 hours to run through all the test suites,
@@ -42,23 +47,24 @@ There are 3 components to the **AUniter** package:
             [broken --build-properties
             flag](https://github.com/arduino/arduino-cli/issues/846), and,
         1. The Jenkins service is too brittle and cumbersome to maintain.
-    * I have started to use the
-      EpoxyDuino (https://github.com/bxparks/EpoxyDuino) project
-      more frequently as an alternative, even though it cannot handle the
-      Arduino programs that depend on specific hardware.
-1. A [Badge Service](BadgeService/) running on
-   [Google Cloud Functions](https://cloud.google.com/functions/)
-   that allows the locally hosted Jenkins system to update the status of the
-   build, so that an indicator badge can be displayed on a source control
-   repository like GitHub.
-    * This depends on the Jenkins Integration described above.
+    * I recommend using the [EpoxyDuino](https://github.com/bxparks/EpoxyDuino)
+      project to run unit tests on Linux, MacOS, or FreeBSD desktop machines.
+        * EpoxyDuino allows AUnit tests to be run inside [GitHub
+          Actions](https://docs.github.com/en/actions)
+1. [Badge Service](BadgeService/) (**Obsolete**)
+    * runs on [Google Cloud Functions](https://cloud.google.com/functions/)
+    * allows the locally hosted Jenkins system to update the status of the
+      build, so that an indicator badge can be displayed on a source control
+      repository like GitHub.
+    * depends on the Jenkins Integration described above
     * As of v1.8 or so, I no longer use this service, because the Arduino IDE
       is too slow to handle the number of INO files that I needed to compile in
       my Continuous Integration pipeline. I may revisit this when Arduino-CLI
       fixes the broken parser of its `--build-properties` flag.
 
 The `auniter.sh` script uses the command line mode of the
-[Arduino IDE binary](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc).
+[Arduino IDE binary](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc),
+or the [Arduino CLI](https://arduino.github.io/arduino-cli/) command line tool.
 Here are some tasks that you can perform on the command line using the
 `auniter.sh` script (the following examples use the `auniter` alias for
 `auniter.sh` for conciseness):
@@ -90,9 +96,9 @@ Here are some tasks that you can perform on the command line using the
 
 The `auniter.sh` script uses an
 [INI file](https://en.wikipedia.org/wiki/INI_file)
-configuration file
-normally located at `$HOME/.auniter.ini`. It contains various user-defined
-configurations and aliases which look like this:
+configuration file normally located at `$HOME/.auniter.ini`. It contains various
+user-defined configurations and aliases which look like this:
+
 ```ini
 [auniter]
   monitor = picocom -b $baud --omap crlf --imap lfcrlf --echo $port
@@ -120,7 +126,9 @@ configurations and aliases which look like this:
   preprocessor = -DAUNITER_MICRO -DAUNITER_BUTTON=3
 ```
 
-**Version**: 1.9.1 (2020-05-21)
+See [sample.auniter.ini](tools/sample.auniter.ini) for a bigger example.
+
+**Version**: 1.10.0 (2023-06-18)
 
 **Changelog**: [CHANGELOG.md](CHANGELOG.md)
 
@@ -128,8 +136,9 @@ configurations and aliases which look like this:
 
 1. See [AUniter Tools](tools/) to install the `auniter.sh` command line tools.
 1. See [AUniter Jenkins Integration](jenkins/) to integrate with Jenkins.
+   (**Obsolete**)
 1. See [AUniter Badge Service](BadgeService/) to display the
-   build status in the source repository.
+   build status in the source repository. (**Obsolete**)
 
 ## System Requirements
 
@@ -164,6 +173,17 @@ so I do not know if it would work on that.
   due to [Issue #4](https://github.com/bxparks/AUniter/issues/4).
 * Arduino-CLI has a broken parser for its `--build-properties` flag, so
   `-D` flags with a string does not work.
+* The `auniter.sh` is a bash script that has become far too complex. It should
+  probably be rewritten in some other language, but other options may introduce
+  their own issues:
+    * Python is a good candidate. The language is simple and maintainable,
+      but Python packaging is an incomprehensible mess. It is non-trivial
+      to create a working Python3 environment.
+    * Go language. Creates a single, statically linked binary, but it may be too
+      low-level for something like `auniter.sh`.
+    * Perl seems like a great fit. But Perl has a convoluted language that looks
+      like modem noise. It tends to produce write-only, read-never,
+      unmaintainable code that I have no tolerance for anymore.
 
 ## Alternatives Considered
 
@@ -226,10 +246,10 @@ The [Arduino CLI](https://github.com/arduino/arduino-cli) is currently in alpha
 stage. I did not learn about it until I had built the `AUniter` tools. It is a
 Go Lang program which interacts relatively nicely with the Arduino IDE.
 
-Version 1.8 includes an initial integration with Arduino-CLI and exposes
-that functionality through the `--cli` flag. However, the Arduino-CLI has a
-broken parser for its `--build-properties` flag, so it does not support `-D`
-flags that contain strings.
+The `--cli` flag in `auniter.sh` will cause `auniter.sh` to use the Arduino CLI
+instead of the Arduino IDE instead. Some ugly hacks were required to support the
+`-D macro=value` flag because the Arduino CLI does not support this feature
+directly.
 
 ### Arduino-Makefile
 
@@ -308,13 +328,18 @@ describes how to actually to use these programs.
 
 ## Feedback and Support
 
-If you have any questions, comments, bug reports, or feature requests, please
-file a GitHub ticket or send me an email. I'd love to hear about how this
-software and its documentation can be improved. Instead of forking the
-repository to modify or add a feature for your own projects, let me have a
-chance to incorporate the change into the main repository so that your external
-dependencies are simpler and so that others can benefit. I can't promise that I
-will incorporate everything, but I will give your ideas serious consideration.
+If you have any questions, comments, or feature requests for this library,
+please use the [GitHub
+Discussions](https://github.com/bxparks/AUniter/discussions) for this project.
+If you have a bug report, please file a ticket in [GitHub
+Issues](https://github.com/bxparks/AUniter/issues). Feature requests should go
+into Discussions first because they often have alternative solutions which are
+useful to remain visible, instead of disappearing from the default view of the
+Issue tracker after the ticket is closed.
+
+Please refrain from emailing me directly unless the content is sensitive. The
+problem with email is that I cannot reference the email conversation when other
+people ask similar questions later.
 
 ## Authors
 

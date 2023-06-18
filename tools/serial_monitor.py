@@ -140,6 +140,10 @@ def validate_test(port, baud, timeout):
 
 
 # See https://stackoverflow.com/questions/12090503
+#
+# You can also run this from the command line
+# (https://stackoverflow.com/questions/69496787):
+#   $ python3 -m serial.tools.list_ports
 def list_ports():
     """List the available serial ports."""
     for comport in serial.tools.list_ports.comports():
