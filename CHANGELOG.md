@@ -1,6 +1,7 @@
 # Changelog
 
 * Unreleased
+* 1.10.0 (2023-06-18)
     * Add `--clean` flag to `auniter.sh`
         * tells the Arduino-CLI tool to clean its build cache.
         * Sometimes it caches too aggressively and does not detect changes to

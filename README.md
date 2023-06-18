@@ -26,7 +26,8 @@ and build configurations which are supported by the Arduino IDE. There is no
 duplicate installs of boards and libraries because the build and upload steps go
 through the Arduino IDE binary in command line mode.
 
-There are 3 components to the **AUniter** package:
+There are 3 components to the **AUniter** package, of which 2 of them are
+obsolete, so the only remaining tool is the `auniter.sh` script:
 
 1. [`tools/auniter.sh`](tools/)
     * compile, upload, and monitor Arduino programs using a command
@@ -166,6 +167,17 @@ so I do not know if it would work on that.
   due to [Issue #4](https://github.com/bxparks/AUniter/issues/4).
 * Arduino-CLI has a broken parser for its `--build-properties` flag, so
   `-D` flags with a string does not work.
+* The `auniter.sh` is a bash script that has become far too complex. It should
+  probably be rewritten in some other language, but other options may introduce
+  their own issues:
+    * Python is a good candidate. The language is simple and maintainable,
+      but Python packaging is an incomprehensible mess. It is non-trivial
+      to create a working Python3 environment.
+    * Go language. Creates a single, statically linked binary, but it may be too
+      low-level for something like `auniter.sh`.
+    * Perl seems like a great fit. But Perl has a convoluted language that looks
+      like modem noise. It tends to produce write-only, read-never,
+      unmaintainable code that I have no tolerance for anymore.
 
 ## Alternatives Considered
 
