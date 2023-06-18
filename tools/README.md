@@ -170,10 +170,10 @@ your home directory. Starting with v1.8, the `auniter.ini` file is searched in
 the following order:
 
 1. Use the value of --config flag if it is given, else,
-2. Look for 'auniter.ini' in the current directory, else,
-3. Look for 'auniter.ini' in any parent directory recursively until `/`, else,
-4. Look for '$HOME/auniter.ini', else,
-5. Look for '$HOME/.auniter.ini'.
+2. Look for `auniter.ini` in the current directory, else,
+3. Look for `auniter.ini` in any parent directory recursively until `/`, else,
+4. Look for `$HOME/auniter.ini`, else,
+5. Look for `$HOME/.auniter.ini`.
 
 I typically use only a single `$HOME/.auniter.ini` file, but occasionally, it is
 useful to override the default with a project-specific `auniter.ini` file.
