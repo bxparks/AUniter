@@ -28,13 +28,15 @@ through the Arduino IDE binary in command line mode.
 
 There are 3 components to the **AUniter** package:
 
-1. A command line tool [`tools/auniter.sh`](tools/) that can compile and upload
-   Arduino programs. It can also upload unit tests written in
-   [AUnit](https://github.com/bxparks/AUnit) and validate the success and
-   failure of the unit tests.
-1. A locally hosted [Jenkins Integration](jenkins/) to provide Ccontinuous
-   Integration (CI) of unit tests upon changes to the source code repository.
-    * This depends on the `auniter.sh` described above.
+1. [`tools/auniter.sh`](tools/)
+    * compile, upload, and monitor Arduino programs using a command
+      line interface.
+    * can automatically run and verify unit tests written using the
+      [AUnit](https://github.com/bxparks/AUnit) testing framework
+1. [Jenkins Integration](jenkins/) (**Obsolete**)
+    * provides Continuous Integration (CI) of unit tests upon changes to the
+      source code repository.
+    * depends on the `auniter.sh` described above.
     * As of v1.8 or so, I no longer use this integration because:
         1. the Arduino IDE is simply too slow, with some of my projects taking
             1-2 hours to run through all the test suites,
@@ -42,16 +44,16 @@ There are 3 components to the **AUniter** package:
             [broken --build-properties
             flag](https://github.com/arduino/arduino-cli/issues/846), and,
         1. The Jenkins service is too brittle and cumbersome to maintain.
-    * I have started to use the
-      EpoxyDuino (https://github.com/bxparks/EpoxyDuino) project
-      more frequently as an alternative, even though it cannot handle the
-      Arduino programs that depend on specific hardware.
-1. A [Badge Service](BadgeService/) running on
-   [Google Cloud Functions](https://cloud.google.com/functions/)
-   that allows the locally hosted Jenkins system to update the status of the
-   build, so that an indicator badge can be displayed on a source control
-   repository like GitHub.
-    * This depends on the Jenkins Integration described above.
+    * I recommend using the [EpoxyDuino](https://github.com/bxparks/EpoxyDuino)
+      project to run unit tests on Linux, MacOS, or FreeBSD desktop machines.
+        * EpoxyDuino allows AUnit tests to be run inside [GitHub
+          Actions](https://docs.github.com/en/actions)
+1. A [Badge Service](BadgeService/) (**Obsolete**)
+    * runs on [Google Cloud Functions](https://cloud.google.com/functions/)
+    * allows the locally hosted Jenkins system to update the status of the
+      build, so that an indicator badge can be displayed on a source control
+      repository like GitHub.
+    * depends on the Jenkins Integration described above
     * As of v1.8 or so, I no longer use this service, because the Arduino IDE
       is too slow to handle the number of INO files that I needed to compile in
       my Continuous Integration pipeline. I may revisit this when Arduino-CLI
@@ -120,7 +122,7 @@ configurations and aliases which look like this:
   preprocessor = -DAUNITER_MICRO -DAUNITER_BUTTON=3
 ```
 
-**Version**: 1.9.1 (2020-05-21)
+**Version**: 1.9.1 (2021-05-21)
 
 **Changelog**: [CHANGELOG.md](CHANGELOG.md)
 

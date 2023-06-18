@@ -1,11 +1,40 @@
 # Changelog
 
 * Unreleased
-    * Add `--clean` flag to `auniter.sh` which tells Arduino-CLI to clean its
-      build cache. Sometimes it caches too aggressively and does not detected
-      changes to Core files.
-    * Allow `--port` to be `none`, to allow an ATtiny85 to be programmed
-      through USBtinyISP instead of the serial port.
+    * Add `--clean` flag to `auniter.sh`
+        * tells the Arduino-CLI tool to clean its build cache.
+        * Sometimes it caches too aggressively and does not detect changes to
+          third party Core files.
+    * Update `--port {value}` flag t of `auniter.sh`
+        * Allow `none` value to allow an ATtiny85 to be programmed
+          through USBtinyISP instead of the serial port.
+        * Allow glob such as `/dev/ttyACM*` or just `ACM*`.
+            * Tells the script to select the first `/dev/ttyACM*` port that
+              matches the glob.
+            * Added to support the Adafruit ItsyBitsy M4 which seems to have a
+              flaky UF2 bootloader such that new firmware is flashed at
+              `/dev/ttyACM0`, but upon reboot, the device appears at
+              `/dev/ttyACM1`, which causes lots of confusion.
+    * Add `--delay N` flag to `auniter.sh`
+        * Some boards, especially those using UF2 bootloaders, take too much
+          time to reboot, causing the serial monitor to fail with an error
+          because there is no serial port ready yet.
+        * This flag allows a short delay before the serial monitor is fired up.
+    * Update `sample.auniter.ini`
+        * Update `nodemcuv2` configuration to be compatible with latest
+          ESP8266 core software.
+        * Add additional boards, e.g. SparkFun Pro Micro, Arduino Pro Mini,
+          Seeeduino XIAO M0, Adafruit ItsyBitsy M0 and M4, Teensy 3.2
+    * Support only a single board in a single `auniter.sh` command
+        * Previously allows a comma-separate list of `{board}:{port}` arguments
+          e.g. `auniter.sh test nano:USB0,esp8266:USB1,esp32:USB2
+          SampleTest.ino`.
+        * This feature was never reliable because the USB port of a
+          microcontroller would be randomly changed by the host operating
+          system.
+        * And the workflow of compiling the firmware, flashing it, and running
+          the unit tests was far too slow, and would sometimes fail for no
+          apparent reason.
 * 1.9.1 (2021-05-21)
     * Support `-D MACRO=value` when using `--cli` flag to invoke the ArduinoCLI
       using the new `--build-property` flag.
