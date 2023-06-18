@@ -24,7 +24,8 @@ right into the
 itself. Therefore, the AUniter package is able to support all boards, libraries,
 and build configurations which are supported by the Arduino IDE. There is no
 duplicate installs of boards and libraries because the build and upload steps go
-through the Arduino IDE binary in command line mode.
+through the Arduino IDE binary in command line mode, or the Arduino CLI command
+line tool.
 
 There are 3 components to the **AUniter** package, of which 2 of them are
 obsolete, so the only remaining tool is the `auniter.sh` script:
@@ -49,7 +50,7 @@ obsolete, so the only remaining tool is the `auniter.sh` script:
       project to run unit tests on Linux, MacOS, or FreeBSD desktop machines.
         * EpoxyDuino allows AUnit tests to be run inside [GitHub
           Actions](https://docs.github.com/en/actions)
-1. A [Badge Service](BadgeService/) (**Obsolete**)
+1. [Badge Service](BadgeService/) (**Obsolete**)
     * runs on [Google Cloud Functions](https://cloud.google.com/functions/)
     * allows the locally hosted Jenkins system to update the status of the
       build, so that an indicator badge can be displayed on a source control
@@ -61,7 +62,8 @@ obsolete, so the only remaining tool is the `auniter.sh` script:
       fixes the broken parser of its `--build-properties` flag.
 
 The `auniter.sh` script uses the command line mode of the
-[Arduino IDE binary](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc).
+[Arduino IDE binary](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc),
+or the [Arduino CLI](https://arduino.github.io/arduino-cli/) command line tool.
 Here are some tasks that you can perform on the command line using the
 `auniter.sh` script (the following examples use the `auniter` alias for
 `auniter.sh` for conciseness):
@@ -93,9 +95,9 @@ Here are some tasks that you can perform on the command line using the
 
 The `auniter.sh` script uses an
 [INI file](https://en.wikipedia.org/wiki/INI_file)
-configuration file
-normally located at `$HOME/.auniter.ini`. It contains various user-defined
-configurations and aliases which look like this:
+configuration file normally located at `$HOME/.auniter.ini`. It contains various
+user-defined configurations and aliases which look like this:
+
 ```ini
 [auniter]
   monitor = picocom -b $baud --omap crlf --imap lfcrlf --echo $port
@@ -123,7 +125,9 @@ configurations and aliases which look like this:
   preprocessor = -DAUNITER_MICRO -DAUNITER_BUTTON=3
 ```
 
-**Version**: 1.9.1 (2021-05-21)
+See [sample.auniter.ini](tools/sample.auniter.ini) for a bigger example.
+
+**Version**: 1.10.0 (2023-06-18)
 
 **Changelog**: [CHANGELOG.md](CHANGELOG.md)
 
@@ -131,8 +135,9 @@ configurations and aliases which look like this:
 
 1. See [AUniter Tools](tools/) to install the `auniter.sh` command line tools.
 1. See [AUniter Jenkins Integration](jenkins/) to integrate with Jenkins.
+   (**Obsolete**)
 1. See [AUniter Badge Service](BadgeService/) to display the
-   build status in the source repository.
+   build status in the source repository. (**Obsolete**)
 
 ## System Requirements
 
@@ -240,10 +245,10 @@ The [Arduino CLI](https://github.com/arduino/arduino-cli) is currently in alpha
 stage. I did not learn about it until I had built the `AUniter` tools. It is a
 Go Lang program which interacts relatively nicely with the Arduino IDE.
 
-Version 1.8 includes an initial integration with Arduino-CLI and exposes
-that functionality through the `--cli` flag. However, the Arduino-CLI has a
-broken parser for its `--build-properties` flag, so it does not support `-D`
-flags that contain strings.
+The `--cli` flag in `auniter.sh` will cause `auniter.sh` to use the Arduino CLI
+instead of the Arduino IDE instead. Some ugly hacks were required to support the
+`-D macro=value` flag because the Arduino CLI does not support this feature
+directly.
 
 ### Arduino-Makefile
 
