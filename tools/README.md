@@ -5,9 +5,12 @@ the [Arduino Commandline
 Interface](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc).
 Starting with v1.8, the `auniter.sh` script also supports the
 [Arduino-CLI](https://github.com/arduino/arduino-cli) binary. It has been
-extensively tested on Ubuntu Linux 18.04 and 20.04. It works on my MacOS 10.14.6
-(Mojave) laptop but testing is not as extensive. I do not have a machine running
-MacOS 10.15 (Catalina).
+extensively tested on Ubuntu Linux 18.04, 20.04, and 22.04. It used to work on
+my MacOS 10.14.6 (Mojave) which I can no longer test because I don't have a
+machine that runs that version. I have done some testing on MacOS 11 (Big Sur)
+and 12 (Monterey), though I don't do much software development on Macs so they
+have not been tested extensively. I have no Mac computer that can run the latest
+MacOS versions, so I am unable to test anything on those versions.
 
 The `auniter.sh` script takes advantage of the command line interface to provide
 some useful extended functionality:
@@ -25,7 +28,7 @@ started when changes to the git repository are detected, and unit tests can be
 executed on Arduino boards attached to the serial port of the local machine. The
 Jenkins dashboard can display the status of builds and tests.
 
-The `auniter.sh` script uses the a config file (often located at
+The `auniter.sh` script uses a config file (often located at
 `$HOME/.auniter.ini`) to define named *environments* that correspond to specific
 hardware devices. The environment name takes the form `env:{name}` (e.g.
 `env:nano`). The config file also allow mapping of a short alias (e.g. `uno`) to
@@ -37,13 +40,13 @@ AUnit unit test to determine if the test passed or failed.
 
 ## Installation
 
-### Ubuntu Linux (18.04, 20.04)
+### Ubuntu Linux (18.04, 20.04, 22.04)
 
 1. Install the [Arduino IDE](https://www.arduino.cc/en/Main/Software). The
-following versions have been tested: 1.8.5, 1.8.6, 1.8.7, 1.8.13.
+following versions have been tested: 1.8.5, 1.8.6, 1.8.7, 1.8.13, 1.8.19.
     * Make a note of where the `arduino/` directory is installed.
     * I usually rename the directory to contain the version number, for example,
-      `mv arduino arduino-1.8.13`.
+      `mv arduino arduino-1.8.19`.
 1. Install the [arduino-cli](https://github.com/arduino/arduino-cli).
     * Make a note of where you installed the `arduino-cli` binary.
     * I normally install it in my `$HOME/bin` directory.
@@ -61,6 +64,9 @@ following versions have been tested: 1.8.5, 1.8.6, 1.8.7, 1.8.13.
         * tested with v2016.01.0
         * `$ sudo apt install microcom`
 
+I do not use Arduino IDE 2, so I cannot give any information. I suspect that
+`auniter.sh` is no longer compatible with Arduino IDE 2.
+
 ### MacOS (10.14.6 Mojave)
 
 Most of the functionality seems to work under MacOS 10.14 (Mojave), but I have
@@ -71,7 +77,7 @@ the MacOS by default. You need to install the GNU versions as described below.
 
 1. Install [Home Brew](https://brew.sh/)
 1. Install the [Arduino IDE](https://www.arduino.cc/en/Main/Software). The
-   following versions have been tested: 1.8.13.
+   following versions have been tested: 1.8.19.
     * Make a note of where you installed the app.
 1. Install the [arduino-cli](https://github.com/arduino/arduino-cli).
     * Make a note of where you installed the `arduino-cli` binary.
@@ -122,21 +128,21 @@ At least one of these must be defined in your `$HOME/.bashrc` file.
 
 **Ubuntu Linux**
 
-The varibles will look something like this:
+The variables will look something like this:
 
 ```
-export AUNITER_ARDUINO_BINARY="$HOME/dev/arduino-1.8.13/arduino"`
+export AUNITER_ARDUINO_BINARY="$HOME/dev/arduino-1.8.19/arduino"`
 export AUNITER_ARDUINO_CLI="$HOME/bin/arduino-cli"
 ```
 
 (assuming that the Arduino IDE was installed into a directory called
-`arduino-1.8.13/`).
+`arduino-1.8.19/`).
 
 **MacOS**
 
 The variables will look something like this:
 ```
-export AUNITER_ARDUINO_BINARY="$HOME/dev/Arduino-1.8.13.app/Contents/MacOS/Arduino`
+export AUNITER_ARDUINO_BINARY="$HOME/dev/Arduino-1.8.19.app/Contents/MacOS/Arduino`
 export AUNITER_ARDUINO_CLI='/usr/local/bin/arduino-cli'
 ```
 
@@ -282,7 +288,7 @@ file, and then prints out the content of that file.
 ```
 $ auniter config
 Reading config: /home/brian/.auniter.ini
-Using IDE: AUNITER_ARDUINO_BINARY=/home/brian/dev/arduino-1.8.13/arduino
+Using IDE: AUNITER_ARDUINO_BINARY=/home/brian/dev/arduino-1.8.19/arduino
 + cat /home/brian/.auniter.ini
 [...]
 ```
@@ -815,11 +821,11 @@ There are 2 problems with the above code:
 1. If your program is composed of multiple files (one `*.ino`, and
 several `*.cpp` and `*.h` files), then you need to replicate those
 lines for each file where you need to do different things for different
-target enviroments.
+target environments.
 1. If you compile your program with the Arduino IDE, none of these `AUNITER_*`
 macros are defined, so you will hit the `#error` message.
 
-The recommended solution is to create a `config.h` file that centrallizes
+The recommended solution is to create a `config.h` file that centralizes
 the dependencies on a particular AUniter target environment, and use `#include`
 to include that file in other `*.h` and `*.cpp` files. The macro `AUNITER` is
 the one macro that is automatically defined when the `auniter.sh` script is used
@@ -864,7 +870,7 @@ In all the other `*.cpp` and `*.h` files, you would just do:
 
 * [Teensyduino](https://pjrc.com/teensy/teensyduino.html) is not
   currently supported because of
-[Issue #4](https://github.com/bxparks/AUniter/issues/4).
+  [Issue #4](https://github.com/bxparks/AUniter/issues/4).
 * When using the Arduino-CLI (through the `--cli` flag), the `preprocessor`
   flags are passed into the `arduino-cli` binary using the `--build-properties`
   flag. Unfortunately, the Arduino-CLI has a broken parser for that flag (see
