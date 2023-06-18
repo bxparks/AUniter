@@ -21,7 +21,8 @@ vastly different build environment such as
 The underlying tool is a shell wrapper around the command line abilities built
 right into the
 [Arduino IDE](https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc)
-itself. Therefore, the AUniter package is able to support all boards, libraries,
+itself or the [Arduino CLI](https://arduino.github.io/arduino-cli/).
+Therefore, the AUniter package is able to support all boards, libraries,
 and build configurations which are supported by the Arduino IDE. There is no
 duplicate installs of boards and libraries because the build and upload steps go
 through the Arduino IDE binary in command line mode, or the Arduino CLI command
