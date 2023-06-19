@@ -97,6 +97,11 @@ the MacOS by default. You need to install the GNU versions as described below.
         * tested with v3.1
         * `$ brew install picocom`
 
+### MacOS 11 (Big Sur), 12 (Monterey)
+
+I have not done much testing on these MacOS versions. I *think* the installation
+steps are similar to MacOS Mojave.
+
 ### Windows
 
 Windows is definitely not supported because the scripts require the `bash`
@@ -117,7 +122,7 @@ The latest development version can be installed by cloning the
 ### Environment Variables
 
 There are 2 environment variables that must be defined, depending on whether you
-use the `auniter.sh` script with the Arduino IDE or with arduino-cli:
+use the `auniter.sh` script with the Arduino IDE or the Arduino CLI.
 
 * `AUNITER_ARDUINO_BINARY` variable contains the location of the Arduino IDE
   binary.
@@ -807,6 +812,7 @@ target environment. For example in the
 [sample.auniter.ini](sample.auniter.ini) file, the `nano` environment
 defines the `AUNITER_NANO` preprocessor macro, so that you can do
 something like:
+
 ```c++
 #if defined(AUNITER_NANO)
   ...
@@ -818,6 +824,7 @@ something like:
 ```
 
 There are 2 problems with the above code:
+
 1. If your program is composed of multiple files (one `*.ino`, and
 several `*.cpp` and `*.h` files), then you need to replicate those
 lines for each file where you need to do different things for different
@@ -861,10 +868,10 @@ Putting all this together, the `config.h` would look like this:
 ```
 
 In all the other `*.cpp` and `*.h` files, you would just do:
+
 ```c++
 #include "config.h"
 ```
-
 
 ## Limitations
 
