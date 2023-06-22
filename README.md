@@ -95,6 +95,9 @@ for even more conciseness):
 * `$ auniter upmon nano:USB0 Blink.ino`
     * upload the `Blink.ino` sketch and monitor the serial port using a
       user-configurable terminal program (e.g. `picocom`) on `/dev/ttyUSB0`
+* `$ auniter upfs esp32:USB0 data`
+    * upload the `data` directory as a LittleFS filesystem to the ESP32 on
+      `/dev/ttyUSB0`
 
 The `auniter.sh` script uses an
 [INI file](https://en.wikipedia.org/wiki/INI_file)

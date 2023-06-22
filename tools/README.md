@@ -254,11 +254,12 @@ Usage: auniter.sh [-h] [auniter_flags] command [command_flags] [args ...]
        auniter.sh monitor [{env}:]{port}
        auniter.sh mon [{env}:]{port}
        auniter.sh upmon {env}:{port} file
+       auniter.sh upfs {env}:{port} dir
 [...]
 ```
 
-The 7 subcommands (`envs`, `ports`, `verify`, `upload`, `test`, `monitor`,
-`upmon`) are described below.
+The 8 subcommands (`envs`, `ports`, `verify`, `upload`, `test`, `monitor`,
+`upmon`, `upfs`) are described below.
 
 ### AUniter Flags
 
@@ -493,6 +494,30 @@ $ auniter upmon -o file.txt --eof END uno:USB0 Blink.ino
 When the string `END` is found anywhere in the output line from microcontroller,
 the `auniter` command will close the output file and return. The string that
 contains the `END` marker will be included as the final line of the file.
+
+### Subcommand: upfs (Upload LittleFS Data Directory)
+
+This is a convenience wrapper around 2 command line utilities
+([mklittlefs](https://github.com/earlephilhower/mklittlefs) and
+[esptool.py](https://pypi.org/project/esptool/))
+which are used to create and upload LittleFS filesystems on the ESP8266 and
+ESP32:
+
+```
+$ auniter upfs esp32:USB0 data
+$ auniter upfs esp8266:USB0 data
+```
+
+First calls `mklittlefs` to package the given `data` directory into a temporary
+file in `/tmp/xxx.littlefs.bin`. Then calls `esptool.py` to upload the
+`littlefs.bin` file to the given microcontroller.
+
+The command line flag values passed into `mklittlefs` and `esptool.py` were
+deduced from random pages on the internet, and by trial and error while parsing
+through the logging output of the
+[arduino-esp32fs-plugin](https://github.com/lorol/arduino-esp32fs-plugin) for
+the Arduino IDE. They work for me, but I am not an expert on this topic. They
+may not work for different flash partitions.
 
 ## Advanced Usage
 

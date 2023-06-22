@@ -64,6 +64,7 @@ Usage: auniter.sh [-h] [auniter_flags] command [command_flags] [args ...]
        auniter.sh test {env}:{port} files ...
        auniter.sh monitor|mon [{env}:]{port}
        auniter.sh upmon [(--output|-o) outfile] [--eof {eof}] {env}:{port} file
+       auniter.sh upfs {env}:{port} dir
 END
 }
 
@@ -103,6 +104,8 @@ Commands (command):
             will terminate the file. If --eof is given, the program will return
             to the user right after the EOF string is detected. The EOF string
             will be included in the output file.
+    upfs    Upload the given directory to an ESP32 or an ESP8266 as a LittleFS
+            file.
 
 Command Flags (command_flags):
     --baud baud
@@ -272,7 +275,7 @@ function list_envs() {
     $SED -n -e 's/^\[env:\(.*\)\]/\1/p' "$config_file"
 }
 
-# Parse the {env}:{port} specifier, setting the following global variables:
+# Parse the given {env}:{port} argument, and set the following global variables:
 #   - $env - name of the environment
 #   - $env_search - non-empty indicates the env was found in auniter.ini
 #   - $board_alias - board alias in auniter.ini
@@ -734,6 +737,81 @@ function handle_upmon() {
     fi
 }
 
+# Collect the given data directory into a temporary 'littlefs.bin' file, then
+# upload it to the given env:port. Only ESP8266 or ESP32 are supported.
+function handle_upfs() {
+    # Parse the command line arguments
+    if [[ $# -lt 2 ]]; then
+        echo 'No env or data directory given'
+        usage
+    fi
+    local env_and_port=$1
+    local datadir=$2
+
+    # Parse the {env}:{port}
+    parse_env_and_port "$env_and_port"
+    if [[ "$env_search" == '' ]]; then
+        echo "FAILED $mode: Unknown environment '$env'"
+        usage
+    fi
+    local resolved_port=$(resolve_port "$port")
+
+    # Check for ESP8266 or ESP32
+    if [[ "$board" =~ esp8266 ]]; then
+        local target=esp8266
+    elif [[ "$board" =~ esp32 ]]; then
+        local target=esp32
+    else
+        echo 'Unsupported environment'
+        usage
+    fi
+
+    # Create and up the given data directory to the microcontroller
+    echo "Uploading data directory: $datadir"
+    if [[ "$target" == 'esp8266' ]]; then
+        cmd="mklittlefs \
+-c "$datadir" \
+-p 256 \
+-b 8192 \
+-s $((2024*1024)) \
+/tmp/data.esp8266.littlefs.bin"
+        echo "+ $cmd"
+        $cmd
+
+        cmd="esptool.py \
+--chip esp8266 \
+--port "$resolved_port" \
+--baud 460800 \
+write_flash \
+0x200000 \
+/tmp/data.esp8266.littlefs.bin"
+        echo "+ $cmd"
+        $cmd
+    else
+        cmd="mklittlefs \
+-c "$datadir" \
+-p 256 \
+-b 4096 \
+-s $((1408*1024)) \
+/tmp/data.esp32.littlefs.bin"
+        echo "+ $cmd"
+        $cmd
+
+        cmd="esptool.py \
+--chip esp32 \
+--port "$resolved_port" \
+--baud 921600 \
+write_flash -z \
+--flash_mode dio \
+--flash_freq 80m \
+--flash_size detect \
+0x290000 \
+/tmp/data.esp32.littlefs.bin"
+        echo "+ $cmd"
+        $cmd
+    fi
+}
+
 # Read in the default flags in the [auniter] section of the config file.
 # Set the following global variables:
 #   * monitor
@@ -806,6 +884,7 @@ function main() {
         verify|compile) mode='verify'; handle_build "$@" ;;
         upload) handle_build "$@" ;;
         test) handle_build "$@" ;;
+        upfs) handle_upfs "$@" ;;
 
         monitor|mon) handle_monitor "$@" ;;
         upmon) handle_upmon "$@" ;;
