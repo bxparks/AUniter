@@ -272,7 +272,7 @@ function list_envs() {
     if [[ ! -f "$config_file" ]]; then
         return
     fi
-    $SED -n -e 's/^\[env:\(.*\)\]/\1/p' "$config_file"
+    $SED -n -e 's/^\[env:\(.*\)\]/\1/p' "$config_file" | sort
 }
 
 # Parse the given {env}:{port} argument, and set the following global variables:
