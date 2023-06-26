@@ -363,12 +363,12 @@ function process_env_and_files() {
     if [[ "$env_search" == '' ]]; then
         echo "FAILED $mode: Unknown environment '$env'" \
             | tee -a $summary_file
-        continue
+        return
     fi
     if [[ "$board" == '' ]]; then
         echo "FAILED $mode: board '$board_alias' not found" \
             | tee -a $summary_file
-        continue
+        return
     fi
     if [[ "$port" == '' && "$mode" != 'verify' ]]; then
         if [[ "$skip_missing_port" == 0 ]]; then
@@ -378,7 +378,7 @@ function process_env_and_files() {
             echo "SKIPPED $mode: Unknown port for $env" \
                 | tee -a $summary_file
         fi
-        continue
+        return
     fi
 
     # Determine the effective $preprocessor for the current environment by
